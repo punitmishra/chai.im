@@ -1,3 +1,8 @@
+### Chai.im -- Connect with everyone :) 
+
+### News and Updates @ Discord: [https://discord.gg/6hXkKcTmvH]
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
