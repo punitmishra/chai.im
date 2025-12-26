@@ -1,0 +1,268 @@
+# CLAUDE.md
+
+> This file provides guidance to Claude Code (claude.ai/code) when working with this repository.
+
+## Project Overview
+
+**Chai.im** is a secure, high-throughput end-to-end encrypted chat platform featuring:
+
+- **E2E Encryption**: Signal Protocol (X3DH + Double Ratchet)
+- **Authentication**: FIDO2/WebAuthn with hardware tokens
+- **Clients**: Next.js PWA (web) + Ratatui TUI (terminal)
+- **AI Features**: Local-only AI assistance (privacy-first)
+- **Infrastructure**: Rust backend on Fly.io, PostgreSQL
+
+## Quick Reference
+
+```bash
+# Development
+pnpm dev              # Web client (localhost:3000)
+pnpm server:dev       # Rust server (localhost:8080)
+cargo run -p chai-cli # Terminal client
+
+# Build
+pnpm build            # Build everything
+cargo build --release # Release binaries
+
+# Test
+cargo test            # Rust tests
+pnpm test             # TypeScript tests
+
+# Lint
+cargo clippy          # Rust linter
+pnpm lint             # TypeScript linter
+```
+
+## Repository Structure
+
+```
+chai.im/
+├── Cargo.toml                    # Rust workspace root
+├── package.json                  # pnpm workspace root
+├── pnpm-workspace.yaml           # Workspace definition
+├── turbo.json                    # Build orchestration
+├── fly.toml                      # Fly.io deployment
+│
+├── crates/                       # Rust crates
+│   ├── chai-crypto/              # Signal Protocol implementation
+│   │   ├── keys.rs               # Identity, prekey, DH keys
+│   │   ├── x3dh.rs               # X3DH key agreement
+│   │   ├── ratchet.rs            # Double Ratchet state machine
+│   │   ├── cipher.rs             # AES-256-GCM encryption
+│   │   └── session.rs            # Session management
+│   │
+│   ├── chai-server/              # Axum WebSocket server
+│   │   ├── handlers/auth.rs      # WebAuthn registration/login
+│   │   ├── ws/handler.rs         # WebSocket message routing
+│   │   ├── ws/connection.rs      # Connection management
+│   │   └── db/                   # PostgreSQL queries (SQLx)
+│   │
+│   ├── chai-protocol/            # Wire protocol (JSON messages)
+│   ├── chai-cli/                 # Ratatui terminal client
+│   └── chai-common/              # Shared types (UserId, etc.)
+│
+├── apps/
+│   └── web/                      # Next.js 14 PWA
+│       ├── src/app/              # App Router pages
+│       │   ├── (chat)/           # Chat layout group
+│       │   └── auth/             # Auth pages
+│       ├── src/components/       # React components
+│       ├── src/lib/crypto/       # WASM crypto wrapper
+│       ├── src/lib/ws/           # WebSocket client
+│       └── src/store/            # Zustand state stores
+│
+└── packages/
+    └── typescript-config/        # Shared TS configs
+```
+
+## Key Technical Details
+
+### Cryptography (chai-crypto)
+
+The crypto implementation follows the Signal Protocol specification:
+
+1. **Identity Keys** (Ed25519): Long-term signing keys
+2. **Signed Prekeys** (X25519): Medium-term DH keys, signed by identity
+3. **One-Time Prekeys** (X25519): Ephemeral keys consumed on first message
+4. **X3DH**: Initial key agreement (4 DH operations)
+5. **Double Ratchet**: Per-message key derivation with forward secrecy
+
+```rust
+// Key flow
+IdentityKeyPair::generate()     // Long-term key
+SignedPreKey::generate(id, &identity) // Signed with identity
+OneTimePreKey::generate(id)     // Ephemeral
+
+// Session establishment
+Session::initiate(&identity, peer_id, &bundle)  // Sender
+Session::receive(&identity, &spk, &otps, initial_msg) // Receiver
+
+// Message encryption
+session.encrypt(plaintext) -> EncryptedMessage
+session.decrypt(&encrypted) -> plaintext
+```
+
+### Server (chai-server)
+
+Axum-based WebSocket server with:
+- Connection management (online users)
+- Message routing (store & forward)
+- Prekey distribution
+- WebAuthn authentication
+
+Key files:
+- `ws/handler.rs` — WebSocket upgrade and message dispatch
+- `ws/connection.rs` — Track online users by ID
+- `handlers/auth.rs` — WebAuthn registration/authentication
+- `db/*.rs` — PostgreSQL queries (runtime, no compile-time checks)
+
+### Web Client (apps/web)
+
+Next.js 14 App Router with:
+- Zustand for state management
+- WASM crypto via wasm-bindgen
+- WebSocket with automatic reconnection
+- IndexedDB for message persistence (planned)
+
+Key stores:
+- `authStore` — User authentication state
+- `chatStore` — Conversations and messages
+- `connectionStore` — WebSocket connection state
+
+### CLI Client (chai-cli)
+
+Ratatui TUI with vim-like keybindings:
+- `j/k` — Navigate conversations
+- `i` — Insert mode (type message)
+- `:` — Command mode
+- `:q` — Quit
+
+## Database Schema
+
+PostgreSQL with SQLx (runtime queries):
+
+```sql
+-- Users with identity keys
+users (id, username, identity_key, created_at, updated_at)
+
+-- WebAuthn credentials
+webauthn_credentials (id, user_id, credential_id, public_key, counter)
+
+-- Prekey bundles for X3DH
+prekey_bundles (id, user_id, signed_prekey, signature, prekey_id)
+
+-- One-time prekeys (consumed on use)
+one_time_prekeys (id, user_id, prekey, prekey_id, used)
+
+-- Encrypted messages (ciphertext only!)
+messages (id, sender_id, recipient_id, ciphertext, message_type, created_at, delivered_at)
+```
+
+## Environment Variables
+
+```bash
+# Server (required)
+DATABASE_URL=postgres://user:pass@localhost/chai
+JWT_SECRET=your-secret-key
+RP_ID=localhost                   # WebAuthn relying party
+RP_ORIGIN=http://localhost:3000   # WebAuthn origin
+
+# Server (optional)
+PORT=8080
+RUST_LOG=info
+
+# Web client
+NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+```
+
+## Common Tasks
+
+### Adding a new message type
+
+1. Add variant to `ClientMessage` or `ServerMessage` in `chai-protocol/src/messages.rs`
+2. Add handler in `chai-server/src/ws/handler.rs`
+3. Update TypeScript types in `apps/web/src/lib/ws/types.ts`
+
+### Adding a new database table
+
+1. Create migration in `crates/chai-server/migrations/`
+2. Add query functions in `crates/chai-server/src/db/`
+3. Use runtime queries: `sqlx::query_as::<_, Type>(...)`
+
+### Updating crypto primitives
+
+1. Modify implementation in `crates/chai-crypto/src/`
+2. Rebuild WASM: `pnpm build:wasm`
+3. Update TypeScript wrapper in `apps/web/src/lib/crypto/`
+
+## Security Considerations
+
+- **Never log plaintext messages or keys**
+- **Use constant-time comparison for secrets**
+- **Validate all input from clients**
+- **Use parameterized queries (SQLx handles this)**
+- **Rotate signing keys periodically**
+
+## Deployment
+
+### Fly.io
+
+```bash
+fly launch --name chai-server
+fly postgres create --name chai-db
+fly secrets set DATABASE_URL=... JWT_SECRET=... RP_ID=... RP_ORIGIN=...
+fly deploy
+```
+
+### Local Development
+
+```bash
+# Start PostgreSQL
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:15
+
+# Set environment
+export DATABASE_URL=postgres://postgres:dev@localhost/chai
+
+# Run migrations
+cd crates/chai-server && sqlx migrate run
+
+# Start servers
+pnpm dev          # Terminal 1: Web client
+pnpm server:dev   # Terminal 2: Backend
+```
+
+## Troubleshooting
+
+### SQLx compile errors
+
+The project uses runtime queries (`query_as::<_, Type>`) to avoid needing `DATABASE_URL` at compile time. If you see sqlx errors, ensure you're not using `query_as!` macros.
+
+### WASM build fails
+
+```bash
+# Install wasm-pack
+cargo install wasm-pack
+
+# Rebuild
+cd crates/chai-crypto && wasm-pack build --target web
+```
+
+### OpenSSL errors
+
+```bash
+# macOS
+brew install openssl pkg-config
+export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl/lib/pkgconfig"
+```
+
+### Port already in use
+
+Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
+
+## Future Roadmap
+
+1. **Phase 1**: Core messaging (current)
+2. **Phase 2**: Group chats with sender keys
+3. **Phase 3**: Voice/video calls (WebRTC)
+4. **Phase 4**: Mobile apps (iOS/Android)
+5. **Phase 5**: Federation (Matrix-like)

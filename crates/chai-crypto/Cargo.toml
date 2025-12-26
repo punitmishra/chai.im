@@ -1,0 +1,52 @@
+[package]
+name = "chai-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "getrandom", "web-sys"]
+
+[dependencies]
+# Elliptic curve cryptography
+curve25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true }
+
+# Symmetric encryption
+aes-gcm = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+
+# Randomness
+rand = { workspace = true }
+rand_core = { workspace = true }
+getrandom = { workspace = true, optional = true }
+
+# Serialization
+serde = { workspace = true }
+bincode = { workspace = true }
+
+# Utils
+zeroize = { workspace = true }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+
+# WASM (optional)
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { version = "0.3", optional = true, features = ["console"] }
+
+[dev-dependencies]
+hex = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

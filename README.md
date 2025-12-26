@@ -1,75 +1,297 @@
-### Chai.im -- Connect with everyone :) 
+<p align="center">
+  <img src="https://img.shields.io/badge/E2E_Encrypted-Signal_Protocol-00D4AA?style=for-the-badge&logo=signal" alt="Signal Protocol">
+  <img src="https://img.shields.io/badge/Built_with-Rust-B7410E?style=for-the-badge&logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/Frontend-Next.js_14-000000?style=for-the-badge&logo=next.js" alt="Next.js">
+  <img src="https://img.shields.io/badge/Auth-FIDO2/WebAuthn-4285F4?style=for-the-badge&logo=google" alt="WebAuthn">
+</p>
 
-### News and Updates @ Discord: [https://discord.gg/6hXkKcTmvH]
+<h1 align="center">
+  <br>
+  <img src="https://raw.githubusercontent.com/punitmishra/chai.im/master/.github/chai-logo.png" alt="Chai.im" width="200">
+  <br>
+  Chai.im
+  <br>
+</h1>
 
+<h4 align="center">Military-grade encrypted messaging. Zero compromise on privacy.</h4>
 
-# Getting Started with Create React App
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#security">Security</a> •
+  <a href="#deployment">Deployment</a> •
+  <a href="#contributing">Contributing</a>
+</p>
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+---
 
-## Available Scripts
+## Why Chai.im?
 
-In the project directory, you can run:
+In an era of surveillance capitalism, **Chai.im** stands as a fortress for your conversations. Built from the ground up with security-first architecture, we use the same **Signal Protocol** trusted by journalists, activists, and security professionals worldwide.
 
-### `npm start`
+> **No plaintext ever touches our servers.** Your messages are encrypted end-to-end, and even we can't read them.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+---
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Features
 
-### `npm test`
+### Cryptographic Foundation
+- **Signal Protocol** — X3DH key agreement + Double Ratchet for forward secrecy
+- **AES-256-GCM** — Military-grade message encryption
+- **Ed25519/X25519** — Modern elliptic curve cryptography
+- **Perfect Forward Secrecy** — Compromise of long-term keys doesn't expose past messages
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Authentication
+- **FIDO2/WebAuthn** — Passwordless hardware key authentication
+- **YubiKey Support** — First-class support for hardware security keys
+- **Zero Trust** — No passwords to phish, no credentials to steal
 
-### `npm run build`
+### Experience
+- **Progressive Web App** — Install on any device, works offline
+- **Terminal Client** — Full-featured TUI for developers (Vim keybindings!)
+- **Code Snippets** — Syntax-highlighted code sharing with 100+ languages
+- **AI-Powered** — Local AI assistant (no cloud, no data leaving your device)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Architecture
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                          CLIENTS                                  │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌──────────────┐  │
+│  │   Next.js PWA   │    │   Ratatui CLI   │    │  Future iOS  │  │
+│  │   (WASM Crypto) │    │  (Native Rust)  │    │   /Android   │  │
+│  └────────┬────────┘    └────────┬────────┘    └──────────────┘  │
+│           │                      │                                │
+│           └──────────┬───────────┘                                │
+│                      │ WebSocket (WSS)                            │
+└──────────────────────┼───────────────────────────────────────────┘
+                       │
+┌──────────────────────┼───────────────────────────────────────────┐
+│                      ▼                                            │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                    Axum WebSocket Server                     │ │
+│  │  ┌─────────┐  ┌──────────────┐  ┌────────────────────────┐  │ │
+│  │  │  Auth   │  │   Message    │  │      Connection        │  │ │
+│  │  │WebAuthn │  │   Router     │  │       Manager          │  │ │
+│  │  └─────────┘  └──────────────┘  └────────────────────────┘  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                              │                                    │
+│                              ▼                                    │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                      PostgreSQL                              │ │
+│  │  ┌─────────┐  ┌──────────────┐  ┌────────────────────────┐  │ │
+│  │  │  Users  │  │   Prekeys    │  │   Encrypted Messages   │  │ │
+│  │  │ (keys)  │  │  (X3DH)      │  │     (ciphertext)       │  │ │
+│  │  └─────────┘  └──────────────┘  └────────────────────────┘  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                           SERVER                                  │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-### `npm run eject`
+### Monorepo Structure
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```
+chai.im/
+├── crates/                      # Rust workspace
+│   ├── chai-crypto/             # Signal Protocol → WASM
+│   ├── chai-server/             # Axum WebSocket server
+│   ├── chai-protocol/           # Wire protocol definitions
+│   ├── chai-cli/                # Terminal client (Ratatui)
+│   └── chai-common/             # Shared types
+│
+├── apps/
+│   └── web/                     # Next.js 14 PWA
+│       ├── src/app/             # App Router pages
+│       ├── src/lib/crypto/      # WASM crypto wrapper
+│       └── src/store/           # Zustand state stores
+│
+└── packages/
+    └── typescript-config/       # Shared TS configs
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+---
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Quick Start
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+### Prerequisites
 
-## Learn More
+- **Rust** 1.75+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- **Node.js** 20+ with **pnpm** (`npm i -g pnpm`)
+- **PostgreSQL** 15+ (or use Docker)
+- **wasm-pack** (`cargo install wasm-pack`)
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Installation
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# Clone the repository
+git clone https://github.com/punitmishra/chai.im.git
+cd chai.im
 
-### Code Splitting
+# Install dependencies
+pnpm install
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+# Set up environment
+cp .env.example .env
+# Edit .env with your PostgreSQL connection string
 
-### Analyzing the Bundle Size
+# Run database migrations
+cd crates/chai-server && sqlx migrate run
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+# Build WASM crypto module
+pnpm build:wasm
 
-### Making a Progressive Web App
+# Start development servers
+pnpm dev          # Next.js web client (port 3000)
+pnpm server:dev   # Rust backend (port 8080)
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### CLI Client
 
-### Advanced Configuration
+```bash
+# Build and run the terminal client
+cargo run -p chai-cli
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+# Vim-style keybindings:
+# j/k     - Navigate conversations
+# i       - Enter insert mode (type message)
+# :       - Command mode
+# :q      - Quit
+```
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Security
 
-### `npm run build` fails to minify
+### Threat Model
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+| Threat | Mitigation |
+|--------|------------|
+| Server Compromise | E2E encryption — server only sees ciphertext |
+| Man-in-the-Middle | TLS + cryptographic identity verification |
+| Credential Theft | FIDO2 hardware keys — nothing to steal |
+| Message Tampering | HMAC authentication on all messages |
+| Metadata Leakage | Minimal logging, encrypted at rest |
+| Replay Attacks | Message counters + ratcheting keys |
+
+### Cryptographic Primitives
+
+- **Key Agreement**: X3DH (Extended Triple Diffie-Hellman)
+- **Message Encryption**: Double Ratchet with AES-256-GCM
+- **Signatures**: Ed25519
+- **Key Derivation**: HKDF-SHA256
+- **Random Generation**: OS-provided CSPRNG
+
+### Audit Status
+
+> This project is under active development. A professional security audit is planned before production deployment.
+
+---
+
+## Deployment
+
+### Fly.io (Recommended)
+
+```bash
+# Install Fly CLI
+brew install flyctl
+
+# Deploy
+fly launch --name chai-server
+fly postgres create --name chai-db
+fly secrets set DATABASE_URL=postgres://...
+fly deploy
+```
+
+### Docker
+
+```bash
+docker compose up -d
+```
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `PORT` | Server port (default: 8080) | No |
+| `RP_ID` | WebAuthn relying party ID | Yes |
+| `RP_ORIGIN` | WebAuthn origin URL | Yes |
+| `JWT_SECRET` | JWT signing secret | Yes |
+
+---
+
+## Development
+
+### Build Commands
+
+```bash
+pnpm dev            # Start Next.js dev server
+pnpm server:dev     # Start Rust backend
+pnpm cli:dev        # Run CLI in dev mode
+pnpm build          # Build everything
+pnpm build:wasm     # Build WASM crypto module
+pnpm test           # Run all tests
+cargo test          # Run Rust tests
+cargo clippy        # Lint Rust code
+```
+
+### Project Scripts
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start web client development server |
+| `pnpm server:dev` | Start backend with hot reload |
+| `pnpm cli:dev` | Run terminal client |
+| `pnpm build:wasm` | Compile Rust crypto to WebAssembly |
+| `cargo test` | Run Rust unit tests |
+| `cargo clippy` | Run Rust linter |
+
+---
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Development Flow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Code Quality
+
+- All Rust code must pass `cargo clippy` with no warnings
+- All TypeScript must pass `pnpm lint`
+- Tests are required for new features
+- Security-sensitive code requires review from maintainers
+
+---
+
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+- **Signal Foundation** for the Signal Protocol specification
+- **libsignal** for reference implementations
+- **The Rust Community** for amazing cryptographic libraries
+
+---
+
+<p align="center">
+  <sub>Built with paranoia by developers who value privacy.</sub>
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/6hXkKcTmvH">Discord</a> •
+  <a href="https://chai.im">Website</a> •
+  <a href="https://twitter.com/chaiim">Twitter</a>
+</p>

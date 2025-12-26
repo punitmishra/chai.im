@@ -1,0 +1,51 @@
+[package]
+name = "chai-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "chai"
+path = "src/main.rs"
+
+[dependencies]
+# TUI
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+futures-util = { workspace = true }
+
+# WebSocket client
+tokio-tungstenite = { workspace = true }
+
+# Syntax highlighting
+syntect = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Config
+directories = "5.0"
+toml = "0.8"
+
+# Crypto
+chai-crypto = { workspace = true }
+chai-protocol = { workspace = true }
+chai-common = { workspace = true }
+
+# FIDO2 (optional, for hardware key support)
+# ctap-hid-fido2 = "3.5"
+
+# System keychain
+# keyring = "2.2"
+
+[features]
+default = []
+hardware-keys = []

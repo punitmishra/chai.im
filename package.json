@@ -2,37 +2,20 @@
   "name": "chai.im",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@testing-library/jest-dom": "^5.11.6",
-    "@testing-library/react": "^11.2.2",
-    "@testing-library/user-event": "^12.6.0",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1",
-    "react-scripts": "4.0.1",
-    "web-vitals": "^0.2.4"
-  },
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "build:wasm": "cd crates/chai-crypto && wasm-pack build --target web --out-dir ../../apps/web/wasm",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules",
+    "server:dev": "cargo run -p chai-server",
+    "server:build": "cargo build -p chai-server --release",
+    "cli:dev": "cargo run -p chai-cli",
+    "cli:build": "cargo build -p chai-cli --release"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "devDependencies": {
+    "turbo": "^2.0.0"
   }
 }
