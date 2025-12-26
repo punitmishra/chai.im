@@ -1,12 +1,5 @@
 //! Chai.im WebSocket server.
 
-mod config;
-mod error;
-mod state;
-mod ws;
-mod handlers;
-mod db;
-
 use axum::{
     routing::{get, post},
     Router,
@@ -19,8 +12,9 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::Config;
-use crate::state::AppState;
+use chai_server::config::Config;
+use chai_server::state::AppState;
+use chai_server::{handlers, ws};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

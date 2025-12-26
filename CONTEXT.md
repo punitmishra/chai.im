@@ -56,6 +56,7 @@ Implemented WASM bindings for Signal Protocol:
 | Chat messaging UI | Complete |
 | **User search/discovery** | **Complete** |
 | **CLI WebSocket connection** | **Complete** |
+| **Integration tests** | **Complete** |
 
 ### Session 4: User Search/Discovery (2025-12-25)
 
@@ -77,12 +78,28 @@ Implemented CLI WebSocket connection:
 - Added `:connect`, `:disconnect`, `:chat username` commands
 - Updated UI to use per-conversation message storage
 
+### Session 6: Integration Tests (2025-12-25)
+
+Implemented comprehensive integration test suite:
+- Created lib.rs to expose server modules for testing
+- Built test server wrapper with random port binding
+- Added test utilities for creating/cleaning up test users
+- 9 integration tests covering:
+  - Health check endpoint
+  - User search authentication
+  - User search with valid auth
+  - User search with no results
+  - User profile retrieval
+  - WebSocket token requirement
+  - WebSocket with valid token
+  - Registration duplicate username rejection
+
 ### What's Still Incomplete 🚧
 
 | Component | Status | Priority |
 |-----------|--------|----------|
 | CLI login command | Uses stored token | **LOW** |
-| Integration tests | Not started | **MEDIUM** |
+| E2E encryption tests | Not started | **MEDIUM** |
 
 ## Commits Made This Session
 
@@ -131,7 +148,7 @@ pnpm test             # TypeScript tests
 
 ## Next Steps (Priority Order)
 
-1. **Integration tests** - End-to-end flow testing
+1. **E2E encryption tests** - Test Signal Protocol flows
 2. **CLI login command** - Allow login from CLI
 3. **Security audit** - Before production deployment
 

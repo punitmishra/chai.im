@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+name = "chai_server"
+path = "src/lib.rs"
+
 [[bin]]
 name = "chai-server"
 path = "src/main.rs"
@@ -53,3 +57,10 @@ base64 = { workspace = true }
 chai-crypto = { workspace = true }
 chai-protocol = { workspace = true }
 chai-common = { workspace = true }
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+reqwest = { version = "0.12", features = ["json"] }
+tokio-tungstenite = { workspace = true }
+serial_test = "3.0"
