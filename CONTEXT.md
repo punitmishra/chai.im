@@ -13,35 +13,51 @@ The project underwent a **major architectural rewrite** (commit `aaf67a9`) repla
 
 ## Recent Work Completed (2025-12-25)
 
-### Backend Server Implementation
+### Session 1: Backend Server Implementation
 
-The following critical components have been implemented:
+Implemented core backend functionality:
 
 1. **WebAuthn Authentication** (`crates/chai-server/src/handlers/auth.rs`)
    - Full registration flow (start/complete)
    - Full login flow (start/complete)
    - Session token generation and hashing
-   - Database integration for users, credentials, sessions
 
 2. **WebSocket Authentication** (`crates/chai-server/src/ws/handler.rs`)
    - Token-based authentication via query parameter
    - Session validation before connection upgrade
-   - Proper user ID association for connections
 
 3. **Prekey Management** (`crates/chai-server/src/handlers/prekeys.rs`)
    - GET bundle endpoint with one-time prekey consumption
-   - Upload bundle endpoint with Bearer auth
-   - Upload one-time prekeys endpoint with Bearer auth
+   - Upload endpoints with Bearer auth
 
 4. **Message Persistence** (`crates/chai-server/src/ws/message.rs`)
-   - Store messages in database on send
-   - Fetch and consume prekeys from database
+   - Store messages in database
    - Mark messages as delivered on ACK
-   - Low prekey warnings sent to users
 
-5. **New Database Modules**
-   - `db/credentials.rs` - WebAuthn credential storage
-   - `db/sessions.rs` - Session token management
+### Session 2: Web Client Integration
+
+Implemented web client features:
+
+1. **WebAuthn API Client** (`apps/web/src/lib/api/auth.ts`)
+   - Registration start/complete with credential encoding
+   - Login start/complete with assertion encoding
+   - Base64url encoding/decoding utilities
+
+2. **Auth Pages Update**
+   - Registration with WebAuthn credential creation
+   - Login with WebAuthn assertion
+   - Session storage in Zustand store
+
+3. **WebSocket Client Update** (`apps/web/src/lib/ws/client.ts`)
+   - Token-based authentication
+   - Encrypted message sending via WASM
+   - Message decryption on receive
+   - Prekey bundle handling
+
+4. **Chat Page Integration**
+   - Real encrypted message sending
+   - Message status indicators
+   - Connection status awareness
 
 ### What's Complete Now ✅
 
@@ -50,60 +66,64 @@ The following critical components have been implemented:
 | Signal Protocol crypto (chai-crypto) | Production-ready with tests |
 | Database schema & migrations | Complete |
 | Database query functions | Complete |
-| **WebAuthn authentication** | **Complete** |
-| **WebSocket authentication** | **Complete** |
-| **Prekey database integration** | **Complete** |
-| **Message persistence** | **Complete** |
-| Web client UI & state management | Complete |
-| CLI TUI framework | Complete |
-| WebSocket reconnection logic | Complete |
+| WebAuthn authentication | **Complete** |
+| WebSocket authentication | **Complete** |
+| Prekey database integration | **Complete** |
+| Message persistence | **Complete** |
+| Web client auth pages | **Complete** |
+| Web client WebSocket | **Complete** |
+| Web client encryption | **Complete** |
+| Chat messaging UI | **Complete** |
 
 ### What's Still Incomplete 🚧
 
 | Component | Status | Priority |
 |-----------|--------|----------|
-| Web client encryption workflow | Missing WASM decryption | **HIGH** |
 | CLI WebSocket connection | Mock data only | **MEDIUM** |
-| Web client auth integration | UI exists, API calls needed | **MEDIUM** |
+| WASM crypto build | Needs wasm-pack setup | **HIGH** |
+| Integration tests | Not started | **MEDIUM** |
 
-## Remaining TODO Locations
+## Commits Made This Session
 
-### Web Client (apps/web)
+```
+796fc4b feat(web): integrate WebAuthn auth and E2E encrypted messaging
+49aa4b9 feat(server): implement WebAuthn auth, WebSocket auth, and message persistence
+```
 
-**`src/app/auth/register/page.tsx`**:
-- Call WebAuthn APIs for registration
+## Files Modified
 
-**`src/app/auth/login/page.tsx`**:
-- Call WebAuthn APIs for login
+### Backend (Rust)
+- `crates/chai-server/src/handlers/auth.rs` - WebAuthn implementation
+- `crates/chai-server/src/handlers/prekeys.rs` - Database integration
+- `crates/chai-server/src/ws/handler.rs` - Authentication
+- `crates/chai-server/src/ws/message.rs` - Database integration
+- `crates/chai-server/src/state.rs` - State caches
+- `crates/chai-server/src/db/credentials.rs` - New file
+- `crates/chai-server/src/db/sessions.rs` - New file
+- `crates/chai-common/src/types.rs` - From<Uuid> impls
 
-**`src/app/(chat)/[conversationId]/page.tsx`**:
-- Line 69: Send via WebSocket with encryption
-
-**`src/lib/ws/client.ts`**:
-- Line 159: Decrypt message using WASM crypto
-
-### CLI Client (chai-cli)
-
-**`src/tui/app.rs`**:
-- Line 247: Send via WebSocket
-- Line 258: Connect to server
-- Line 272: Process incoming messages
+### Web Client (TypeScript)
+- `apps/web/src/lib/api/auth.ts` - New WebAuthn API client
+- `apps/web/src/app/auth/register/page.tsx` - WebAuthn registration
+- `apps/web/src/app/auth/login/page.tsx` - WebAuthn login
+- `apps/web/src/lib/ws/client.ts` - Token auth + encryption
+- `apps/web/src/store/chatStore.ts` - Session tracking
+- `apps/web/src/app/(chat)/[conversationId]/page.tsx` - Encrypted messaging
 
 ## Next Steps (Priority Order)
 
-1. **Web client WebAuthn integration** - Wire up auth pages to backend
-2. **Web client encryption** - Implement WASM crypto calls for encrypt/decrypt
-3. **CLI WebSocket integration** - Connect terminal client to server
-4. **Integration tests** - End-to-end flow testing
+1. **Build WASM crypto module** - Run wasm-pack to compile chai-crypto
+2. **CLI WebSocket integration** - Connect terminal client to server
+3. **Integration tests** - End-to-end flow testing
+4. **User search/discovery** - Find users to chat with
 5. **Security audit** - Before production deployment
 
 ## Development Notes
 
-- Using runtime SQLx queries (not macros) to avoid DATABASE_URL at compile time
-- WebSocket messages use JSON via chai-protocol crate
-- WASM crypto wrapper in `apps/web/src/lib/crypto/`
-- All crypto tests passing
-- Server compiles with minor warnings (unused variables in some handlers)
+- Server runs on port 8080, web client on port 3000
+- WebSocket URL: `ws://localhost:8080/ws?token=<session_token>`
+- WASM module expected at `@/wasm/chai_crypto`
+- All crypto tests passing in Rust
 
 ## Session Continuity
 
@@ -112,17 +132,3 @@ When continuing work:
 2. Start with highest priority incomplete item
 3. Update this file after significant progress
 4. Run `cargo test` and `pnpm lint` before committing
-
-## Files Modified This Session
-
-- `crates/chai-server/src/handlers/auth.rs` - Complete rewrite
-- `crates/chai-server/src/handlers/prekeys.rs` - Database integration
-- `crates/chai-server/src/ws/handler.rs` - Authentication added
-- `crates/chai-server/src/ws/message.rs` - Database integration
-- `crates/chai-server/src/state.rs` - Added reg/auth state caches
-- `crates/chai-server/src/db/mod.rs` - Added credentials, sessions modules
-- `crates/chai-server/src/db/credentials.rs` - New file
-- `crates/chai-server/src/db/sessions.rs` - New file
-- `crates/chai-server/Cargo.toml` - Added sha2, rand, base64 deps
-- `crates/chai-common/src/types.rs` - Added From<Uuid> impls
-- `Cargo.toml` - Added base64 to workspace deps
