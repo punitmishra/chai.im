@@ -1,5 +1,7 @@
 //! Database layer.
 
-pub mod users;
-pub mod prekeys;
+pub mod credentials;
 pub mod messages;
+pub mod prekeys;
+pub mod sessions;
+pub mod users;

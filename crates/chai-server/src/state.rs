@@ -5,6 +5,7 @@ use crate::ws::connection::ConnectionManager;
 use anyhow::Result;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use webauthn_rs::prelude::*;
@@ -19,6 +20,10 @@ pub struct AppState {
     pub connections: Arc<RwLock<ConnectionManager>>,
     /// Configuration.
     pub config: Config,
+    /// In-flight registration states (username -> PasskeyRegistration).
+    pub reg_states: Arc<RwLock<HashMap<String, PasskeyRegistration>>>,
+    /// In-flight authentication states (username -> PasskeyAuthentication).
+    pub auth_states: Arc<RwLock<HashMap<String, PasskeyAuthentication>>>,
 }
 
 impl AppState {
@@ -47,6 +52,8 @@ impl AppState {
             webauthn,
             connections: Arc::new(RwLock::new(ConnectionManager::new())),
             config: config.clone(),
+            reg_states: Arc::new(RwLock::new(HashMap::new())),
+            auth_states: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 }

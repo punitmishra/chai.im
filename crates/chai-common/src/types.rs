@@ -13,6 +13,18 @@ impl UserId {
     }
 }
 
+impl From<Uuid> for UserId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
+impl From<UserId> for Uuid {
+    fn from(id: UserId) -> Self {
+        id.0
+    }
+}
+
 impl Default for UserId {
     fn default() -> Self {
         Self::new()
@@ -42,6 +54,18 @@ pub struct MessageId(pub Uuid);
 impl MessageId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
+    }
+}
+
+impl From<Uuid> for MessageId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
+impl From<MessageId> for Uuid {
+    fn from(id: MessageId) -> Self {
+        id.0
     }
 }
 
