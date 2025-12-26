@@ -53,6 +53,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/prekeys/bundle/:user_id", get(handlers::prekeys::get_bundle))
         .route("/prekeys/bundle", post(handlers::prekeys::upload_bundle))
         .route("/prekeys/one-time", post(handlers::prekeys::upload_one_time))
+        // User endpoints
+        .route("/users/search", get(handlers::users::search_users))
+        .route("/users/:user_id", get(handlers::users::get_user_profile))
         // WebSocket endpoint
         .route("/ws", get(ws::handler::ws_handler))
         // Middleware

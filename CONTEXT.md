@@ -54,13 +54,23 @@ Implemented WASM bindings for Signal Protocol:
 | Web client WebSocket | Complete |
 | **Web client WASM integration** | **Complete** |
 | Chat messaging UI | Complete |
+| **User search/discovery** | **Complete** |
+
+### Session 4: User Search/Discovery (2025-12-25)
+
+Implemented user search feature:
+- Added `search_by_username` database query in `db/users.rs`
+- Created `handlers/users.rs` with search and profile endpoints
+- Added `/users/search` and `/users/:user_id` routes
+- Created `apps/web/src/lib/api/users.ts` API client
+- Built new chat page at `/chat/new` with debounced search UI
+- Updated chat layout to use real store data
 
 ### What's Still Incomplete 🚧
 
 | Component | Status | Priority |
 |-----------|--------|----------|
 | CLI WebSocket connection | Mock data only | **MEDIUM** |
-| User search/discovery | Not implemented | **HIGH** |
 | Integration tests | Not started | **MEDIUM** |
 
 ## Commits Made This Session
@@ -80,15 +90,18 @@ aae92a6 feat(crypto): add WASM bindings and integrate with web client
 
 ### Backend
 - `crates/chai-server/src/handlers/auth.rs` - WebAuthn
+- `crates/chai-server/src/handlers/users.rs` - User search/profile
 - `crates/chai-server/src/ws/handler.rs` - WebSocket auth
 - `crates/chai-server/src/ws/message.rs` - Message handling
 - `crates/chai-server/src/db/` - Database modules
 
 ### Web Client
 - `apps/web/src/lib/api/auth.ts` - Auth API client
+- `apps/web/src/lib/api/users.ts` - User search API client
 - `apps/web/src/lib/ws/client.ts` - WebSocket client
 - `apps/web/src/app/auth/` - Auth pages
 - `apps/web/src/app/(chat)/` - Chat pages
+- `apps/web/src/app/(chat)/new/page.tsx` - New conversation with user search
 
 ## Build Commands
 
@@ -107,10 +120,9 @@ pnpm test             # TypeScript tests
 
 ## Next Steps (Priority Order)
 
-1. **User search/discovery** - Find users to chat with
-2. **CLI WebSocket integration** - Connect terminal client to server
-3. **Integration tests** - End-to-end flow testing
-4. **Security audit** - Before production deployment
+1. **CLI WebSocket integration** - Connect terminal client to server
+2. **Integration tests** - End-to-end flow testing
+3. **Security audit** - Before production deployment
 
 ## Development Notes
 

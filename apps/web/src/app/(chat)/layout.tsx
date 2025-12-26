@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function ChatLayout({
   children,
@@ -11,13 +13,8 @@ export default function ChatLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Mock conversations for now
-  const conversations = [
-    { id: '1', name: 'Alice', lastMessage: 'Hey!', unread: 2, online: true },
-    { id: '2', name: 'Bob', lastMessage: 'See you!', unread: 0, online: false },
-    { id: '3', name: 'Team', lastMessage: 'Meeting at 3', unread: 5, online: true },
-  ];
+  const conversations = useChatStore((state) => state.conversations);
+  const user = useAuthStore((state) => state.user);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -52,42 +49,48 @@ export default function ChatLayout({
 
         {/* Conversation list */}
         <div className="flex-1 overflow-y-auto p-2">
-          {conversations.map((conv) => (
-            <Link
-              key={conv.id}
-              href={`/chat/${conv.id}`}
-              className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
-                pathname === `/chat/${conv.id}`
-                  ? 'bg-dark-800'
-                  : 'hover:bg-dark-800/50'
-              }`}
-            >
-              {/* Avatar */}
-              <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-dark-700 font-medium">
-                  {conv.name[0]}
+          {conversations.length === 0 ? (
+            <div className="text-center py-8 text-dark-400">
+              <p className="text-sm">No conversations yet</p>
+              <Link href="/chat/new" className="text-primary-500 text-sm hover:underline">
+                Start a new chat
+              </Link>
+            </div>
+          ) : (
+            conversations.map((conv) => (
+              <Link
+                key={conv.id}
+                href={`/chat/${conv.id}`}
+                className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
+                  pathname === `/chat/${conv.id}`
+                    ? 'bg-dark-800'
+                    : 'hover:bg-dark-800/50'
+                }`}
+              >
+                {/* Avatar */}
+                <div className="relative">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-dark-700 font-medium">
+                    {conv.name[0].toUpperCase()}
+                  </div>
                 </div>
-                {conv.online && (
-                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-dark-900 bg-green-500" />
-                )}
-              </div>
 
-              {/* Info */}
-              <div className="flex-1 truncate">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{conv.name}</span>
-                  {conv.unread > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-xs font-medium">
-                      {conv.unread}
-                    </span>
-                  )}
+                {/* Info */}
+                <div className="flex-1 truncate">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{conv.name}</span>
+                    {conv.unreadCount > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-xs font-medium">
+                        {conv.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-sm text-dark-400">
+                    {conv.lastMessage || 'No messages yet'}
+                  </p>
                 </div>
-                <p className="truncate text-sm text-dark-400">
-                  {conv.lastMessage}
-                </p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
 
         {/* User section */}
@@ -97,10 +100,10 @@ export default function ChatLayout({
             className="flex items-center gap-3 rounded-lg p-2 hover:bg-dark-800"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 font-medium">
-              U
+              {user?.username?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1">
-              <div className="font-medium">Username</div>
+              <div className="font-medium">{user?.username || 'User'}</div>
               <div className="text-sm text-dark-400">Settings</div>
             </div>
           </Link>

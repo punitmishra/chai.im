@@ -72,3 +72,37 @@ pub async fn username_exists(pool: &PgPool, username: &str) -> sqlx::Result<bool
 
     Ok(row.0)
 }
+
+/// Search result - only returns public user info (no identity_key).
+#[derive(Debug, FromRow)]
+pub struct UserSearchResult {
+    pub id: Uuid,
+    pub username: String,
+    pub created_at: time::OffsetDateTime,
+}
+
+/// Search users by username prefix.
+/// Excludes the searching user from results.
+/// Returns up to `limit` results.
+pub async fn search_by_username(
+    pool: &PgPool,
+    query: &str,
+    exclude_user_id: Uuid,
+    limit: i64,
+) -> sqlx::Result<Vec<UserSearchResult>> {
+    sqlx::query_as::<_, UserSearchResult>(
+        r#"
+        SELECT id, username, created_at
+        FROM users
+        WHERE username ILIKE $1
+          AND id != $2
+        ORDER BY username ASC
+        LIMIT $3
+        "#,
+    )
+    .bind(format!("{}%", query))
+    .bind(exclude_user_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+}
