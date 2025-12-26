@@ -16,6 +16,6 @@
     "cli:build": "cargo build -p chai-cli --release"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.7.2"
   }
 }

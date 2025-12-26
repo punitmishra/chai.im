@@ -10,25 +10,25 @@
     "build:wasm": "cd ../../crates/chai-crypto && wasm-pack build --target web --out-dir ../../apps/web/wasm"
   },
   "dependencies": {
-    "next": "^14.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "zustand": "^4.5.0",
-    "idb": "^8.0.0",
-    "@simplewebauthn/browser": "^10.0.0",
-    "clsx": "^2.1.0",
-    "date-fns": "^3.3.0"
+    "@simplewebauthn/browser": "^13.2.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "idb": "^8.0.3",
+    "next": "^16.1.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
-    "@types/node": "^20.11.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
-    "autoprefixer": "^10.4.0",
-    "eslint": "^8.56.0",
-    "eslint-config-next": "^14.1.0",
-    "@chai/typescript-config": "workspace:*"
+    "@chai/typescript-config": "workspace:*",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^16.1.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
   }
 }
