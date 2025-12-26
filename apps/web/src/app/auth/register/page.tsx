@@ -3,9 +3,13 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import { registerStart, registerComplete } from '@/lib/api/auth';
+import { initCrypto, generatePrekeyBundle } from '@/lib/crypto/wasm';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const setUser = useAuthStore((state) => state.setUser);
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -18,23 +22,55 @@ export default function RegisterPage() {
 
     try {
       if (step === 'username') {
-        // TODO: Check username availability
+        // Move to security key step
         setStep('security-key');
         setIsLoading(false);
         return;
       }
 
-      // TODO: Implement WebAuthn registration
-      // 1. Get challenge from server
-      // 2. Call navigator.credentials.create()
-      // 3. Register with server
-      // 4. Generate identity keys
-      // 5. Upload prekey bundle
-      // 6. Store session
+      // Step 1: Get registration challenge from server
+      const { options } = await registerStart(username);
 
+      // Step 2: Create credential using WebAuthn API
+      const credential = await navigator.credentials.create({
+        publicKey: options,
+      }) as PublicKeyCredential;
+
+      if (!credential) {
+        throw new Error('Failed to create credential');
+      }
+
+      // Step 3: Initialize crypto and get identity key
+      const crypto = await initCrypto();
+      const identityKey = crypto.export_identity();
+
+      // Step 4: Complete registration with server
+      const { user_id, session_token } = await registerComplete(
+        username,
+        credential,
+        identityKey
+      );
+
+      // Step 5: Store session in state
+      setUser({ id: user_id, username }, session_token);
+
+      // Step 6: Generate and upload prekey bundle
+      try {
+        const prekeyBundle = await generatePrekeyBundle();
+        await uploadPrekeyBundle(session_token, prekeyBundle);
+      } catch (err) {
+        console.warn('Failed to upload prekey bundle, will retry later:', err);
+      }
+
+      // Redirect to chat
       router.push('/chat');
     } catch (err) {
+      console.error('Registration error:', err);
       setError(err instanceof Error ? err.message : 'Registration failed');
+      // Reset to username step if we failed during WebAuthn
+      if (step === 'security-key') {
+        setStep('username');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -139,4 +175,31 @@ export default function RegisterPage() {
       </div>
     </main>
   );
+}
+
+// Helper to upload prekey bundle
+async function uploadPrekeyBundle(token: string, bundle: Uint8Array): Promise<void> {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+  const response = await fetch(`${API_URL}/prekeys/bundle`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      bundle: {
+        identity_key: Array.from(bundle.slice(0, 32)),
+        signed_prekey: Array.from(bundle.slice(32, 64)),
+        signed_prekey_signature: Array.from(bundle.slice(64, 128)),
+        signed_prekey_id: 1,
+        one_time_prekey: null,
+        one_time_prekey_id: null,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload prekey bundle');
+  }
 }

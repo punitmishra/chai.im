@@ -12,28 +12,32 @@ export interface Message {
 export interface Conversation {
   id: string;
   name: string;
+  recipientId: string;
   participants: string[];
   lastMessage?: string;
   lastMessageTime?: number;
   unreadCount: number;
+  hasSession: boolean;
 }
 
 interface ChatState {
-  conversations: Map<string, Conversation>;
-  messages: Map<string, Message[]>;
+  conversations: Conversation[];
+  messages: Message[];
   activeConversationId: string | null;
 
   // Actions
   setActiveConversation: (id: string | null) => void;
   addConversation: (conversation: Conversation) => void;
+  updateConversation: (id: string, updates: Partial<Conversation>) => void;
   addMessage: (message: Message) => void;
   updateMessageStatus: (messageId: string, status: Message['status']) => void;
   markAsRead: (conversationId: string) => void;
+  setSessionEstablished: (conversationId: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: new Map(),
-  messages: new Map(),
+  conversations: [],
+  messages: [],
   activeConversationId: null,
 
   setActiveConversation: (id) => {
@@ -45,62 +49,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   addConversation: (conversation) => {
     set((state) => {
-      const newConversations = new Map(state.conversations);
-      newConversations.set(conversation.id, conversation);
-      return { conversations: newConversations };
+      // Don't add if already exists
+      if (state.conversations.find((c) => c.id === conversation.id)) {
+        return state;
+      }
+      return { conversations: [...state.conversations, conversation] };
     });
+  },
+
+  updateConversation: (id, updates) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, ...updates } : c
+      ),
+    }));
   },
 
   addMessage: (message) => {
     set((state) => {
-      const newMessages = new Map(state.messages);
-      const existing = newMessages.get(message.conversationId) || [];
-      newMessages.set(message.conversationId, [...existing, message]);
+      // Add message
+      const messages = [...state.messages, message];
 
       // Update conversation's last message
-      const newConversations = new Map(state.conversations);
-      const conv = newConversations.get(message.conversationId);
-      if (conv) {
-        newConversations.set(message.conversationId, {
-          ...conv,
-          lastMessage: message.content,
-          lastMessageTime: message.timestamp,
-          unreadCount:
-            state.activeConversationId === message.conversationId
-              ? 0
-              : conv.unreadCount + 1,
-        });
-      }
+      const conversations = state.conversations.map((conv) => {
+        if (conv.id === message.conversationId) {
+          return {
+            ...conv,
+            lastMessage: message.content,
+            lastMessageTime: message.timestamp,
+            unreadCount:
+              state.activeConversationId === message.conversationId
+                ? 0
+                : conv.unreadCount + 1,
+          };
+        }
+        return conv;
+      });
 
-      return { messages: newMessages, conversations: newConversations };
+      return { messages, conversations };
     });
   },
 
   updateMessageStatus: (messageId, status) => {
-    set((state) => {
-      const newMessages = new Map(state.messages);
-      for (const [convId, msgs] of newMessages) {
-        const idx = msgs.findIndex((m) => m.id === messageId);
-        if (idx !== -1) {
-          const updated = [...msgs];
-          updated[idx] = { ...updated[idx], status };
-          newMessages.set(convId, updated);
-          break;
-        }
-      }
-      return { messages: newMessages };
-    });
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId ? { ...m, status } : m
+      ),
+    }));
   },
 
   markAsRead: (conversationId) => {
-    set((state) => {
-      const newConversations = new Map(state.conversations);
-      const conv = newConversations.get(conversationId);
-      if (conv && conv.unreadCount > 0) {
-        newConversations.set(conversationId, { ...conv, unreadCount: 0 });
-        return { conversations: newConversations };
-      }
-      return state;
-    });
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, unreadCount: 0 } : c
+      ),
+    }));
+  },
+
+  setSessionEstablished: (conversationId) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, hasSession: true } : c
+      ),
+    }));
   },
 }));

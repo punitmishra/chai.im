@@ -3,9 +3,12 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import { loginStart, loginComplete } from '@/lib/api/auth';
 
 export default function LoginPage() {
   const router = useRouter();
+  const setUser = useAuthStore((state) => state.setUser);
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,16 +19,28 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // TODO: Implement WebAuthn login
-      // 1. Start authentication
-      // 2. Get challenge from server
-      // 3. Call navigator.credentials.get()
-      // 4. Verify with server
-      // 5. Store session
+      // Step 1: Get login challenge from server
+      const { options } = await loginStart(username);
 
-      // For now, just redirect
+      // Step 2: Get assertion using WebAuthn API
+      const credential = await navigator.credentials.get({
+        publicKey: options,
+      }) as PublicKeyCredential;
+
+      if (!credential) {
+        throw new Error('Failed to get credential');
+      }
+
+      // Step 3: Complete login with server
+      const { user_id, session_token } = await loginComplete(username, credential);
+
+      // Step 4: Store session in state
+      setUser({ id: user_id, username }, session_token);
+
+      // Redirect to chat
       router.push('/chat');
     } catch (err) {
+      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setIsLoading(false);
