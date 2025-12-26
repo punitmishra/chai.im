@@ -109,7 +109,7 @@ fn draw_chat_area(f: &mut Frame, app: &App, area: Rect) {
 
 fn draw_messages(f: &mut Frame, app: &App, area: Rect) {
     let messages: Vec<ListItem> = app
-        .messages
+        .messages()
         .iter()
         .map(|msg| {
             let style = if msg.is_self {

@@ -1,8 +1,12 @@
 //! Application state.
 
 use crate::config::Config;
+use crate::network::client::Client;
 use anyhow::Result;
+use chai_common::{uuid, ConversationId, UserId};
+use chai_protocol::{ClientMessage, MessageType, ServerMessage};
 use crossterm::event::{KeyCode, KeyEvent};
+use std::collections::HashMap;
 
 /// Input mode for the application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,77 +52,89 @@ pub struct App {
     pub conversations: Vec<Conversation>,
     /// Selected conversation index.
     pub selected_conversation: usize,
-    /// Messages in the current conversation.
-    pub messages: Vec<Message>,
+    /// Messages per conversation.
+    pub conversation_messages: HashMap<String, Vec<Message>>,
     /// Scroll offset for messages.
     pub message_scroll: usize,
     /// Status message.
     pub status: String,
     /// Whether connected to server.
     pub connected: bool,
+    /// WebSocket client (when connected).
+    client: Option<Client>,
+    /// Current user ID.
+    pub user_id: Option<String>,
 }
 
 impl App {
     pub fn new(config: Config) -> Self {
+        let user_id = config.user_id.clone();
+        let status = if config.session_token.is_some() {
+            "Ready to connect".into()
+        } else {
+            "Not logged in".into()
+        };
+
         Self {
             config,
             input_mode: InputMode::Normal,
             input: String::new(),
             cursor_position: 0,
-            conversations: vec![
-                Conversation {
-                    id: "1".into(),
-                    name: "Alice".into(),
-                    last_message: Some("Hey, how are you?".into()),
-                    unread_count: 2,
-                    online: true,
-                },
-                Conversation {
-                    id: "2".into(),
-                    name: "Bob".into(),
-                    last_message: Some("See you tomorrow!".into()),
-                    unread_count: 0,
-                    online: false,
-                },
-                Conversation {
-                    id: "3".into(),
-                    name: "Team Chat".into(),
-                    last_message: Some("Meeting at 3pm".into()),
-                    unread_count: 5,
-                    online: true,
-                },
-            ],
+            conversations: Vec::new(),
             selected_conversation: 0,
-            messages: vec![
-                Message {
-                    sender: "Alice".into(),
-                    content: "Hey! How's it going?".into(),
-                    timestamp: "10:30".into(),
-                    is_self: false,
-                },
-                Message {
-                    sender: "You".into(),
-                    content: "Pretty good! Working on the new chat app.".into(),
-                    timestamp: "10:31".into(),
-                    is_self: true,
-                },
-                Message {
-                    sender: "Alice".into(),
-                    content: "Oh nice! The E2E encrypted one?".into(),
-                    timestamp: "10:32".into(),
-                    is_self: false,
-                },
-                Message {
-                    sender: "You".into(),
-                    content: "Yes! Check out this code:\n```rust\nfn encrypt(msg: &str) -> Vec<u8> {\n    // Signal Protocol magic\n}\n```".into(),
-                    timestamp: "10:33".into(),
-                    is_self: true,
-                },
-            ],
+            conversation_messages: HashMap::new(),
             message_scroll: 0,
-            status: "Disconnected".into(),
+            status,
             connected: false,
+            client: None,
+            user_id,
         }
+    }
+
+    /// Get messages for the current conversation.
+    pub fn messages(&self) -> &[Message] {
+        if let Some(conv) = self.conversations.get(self.selected_conversation) {
+            if let Some(msgs) = self.conversation_messages.get(&conv.id) {
+                return msgs;
+            }
+        }
+        &[]
+    }
+
+    /// Connect to the server.
+    pub async fn connect(&mut self) -> Result<()> {
+        let token = match &self.config.session_token {
+            Some(t) => t.clone(),
+            None => {
+                self.status = "No session token - please login first".into();
+                return Ok(());
+            }
+        };
+
+        self.status = "Connecting...".into();
+
+        // Build WebSocket URL with token
+        let ws_url = format!("{}?token={}", self.config.server_url, token);
+
+        match Client::connect(&ws_url).await {
+            Ok(client) => {
+                self.client = Some(client);
+                self.connected = true;
+                self.status = "Connected".into();
+            }
+            Err(e) => {
+                self.status = format!("Connection failed: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Disconnect from the server.
+    pub fn disconnect(&mut self) {
+        self.client = None;
+        self.connected = false;
+        self.status = "Disconnected".into();
     }
 
     /// Handle a key event.
@@ -236,30 +252,69 @@ impl App {
         let content = std::mem::take(&mut self.input);
         self.cursor_position = 0;
 
-        // Add message to list
-        self.messages.push(Message {
+        if content.is_empty() {
+            return;
+        }
+
+        // Get current conversation
+        let conv = match self.conversations.get(self.selected_conversation) {
+            Some(c) => c.clone(),
+            None => {
+                self.status = "No conversation selected".into();
+                return;
+            }
+        };
+
+        // Add message to local list
+        let messages = self.conversation_messages.entry(conv.id.clone()).or_default();
+        messages.push(Message {
             sender: "You".into(),
-            content,
+            content: content.clone(),
             timestamp: chrono_lite_timestamp(),
             is_self: true,
         });
 
-        // TODO: Actually send via WebSocket
+        // Send via WebSocket if connected
+        if let Some(client) = &self.client {
+            // Parse recipient as UUID (conversation ID is conv_{user_id})
+            let recipient_uuid = conv.id.strip_prefix("conv_")
+                .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                .unwrap_or_else(uuid::Uuid::nil);
+
+            // For now, send as plaintext - TODO: encrypt with Signal Protocol
+            let msg = ClientMessage::SendMessage {
+                recipient_id: UserId(recipient_uuid),
+                conversation_id: ConversationId(recipient_uuid),
+                ciphertext: content.into_bytes(),
+                message_type: MessageType::Normal,
+            };
+
+            let client = client.clone();
+            tokio::spawn(async move {
+                let _ = client.send(msg).await;
+            });
+        }
     }
 
     fn execute_command(&mut self) {
-        let cmd = self.input.trim();
-        match cmd {
+        let cmd = self.input.trim().to_string();
+        match cmd.as_str() {
             "q" | "quit" => {
                 // Will be handled by main loop
             }
-            "connect" => {
-                self.status = "Connecting...".into();
-                // TODO: Connect to server
+            "connect" | "c" => {
+                // Connection will be handled in tick()
+                self.status = "Use :connect command, then wait...".into();
             }
-            "disconnect" => {
-                self.connected = false;
-                self.status = "Disconnected".into();
+            "disconnect" | "dc" => {
+                self.disconnect();
+            }
+            _ if cmd.starts_with("chat ") => {
+                // Start a new conversation: :chat username
+                let username = cmd.strip_prefix("chat ").unwrap().trim();
+                if !username.is_empty() {
+                    self.start_conversation(username.to_string());
+                }
             }
             _ => {
                 self.status = format!("Unknown command: {}", cmd);
@@ -267,14 +322,130 @@ impl App {
         }
     }
 
+    /// Start a new conversation with a user.
+    fn start_conversation(&mut self, username: String) {
+        // Check if conversation already exists
+        if let Some(idx) = self.conversations.iter().position(|c| c.name == username) {
+            self.selected_conversation = idx;
+            return;
+        }
+
+        // Create new conversation
+        let conv = Conversation {
+            id: format!("conv_{}", username),
+            name: username.clone(),
+            last_message: None,
+            unread_count: 0,
+            online: false,
+        };
+
+        self.conversations.push(conv);
+        self.selected_conversation = self.conversations.len() - 1;
+        self.status = format!("Started conversation with {}", username);
+    }
+
     /// Process network events.
     pub async fn tick(&mut self) -> Result<()> {
-        // TODO: Process incoming messages from WebSocket
+        // Process incoming messages from WebSocket
+        // Collect messages first to avoid borrow issues
+        let messages: Vec<_> = if let Some(client) = &self.client {
+            let mut msgs = Vec::new();
+            while let Some(msg) = client.try_recv() {
+                msgs.push(msg);
+            }
+            msgs
+        } else {
+            Vec::new()
+        };
+
+        for msg in messages {
+            self.handle_server_message(msg);
+        }
         Ok(())
+    }
+
+    /// Handle incoming server message.
+    fn handle_server_message(&mut self, msg: ServerMessage) {
+        match msg {
+            ServerMessage::Message {
+                sender_id,
+                conversation_id,
+                ciphertext,
+                timestamp,
+                ..
+            } => {
+                // Decode message content (plaintext for now - TODO: decrypt)
+                let content = String::from_utf8_lossy(&ciphertext).to_string();
+                let conv_id = format!("conv_{}", conversation_id.0);
+                let sender_name = sender_id.0.to_string();
+
+                // Find or create conversation
+                let conv_exists = self.conversations.iter().any(|c| c.id == conv_id);
+                if !conv_exists {
+                    self.conversations.push(Conversation {
+                        id: conv_id.clone(),
+                        name: sender_name.clone(),
+                        last_message: Some(content.clone()),
+                        unread_count: 1,
+                        online: true,
+                    });
+                } else {
+                    // Update existing conversation
+                    for conv in &mut self.conversations {
+                        if conv.id == conv_id {
+                            conv.last_message = Some(content.clone());
+                            conv.unread_count += 1;
+                        }
+                    }
+                }
+
+                // Add message
+                let messages = self.conversation_messages.entry(conv_id).or_default();
+                messages.push(Message {
+                    sender: sender_name,
+                    content,
+                    timestamp: format_timestamp(timestamp),
+                    is_self: false,
+                });
+            }
+            ServerMessage::MessageSent { .. } => {
+                // Message was delivered to server
+            }
+            ServerMessage::MessageDelivered { .. } => {
+                // Message was delivered to recipient
+            }
+            ServerMessage::Error { message, .. } => {
+                self.status = format!("Error: {}", message);
+            }
+            ServerMessage::PresenceUpdate { user_id, online } => {
+                // Update user presence
+                let user_name = user_id.0.to_string();
+                for conv in &mut self.conversations {
+                    if conv.name == user_name {
+                        conv.online = online;
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }
 
+/// Simple timestamp formatting.
 fn chrono_lite_timestamp() -> String {
-    // Simple timestamp without chrono dependency
-    "now".into()
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let hours = (secs % 86400) / 3600;
+    let mins = (secs % 3600) / 60;
+    format!("{:02}:{:02}", hours, mins)
+}
+
+/// Format a Unix timestamp.
+fn format_timestamp(ts: i64) -> String {
+    let hours = (ts % 86400) / 3600;
+    let mins = (ts % 3600) / 60;
+    format!("{:02}:{:02}", hours, mins)
 }

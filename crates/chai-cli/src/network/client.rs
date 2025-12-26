@@ -8,11 +8,12 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use chai_protocol::{ClientMessage, ServerMessage};
 
 /// WebSocket client for server communication.
+#[derive(Clone)]
 pub struct Client {
     /// Channel to send messages to the server.
     tx: mpsc::Sender<ClientMessage>,
     /// Channel to receive messages from the server.
-    rx: mpsc::Receiver<ServerMessage>,
+    rx: std::sync::Arc<tokio::sync::Mutex<mpsc::Receiver<ServerMessage>>>,
 }
 
 impl Client {
@@ -50,7 +51,7 @@ impl Client {
 
         Ok(Self {
             tx: outgoing_tx,
-            rx: incoming_rx,
+            rx: std::sync::Arc::new(tokio::sync::Mutex::new(incoming_rx)),
         })
     }
 
@@ -61,12 +62,16 @@ impl Client {
     }
 
     /// Try to receive a message from the server (non-blocking).
-    pub fn try_recv(&mut self) -> Option<ServerMessage> {
-        self.rx.try_recv().ok()
+    pub fn try_recv(&self) -> Option<ServerMessage> {
+        match self.rx.try_lock() {
+            Ok(mut guard) => guard.try_recv().ok(),
+            Err(_) => None,
+        }
     }
 
     /// Receive a message from the server (blocking).
-    pub async fn recv(&mut self) -> Option<ServerMessage> {
-        self.rx.recv().await
+    pub async fn recv(&self) -> Option<ServerMessage> {
+        let mut guard = self.rx.lock().await;
+        guard.recv().await
     }
 }

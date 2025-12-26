@@ -11,6 +11,12 @@ pub struct Config {
     pub server_url: String,
     /// Username.
     pub username: Option<String>,
+    /// User ID (after login).
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// Session token (after login).
+    #[serde(default)]
+    pub session_token: Option<String>,
     /// Theme.
     pub theme: Theme,
 }
@@ -28,8 +34,10 @@ pub struct Theme {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            server_url: "wss://api.chai.im/ws".into(),
+            server_url: "ws://localhost:8080/ws".into(),
             username: None,
+            user_id: None,
+            session_token: None,
             theme: Theme::default(),
         }
     }

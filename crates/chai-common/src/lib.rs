@@ -5,3 +5,6 @@ pub mod error;
 
 pub use types::*;
 pub use error::*;
+
+// Re-export uuid for convenience
+pub use uuid;

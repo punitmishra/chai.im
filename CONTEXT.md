@@ -55,6 +55,7 @@ Implemented WASM bindings for Signal Protocol:
 | **Web client WASM integration** | **Complete** |
 | Chat messaging UI | Complete |
 | **User search/discovery** | **Complete** |
+| **CLI WebSocket connection** | **Complete** |
 
 ### Session 4: User Search/Discovery (2025-12-25)
 
@@ -66,11 +67,21 @@ Implemented user search feature:
 - Built new chat page at `/chat/new` with debounced search UI
 - Updated chat layout to use real store data
 
+### Session 5: CLI WebSocket Integration (2025-12-25)
+
+Implemented CLI WebSocket connection:
+- Added session token storage to CLI config
+- Made WebSocket client cloneable with Arc<Mutex>
+- Wired up connection with token authentication
+- Implemented message sending/receiving handlers
+- Added `:connect`, `:disconnect`, `:chat username` commands
+- Updated UI to use per-conversation message storage
+
 ### What's Still Incomplete 🚧
 
 | Component | Status | Priority |
 |-----------|--------|----------|
-| CLI WebSocket connection | Mock data only | **MEDIUM** |
+| CLI login command | Uses stored token | **LOW** |
 | Integration tests | Not started | **MEDIUM** |
 
 ## Commits Made This Session
@@ -120,8 +131,8 @@ pnpm test             # TypeScript tests
 
 ## Next Steps (Priority Order)
 
-1. **CLI WebSocket integration** - Connect terminal client to server
-2. **Integration tests** - End-to-end flow testing
+1. **Integration tests** - End-to-end flow testing
+2. **CLI login command** - Allow login from CLI
 3. **Security audit** - Before production deployment
 
 ## Development Notes
