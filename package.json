@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "build:wasm": "cd crates/chai-crypto && wasm-pack build --target web --out-dir ../../apps/web/wasm",
+    "build:wasm": "cd crates/chai-crypto && wasm-pack build --target web --features wasm --out-dir ../../apps/web/wasm",
     "lint": "turbo lint",
     "test": "turbo test",
     "clean": "turbo clean && rm -rf node_modules",

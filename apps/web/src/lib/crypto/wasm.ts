@@ -5,32 +5,16 @@
  * compiled from Rust.
  */
 
-// Type declarations for the WASM module
-interface ChaiCryptoWasm {
-  CryptoManager: {
-    new(): CryptoManager;
-    from_bytes(data: Uint8Array): CryptoManager;
-  };
-}
+import type { CryptoManager as WasmCryptoManager } from '@/wasm/chai_crypto';
 
-interface CryptoManager {
-  generate_prekey_bundle(): Uint8Array;
-  init_session(recipientId: string, bundle: Uint8Array): void;
-  encrypt(recipientId: string, plaintext: Uint8Array): Uint8Array;
-  decrypt(senderId: string, ciphertext: Uint8Array): Uint8Array;
-  export_identity(): Uint8Array;
-  export_session(peerId: string): Uint8Array;
-  import_session(peerId: string, data: Uint8Array): void;
-}
-
-let wasmModule: ChaiCryptoWasm | null = null;
-let cryptoManager: CryptoManager | null = null;
+let wasmModule: typeof import('@/wasm/chai_crypto') | null = null;
+let cryptoManager: WasmCryptoManager | null = null;
 let initPromise: Promise<void> | null = null;
 
 /**
  * Initialize the WASM crypto module.
  */
-export async function initCrypto(): Promise<CryptoManager> {
+export async function initCrypto(): Promise<WasmCryptoManager> {
   if (cryptoManager) {
     return cryptoManager;
   }
@@ -49,10 +33,16 @@ export async function initCrypto(): Promise<CryptoManager> {
   const storedIdentity = await loadIdentityFromStorage();
 
   if (storedIdentity) {
-    cryptoManager = wasmModule.CryptoManager.from_bytes(storedIdentity);
+    try {
+      cryptoManager = wasmModule.CryptoManager.fromBytes(storedIdentity);
+    } catch (e) {
+      console.warn('Failed to restore identity, creating new one:', e);
+      cryptoManager = new wasmModule.CryptoManager();
+      await saveIdentityToStorage(cryptoManager.exportIdentity());
+    }
   } else {
     cryptoManager = new wasmModule.CryptoManager();
-    await saveIdentityToStorage(cryptoManager.export_identity());
+    await saveIdentityToStorage(cryptoManager.exportIdentity());
   }
 
   return cryptoManager;
@@ -61,14 +51,29 @@ export async function initCrypto(): Promise<CryptoManager> {
 async function loadWasmModule(): Promise<void> {
   try {
     // Dynamic import of the WASM module
-    // The actual path will depend on the wasm-pack output location
     const module = await import('@/wasm/chai_crypto');
-    await module.default(); // Initialize WASM
-    wasmModule = module as unknown as ChaiCryptoWasm;
+
+    // Initialize WASM
+    await module.default();
+
+    // Call init to set up console logging
+    module.init();
+
+    wasmModule = module;
   } catch (error) {
     console.error('Failed to load WASM module:', error);
     throw error;
   }
+}
+
+/**
+ * Get the crypto manager (throws if not initialized).
+ */
+export function getCryptoManager(): WasmCryptoManager {
+  if (!cryptoManager) {
+    throw new Error('Crypto not initialized. Call initCrypto() first.');
+  }
+  return cryptoManager;
 }
 
 /**
@@ -101,7 +106,15 @@ export async function decryptMessage(
  */
 export async function generatePrekeyBundle(): Promise<Uint8Array> {
   const crypto = await initCrypto();
-  return crypto.generate_prekey_bundle();
+  return crypto.generatePrekeyBundle();
+}
+
+/**
+ * Generate one-time prekeys.
+ */
+export async function generateOneTimePrekeys(count: number): Promise<Uint8Array> {
+  const crypto = await initCrypto();
+  return crypto.generateOneTimePrekeys(count);
 }
 
 /**
@@ -110,9 +123,36 @@ export async function generatePrekeyBundle(): Promise<Uint8Array> {
 export async function initSession(
   recipientId: string,
   bundle: Uint8Array
+): Promise<Uint8Array> {
+  const crypto = await initCrypto();
+  return crypto.initSession(recipientId, bundle);
+}
+
+/**
+ * Receive a session from a sender.
+ */
+export async function receiveSession(
+  senderId: string,
+  initialData: Uint8Array
 ): Promise<void> {
   const crypto = await initCrypto();
-  crypto.init_session(recipientId, bundle);
+  crypto.receiveSession(senderId, initialData);
+}
+
+/**
+ * Check if a session exists with a peer.
+ */
+export async function hasSession(peerId: string): Promise<boolean> {
+  const crypto = await initCrypto();
+  return crypto.hasSession(peerId);
+}
+
+/**
+ * Get the public identity key.
+ */
+export async function getPublicIdentity(): Promise<Uint8Array> {
+  const crypto = await initCrypto();
+  return crypto.publicIdentity();
 }
 
 // IndexedDB storage helpers
@@ -168,7 +208,7 @@ async function saveIdentityToStorage(identity: Uint8Array): Promise<void> {
  */
 export async function exportSession(peerId: string): Promise<Uint8Array> {
   const crypto = await initCrypto();
-  return crypto.export_session(peerId);
+  return crypto.exportSession(peerId);
 }
 
 /**
@@ -179,5 +219,50 @@ export async function importSession(
   data: Uint8Array
 ): Promise<void> {
   const crypto = await initCrypto();
-  crypto.import_session(peerId, data);
+  crypto.importSession(peerId, data);
+}
+
+/**
+ * Save a session to IndexedDB.
+ */
+export async function saveSessionToStorage(peerId: string): Promise<void> {
+  try {
+    const sessionData = await exportSession(peerId);
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(sessionData, `session:${peerId}`);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (e) {
+    console.warn('Failed to save session:', e);
+  }
+}
+
+/**
+ * Load a session from IndexedDB.
+ */
+export async function loadSessionFromStorage(peerId: string): Promise<boolean> {
+  try {
+    const db = await openDatabase();
+    const sessionData: Uint8Array | null = await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(`session:${peerId}`);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result || null);
+    });
+
+    if (sessionData) {
+      await importSession(peerId, sessionData);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }

@@ -1,0 +1,16 @@
+{
+  "name": "chai-crypto",
+  "type": "module",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "chai_crypto_bg.wasm",
+    "chai_crypto.js",
+    "chai_crypto.d.ts"
+  ],
+  "main": "chai_crypto.js",
+  "types": "chai_crypto.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

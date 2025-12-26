@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = []
-wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "getrandom", "web-sys"]
+wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "getrandom", "web-sys", "console_error_panic_hook"]
 
 [dependencies]
 # Elliptic curve cryptography
@@ -42,6 +42,7 @@ wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 web-sys = { version = "0.3", optional = true, features = ["console"] }
+console_error_panic_hook = { version = "0.1", optional = true }
 
 [dev-dependencies]
 hex = "0.4"

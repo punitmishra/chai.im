@@ -42,7 +42,7 @@ export default function RegisterPage() {
 
       // Step 3: Initialize crypto and get identity key
       const crypto = await initCrypto();
-      const identityKey = crypto.export_identity();
+      const identityKey = crypto.exportIdentity();
 
       // Step 4: Complete registration with server
       const { user_id, session_token } = await registerComplete(

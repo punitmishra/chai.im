@@ -8,7 +8,7 @@ interface ConnectionState {
   reconnectAttempts: number;
 
   // Actions
-  setStatus: (status: ConnectionStatus, error?: string) => void;
+  setStatus: (status: ConnectionStatus, error?: string | null) => void;
   incrementReconnectAttempts: () => void;
   resetReconnectAttempts: () => void;
 }
@@ -18,7 +18,7 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   error: null,
   reconnectAttempts: 0,
 
-  setStatus: (status, error = null) => {
+  setStatus: (status, error) => {
     set({ status, error });
     if (status === 'connected') {
       set({ reconnectAttempts: 0 });
