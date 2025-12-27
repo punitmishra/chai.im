@@ -1,4 +1,5 @@
 //! Key types for the Signal Protocol.
+#![allow(unused_assignments)]
 
 use crate::{CryptoError, Result};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
@@ -10,7 +11,6 @@ use zeroize::ZeroizeOnDrop;
 /// Identity key pair (Ed25519 for signing).
 #[derive(Clone, ZeroizeOnDrop)]
 pub struct IdentityKeyPair {
-    #[allow(unused_assignments)]
     #[zeroize(skip)]
     signing_key: SigningKey,
 }
@@ -121,7 +121,6 @@ mod verifying_key_serde {
 #[derive(Clone, ZeroizeOnDrop)]
 pub struct DHKeyPair {
     secret: StaticSecret,
-    #[allow(unused_assignments)]
     #[zeroize(skip)]
     public: X25519PublicKey,
 }
