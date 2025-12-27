@@ -1,13 +1,14 @@
 //! Chai.im WebSocket server.
 
 use axum::{
-    routing::{get, post},
+    http::{header, Method},
+    routing::{delete, get, post, put},
     Router,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
     trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -53,15 +54,42 @@ async fn main() -> anyhow::Result<()> {
         // User endpoints
         .route("/users/search", get(handlers::users::search_users))
         .route("/users/:user_id", get(handlers::users::get_user_profile))
+        // Group endpoints
+        .route("/groups", get(handlers::groups::list_my_groups))
+        .route("/groups", post(handlers::groups::create_group))
+        .route("/groups/search", get(handlers::groups::search_groups))
+        .route("/groups/join", post(handlers::groups::join_by_code))
+        .route("/groups/:group_id", get(handlers::groups::get_group))
+        .route("/groups/:group_id", put(handlers::groups::update_group))
+        .route("/groups/:group_id", delete(handlers::groups::delete_group))
+        .route("/groups/:group_id/members", get(handlers::groups::list_members))
+        .route("/groups/:group_id/members", post(handlers::groups::add_member))
+        .route("/groups/:group_id/members/:user_id", delete(handlers::groups::remove_member))
+        .route("/groups/:group_id/invites", post(handlers::groups::create_invite))
         // WebSocket endpoint
         .route("/ws", get(ws::handler::ws_handler))
         // Middleware
-        .layer(
+        .layer({
+            // Parse the origin from config
+            let origin = config.rp_origin.parse::<axum::http::HeaderValue>()
+                .expect("Invalid RP_ORIGIN URL");
+
             CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
+                .allow_origin(origin)
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
+                .allow_headers([
+                    header::CONTENT_TYPE,
+                    header::AUTHORIZATION,
+                    header::ACCEPT,
+                ])
+                .allow_credentials(true)
+        })
         .layer(TraceLayer::new_for_http())
         .with_state(Arc::new(state));
 

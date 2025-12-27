@@ -62,7 +62,7 @@ export default function RegisterPage() {
         logger.warn('Failed to upload prekey bundle', err);
       }
 
-      router.push('/');
+      router.push('/chat');
     } catch (err) {
       logger.error('Registration error', err);
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -105,7 +105,7 @@ export default function RegisterPage() {
         logger.warn('Failed to upload prekey bundle', err);
       }
 
-      router.push('/');
+      router.push('/chat');
     } catch (err) {
       logger.error('Registration error', err);
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -345,11 +345,18 @@ export default function RegisterPage() {
           <p className="text-zinc-500 mt-1 text-sm">{getStepSubtitle()}</p>
         </div>
 
-        {/* Progress */}
-        <div className="flex gap-2 mb-6">
-          <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'username' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
-          <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'method' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
-          <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${['security-key', 'password'].includes(step) ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
+        {/* Progress with labels */}
+        <div className="mb-6">
+          <div className="flex gap-2 mb-2">
+            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'username' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'method' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${['security-key', 'password'].includes(step) ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
+          </div>
+          <div className="flex justify-between text-xs text-zinc-600">
+            <span className={step === 'username' ? 'text-amber-400' : ''}>Username</span>
+            <span className={step === 'method' ? 'text-amber-400' : ''}>Security</span>
+            <span className={['security-key', 'password'].includes(step) ? 'text-amber-400' : ''}>Complete</span>
+          </div>
         </div>
 
         {/* Error */}

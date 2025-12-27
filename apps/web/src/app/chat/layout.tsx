@@ -84,7 +84,7 @@ export default function ChatLayout({
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800/50">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/chat" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
               <span className="text-sm">☕</span>
             </div>
@@ -94,7 +94,7 @@ export default function ChatLayout({
             </span>
           </Link>
           <Link
-            href="/new"
+            href="/chat/new"
             className="p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-all duration-200 text-zinc-400 hover:text-white hover:scale-105 active:scale-95"
           >
             <svg
@@ -124,7 +124,7 @@ export default function ChatLayout({
               </div>
               <p className="text-sm text-zinc-500 mb-3">No conversations yet</p>
               <Link
-                href="/new"
+                href="/chat/new"
                 className="inline-flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -139,9 +139,9 @@ export default function ChatLayout({
               return (
                 <Link
                   key={conv.id}
-                  href={`/${conv.id}`}
+                  href={`/chat/${conv.id}`}
                   className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
-                    pathname === `/${conv.id}`
+                    pathname === `/chat/${conv.id}`
                       ? 'bg-zinc-800/70 shadow-lg'
                       : 'hover:bg-zinc-800/40'
                   }`}
@@ -159,7 +159,7 @@ export default function ChatLayout({
                         {conv.name[0].toUpperCase()}
                       </div>
                     )}
-                    {pathname === `/${conv.id}` && !isSelfChat && (
+                    {pathname === `/chat/${conv.id}` && !isSelfChat && (
                       <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-zinc-900" />
                     )}
                   </div>

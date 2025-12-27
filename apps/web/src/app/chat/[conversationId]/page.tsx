@@ -138,14 +138,7 @@ export default function ConversationPage() {
             {isSelfChat ? 'Private notes, stored locally' : isOnline ? 'Online' : 'Connecting...'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Encryption badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-            <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <span className="text-xs text-green-400 font-medium">Encrypted</span>
-          </div>
+        <div className="flex gap-2">
           <button className="p-2.5 rounded-xl hover:bg-zinc-800/50 text-zinc-400 hover:text-white transition-all duration-200">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -163,18 +156,13 @@ export default function ConversationPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <div className="text-center max-w-xs">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 mb-6">
-                <span className="text-4xl">👋</span>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900/50 mb-4">
+                <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                </svg>
               </div>
-              <h3 className="text-lg font-medium text-white mb-2">
-                {isSelfChat ? 'Your private notes' : `Say hello to ${recipientName}!`}
-              </h3>
-              <p className="text-zinc-500 text-sm leading-relaxed">
-                {isSelfChat
-                  ? 'This is your personal space. Notes you write here are stored locally and never sent to anyone.'
-                  : 'Messages are end-to-end encrypted. Only you and the recipient can read them.'}
-              </p>
+              <p className="text-zinc-500">No messages yet. Start the conversation!</p>
             </div>
           </div>
         ) : (
@@ -191,22 +179,13 @@ export default function ConversationPage() {
 
       {/* Input */}
       <form onSubmit={handleSend} className="border-t border-zinc-800/50 p-4 bg-zinc-900/30 backdrop-blur-xl">
-        {/* Offline warning */}
-        {!isSelfChat && !isOnline && (
-          <div className="flex items-center gap-2 mb-3 px-4 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-            <svg className="w-4 h-4 text-yellow-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span className="text-xs text-yellow-400">Connecting to server... Messages will send when connected.</span>
-          </div>
-        )}
         <div className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={isSelfChat ? "Write a note..." : isOnline ? "Type a message..." : "Waiting for connection..."}
-            className="flex-1 px-5 py-3.5 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder={isSelfChat ? "Write a note..." : "Type a message..."}
+            className="flex-1 px-5 py-3.5 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
             disabled={!isSelfChat && !isOnline}
           />
           <button

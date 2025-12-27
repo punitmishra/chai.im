@@ -8,6 +8,7 @@ describe('authStore', () => {
       user: null,
       sessionToken: null,
       isAuthenticated: false,
+      _hasHydrated: true, // Simulate already hydrated for tests
     })
   })
 

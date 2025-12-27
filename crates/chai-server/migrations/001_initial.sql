@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(64) UNIQUE NOT NULL,
     identity_key BYTEA NOT NULL,
+    password_hash BYTEA,
+    auth_method VARCHAR(32) NOT NULL DEFAULT 'webauthn',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
