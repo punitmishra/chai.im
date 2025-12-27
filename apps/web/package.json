@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "build:wasm": "cd ../../crates/chai-crypto && wasm-pack build --target web --out-dir ../../apps/web/wasm"
+    "build:wasm": "cd ../../crates/chai-crypto && wasm-pack build --target web --features wasm --out-dir ../../apps/web/wasm"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.2.2",
