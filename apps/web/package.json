@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@chai/typescript-config": "workspace:*",
+    "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",

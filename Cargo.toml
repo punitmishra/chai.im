@@ -12,7 +12,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/chai-im/chai.im"
+repository = "https://github.com/punitmishra/chai.im"
 
 [workspace.dependencies]
 # Async runtime
@@ -86,3 +86,9 @@ syntect = "5.1"
 chai-crypto = { path = "crates/chai-crypto" }
 chai-protocol = { path = "crates/chai-protocol" }
 chai-common = { path = "crates/chai-common" }
+
+# Profile for optimized WASM builds
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

@@ -205,10 +205,10 @@ impl CryptoManager {
 
     /// Import a session from storage.
     #[wasm_bindgen(js_name = importSession)]
-    pub fn import_session(&mut self, peer_id: &str, data: &[u8]) -> Result<(), JsValue> {
+    pub fn import_session(&mut self, _peer_id: &str, data: &[u8]) -> Result<(), JsValue> {
         use crate::session::Session;
 
-        let session = Session::import(data)
+        let _session = Session::import(data)
             .map_err(|e| JsValue::from_str(&format!("Import failed: {}", e)))?;
 
         // Use internal method - need to add this to SessionManager
