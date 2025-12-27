@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Emoji picker integration** - Button in chat input, keyboard shortcut (Ctrl+Shift+E)
+- **Emoji autocomplete** - Type `:` to search and insert emojis inline
+- **Message reactions** - Hover over messages to add emoji reactions
+- **Typing indicator UI** - Shows when peer is typing (WebSocket pending)
+- **Keyboard shortcuts** - Ctrl+I to focus input, Ctrl+Shift+E for emoji, Escape to close
 - **Encryption badge** in conversation header showing E2E encryption status
 - **Offline warning banner** when disconnected from server
 - **Registration progress labels** (Username → Security → Complete)
@@ -15,11 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Encryption info badge** in new conversation search results
 - **Group chat infrastructure** - Backend API endpoints + database migrations
 - **Emoji system** - Picker with categories, search, recent emojis
-- **Reaction picker** for quick message reactions
-- **Typing indicator** component
 - **Online status** component
 - **Read receipt** component
-- **Keyboard shortcuts** system with vim-style bindings
 - **Mock WASM crypto** for development environment
 
 ### Changed

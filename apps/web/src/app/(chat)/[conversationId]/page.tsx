@@ -1,21 +1,32 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useChatStore, Message } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { useConnectionStore } from '@/store/connectionStore';
 import { getWebSocketClient, connectIfAuthenticated } from '@/lib/ws/client';
+import { EmojiPicker } from '@/components/EmojiPicker';
+import { TypingIndicator } from '@/components/TypingIndicator';
+import { MessageReactionPicker } from '@/components/ReactionPicker';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
 
 // Self-chat conversation ID prefix
 const SELF_CHAT_PREFIX = 'self_';
 
 export default function ConversationPage() {
   const params = useParams();
+  const router = useRouter();
   const conversationId = params.conversationId as string;
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get state from stores
   const user = useAuthStore((state) => state.user);
@@ -23,6 +34,12 @@ export default function ConversationPage() {
   const allMessages = useChatStore((state) => state.messages);
   const conversations = useChatStore((state) => state.conversations);
   const addMessage = useChatStore((state) => state.addMessage);
+
+  // Emoji autocomplete hook
+  const emojiAutocomplete = useEmojiAutocomplete();
+
+  // Keyboard shortcuts
+  const { registerShortcut, unregisterShortcut } = useKeyboardShortcuts();
 
   // Check if this is a self-chat
   const isSelfChat = conversationId.startsWith(SELF_CHAT_PREFIX);
@@ -57,6 +74,77 @@ export default function ConversationPage() {
       client.requestPrekeyBundle(conversation.recipientId);
     }
   }, [conversation, isSelfChat]);
+
+  // Register keyboard shortcuts
+  useEffect(() => {
+    registerShortcut({
+      id: 'emoji-picker',
+      keys: 'ctrl+shift+e',
+      description: 'Toggle emoji picker',
+      category: 'messaging',
+      allowInInput: true,
+      handler: () => setShowEmojiPicker((prev) => !prev),
+    });
+
+    registerShortcut({
+      id: 'focus-input',
+      keys: 'ctrl+i',
+      description: 'Focus message input',
+      category: 'general',
+      allowInInput: false,
+      handler: () => inputRef.current?.focus(),
+    });
+
+    registerShortcut({
+      id: 'close-emoji',
+      keys: 'escape',
+      description: 'Close emoji picker',
+      category: 'modals',
+      allowInInput: true,
+      handler: () => {
+        if (showEmojiPicker) setShowEmojiPicker(false);
+        if (emojiAutocomplete.isActive) emojiAutocomplete.close();
+      },
+    });
+
+    return () => {
+      unregisterShortcut('emoji-picker');
+      unregisterShortcut('focus-input');
+      unregisterShortcut('close-emoji');
+    };
+  }, [registerShortcut, unregisterShortcut, showEmojiPicker, emojiAutocomplete]);
+
+  // Set input ref for emoji autocomplete
+  useEffect(() => {
+    emojiAutocomplete.setInputRef(inputRef.current);
+  }, [emojiAutocomplete]);
+
+  // Handle typing indicator
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    emojiAutocomplete.handleInputChange(e);
+
+    // Send typing indicator (debounced)
+    if (!isSelfChat && connectionStatus === 'connected') {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // TODO: Send typing start via WebSocket
+      // getWebSocketClient().sendTypingIndicator(conversation?.recipientId, true);
+
+      typingTimeoutRef.current = setTimeout(() => {
+        // TODO: Send typing stop via WebSocket
+        // getWebSocketClient().sendTypingIndicator(conversation?.recipientId, false);
+      }, 2000);
+    }
+  }, [emojiAutocomplete, isSelfChat, connectionStatus]);
+
+  // Handle emoji selection from picker
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setInput((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+    inputRef.current?.focus();
+  }, []);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +277,11 @@ export default function ConversationPage() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing indicator */}
+      {peerTyping && !isSelfChat && (
+        <TypingIndicator conversationId={conversationId} userName={recipientName} isTyping={true} />
+      )}
+
       {/* Input */}
       <form onSubmit={handleSend} className="border-t border-zinc-800/50 p-4 bg-zinc-900/30 backdrop-blur-xl">
         {/* Offline warning */}
@@ -200,28 +293,72 @@ export default function ConversationPage() {
             <span className="text-xs text-yellow-400">Connecting to server... Messages will send when connected.</span>
           </div>
         )}
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isSelfChat ? "Write a note..." : isOnline ? "Type a message..." : "Waiting for connection..."}
-            className="flex-1 px-5 py-3.5 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!isSelfChat && !isOnline}
-          />
-          <button
-            type="submit"
-            className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-105 active:scale-95 disabled:shadow-none disabled:scale-100"
-            disabled={!input.trim() || isSending || (!isSelfChat && !isOnline)}
-          >
-            {isSending ? (
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-            ) : (
+
+        {/* Emoji autocomplete dropdown */}
+        <div className="relative">
+          {emojiAutocomplete.isActive && (
+            <EmojiAutocompleteDropdown
+              suggestions={emojiAutocomplete.suggestions}
+              selectedIndex={emojiAutocomplete.selectedIndex}
+              onSelect={(emoji) => {
+                emojiAutocomplete.selectEmoji(emoji);
+                inputRef.current?.focus();
+              }}
+            />
+          )}
+
+          {/* Emoji picker popup */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-full right-0 mb-2 z-50">
+              <EmojiPicker
+                onSelect={handleEmojiSelect}
+                onClose={() => setShowEmojiPicker(false)}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {/* Emoji picker button */}
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className={`p-3.5 rounded-2xl transition-all duration-200 ${
+                showEmojiPicker
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-zinc-900/50 border border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+              }`}
+              title="Emoji picker (Ctrl+Shift+E)"
+            >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            )}
-          </button>
+            </button>
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={emojiAutocomplete.handleKeyDown}
+              placeholder={isSelfChat ? "Write a note..." : isOnline ? "Type a message... (: for emoji)" : "Waiting for connection..."}
+              className="flex-1 px-5 py-3.5 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!isSelfChat && !isOnline}
+            />
+
+            <button
+              type="submit"
+              className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-105 active:scale-95 disabled:shadow-none disabled:scale-100"
+              disabled={!input.trim() || isSending || (!isSelfChat && !isOnline)}
+            >
+              {isSending ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -235,36 +372,58 @@ function MessageBubble({
   message: Message;
   isSelf: boolean;
 }) {
+  const [showReactions, setShowReactions] = useState(false);
   const isCode = message.content.includes('```');
   const timestamp = new Date(message.timestamp);
 
+  const handleReaction = (messageId: string, emoji: string) => {
+    // TODO: Send reaction via WebSocket
+    console.log('React to message:', messageId, 'with', emoji);
+  };
+
   return (
-    <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[75%] rounded-3xl px-5 py-3 ${
-          isSelf
-            ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/20'
-            : 'bg-zinc-800/70 text-white shadow-lg'
-        }`}
-      >
-        {isCode ? (
-          <CodeContent content={message.content} isSelf={isSelf} />
-        ) : (
-          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-        )}
-        <div className="mt-2 flex items-center gap-2">
-          <p
-            className={`text-xs ${isSelf ? 'text-amber-900/70' : 'text-zinc-500'}`}
-          >
-            {timestamp.toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-          {isSelf && (
-            <MessageStatus status={message.status} />
+    <div
+      className={`flex ${isSelf ? 'justify-end' : 'justify-start'} group`}
+      onMouseEnter={() => setShowReactions(true)}
+      onMouseLeave={() => setShowReactions(false)}
+    >
+      <div className="relative">
+        <div
+          className={`max-w-[75%] rounded-3xl px-5 py-3 ${
+            isSelf
+              ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/20'
+              : 'bg-zinc-800/70 text-white shadow-lg'
+          }`}
+        >
+          {isCode ? (
+            <CodeContent content={message.content} isSelf={isSelf} />
+          ) : (
+            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
           )}
+          <div className="mt-2 flex items-center gap-2">
+            <p
+              className={`text-xs ${isSelf ? 'text-amber-900/70' : 'text-zinc-500'}`}
+            >
+              {timestamp.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+            {isSelf && (
+              <MessageStatus status={message.status} />
+            )}
+          </div>
         </div>
+
+        {/* Reaction picker on hover */}
+        {showReactions && (
+          <div className={`absolute top-0 ${isSelf ? 'right-full mr-2' : 'left-full ml-2'}`}>
+            <MessageReactionPicker
+              messageId={message.id}
+              onReact={handleReaction}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
