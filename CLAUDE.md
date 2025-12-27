@@ -348,15 +348,63 @@ pnpm test:run
 ```
 
 ### Next Steps
-1. End-to-end testing of registration/login flow
-2. Test encrypted messaging between two users
-3. CLI client polish (vim keybindings, better UI)
-4. Deploy to Fly.io for production
+See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
+
+## Current Sprint (Dec 26, 2025)
+
+### Parallel Implementation Tracks
+
+| Track | Status | Description |
+|-------|--------|-------------|
+| CLI-CRYPTO | 🟡 In Progress | E2E encryption integration |
+| CLI-AUTH | 🟡 In Progress | Login/register TUI screens |
+| WEB-REALTIME | 🟡 In Progress | Typing indicators, read receipts |
+| EMOJI | 🟡 In Progress | Emoji picker, custom emojis, reactions |
+| GROUP-CHAT | 🟡 In Progress | Group chat with sender keys |
+| SHORTCUTS | 🟡 In Progress | Keyboard shortcuts (vim-style) |
+
+### Feature Checklist
+
+**CLI Client**:
+- [ ] E2E encryption with chai-crypto
+- [ ] Session persistence (encrypted)
+- [ ] Login/register TUI screens
+- [ ] Vim keybindings (/, ?, 1-9, Ctrl+U/D)
+- [ ] Search conversations and messages
+- [ ] Reply, edit, delete messages
+
+**Web Client**:
+- [ ] Typing indicators
+- [ ] Read receipts (double checkmarks)
+- [ ] Online/offline status
+- [ ] Emoji picker with categories
+- [ ] Custom emoji upload
+- [ ] Message reactions
+- [ ] Keyboard shortcuts (Ctrl+K, Ctrl+/)
+- [ ] Command palette
+
+**Shared**:
+- [ ] Group chat creation
+- [ ] Sender keys protocol
+- [ ] Member management
+- [ ] Invite links
+- [ ] Message editing (5 min window)
+- [ ] Message deletion
 
 ## Future Roadmap
 
-1. **Phase 1**: Core messaging (current)
-2. **Phase 2**: Group chats with sender keys
-3. **Phase 3**: Voice/video calls (WebRTC)
+1. **Phase 1**: Core messaging ✅ Complete
+2. **Phase 2**: Real-time features & Groups (current)
+3. **Phase 3**: File sharing & media
 4. **Phase 4**: Mobile apps (iOS/Android)
 5. **Phase 5**: Federation (Matrix-like)
+
+## Database
+
+Using **SQLite** for lightweight embedded storage:
+- Custom emojis
+- Message reactions
+- Group metadata
+- Invite links
+
+See `IMPLEMENTATION_PLAN.md` for schema details.
