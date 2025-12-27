@@ -95,7 +95,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, user_id: UserId)
                     tracing::error!("Error handling message: {}", e);
                 }
             }
-            Ok(Message::Ping(data)) => {
+            Ok(Message::Ping(_)) => {
                 // Pong is handled automatically by axum
                 tracing::trace!("Received ping");
             }

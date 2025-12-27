@@ -38,11 +38,14 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         // Health check
         .route("/health", get(handlers::health::health_check))
-        // Auth endpoints
+        // WebAuthn auth endpoints
         .route("/auth/register/start", post(handlers::auth::register_start))
         .route("/auth/register/complete", post(handlers::auth::register_complete))
         .route("/auth/login/start", post(handlers::auth::login_start))
         .route("/auth/login/complete", post(handlers::auth::login_complete))
+        // Password auth endpoints
+        .route("/auth/password/register", post(handlers::password_auth::password_register))
+        .route("/auth/password/login", post(handlers::password_auth::password_login))
         // Prekey endpoints
         .route("/prekeys/bundle/:user_id", get(handlers::prekeys::get_bundle))
         .route("/prekeys/bundle", post(handlers::prekeys::upload_bundle))

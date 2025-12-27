@@ -1,6 +1,6 @@
 //! User database operations.
 
-use sqlx::{FromRow, PgPool, Row};
+use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 #[derive(Debug, FromRow)]
@@ -8,6 +8,16 @@ pub struct User {
     pub id: Uuid,
     pub username: String,
     pub identity_key: Vec<u8>,
+    pub created_at: time::OffsetDateTime,
+    pub updated_at: time::OffsetDateTime,
+}
+
+#[derive(Debug, FromRow)]
+pub struct UserWithPassword {
+    pub id: Uuid,
+    pub username: String,
+    pub identity_key: Vec<u8>,
+    pub password_hash: Option<Vec<u8>>,
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
@@ -104,5 +114,43 @@ pub async fn search_by_username(
     .bind(exclude_user_id)
     .bind(limit)
     .fetch_all(pool)
+    .await
+}
+
+/// Create a new user with password auth.
+pub async fn create_user_with_password(
+    pool: &PgPool,
+    username: &str,
+    identity_key: &[u8],
+    password_hash: &[u8],
+) -> sqlx::Result<User> {
+    sqlx::query_as::<_, User>(
+        r#"
+        INSERT INTO users (username, identity_key, password_hash, auth_method)
+        VALUES ($1, $2, $3, 'password')
+        RETURNING id, username, identity_key, created_at, updated_at
+        "#,
+    )
+    .bind(username)
+    .bind(identity_key)
+    .bind(password_hash)
+    .fetch_one(pool)
+    .await
+}
+
+/// Get a user by username with password hash.
+pub async fn get_by_username_with_password(
+    pool: &PgPool,
+    username: &str,
+) -> sqlx::Result<Option<UserWithPassword>> {
+    sqlx::query_as::<_, UserWithPassword>(
+        r#"
+        SELECT id, username, identity_key, password_hash, created_at, updated_at
+        FROM users
+        WHERE username = $1
+        "#,
+    )
+    .bind(username)
+    .fetch_optional(pool)
     .await
 }
