@@ -38,6 +38,12 @@ impl AppState {
         // Run migrations
         sqlx::migrate!("./migrations").run(&db).await?;
 
+        Self::with_pool(db, config).await
+    }
+
+    /// Create application state with an existing database pool.
+    /// Used by Shuttle where the pool is provided.
+    pub async fn with_pool(db: PgPool, config: &Config) -> Result<Self> {
         // Create WebAuthn
         let rp_id = config.rp_id.clone();
         let rp_origin = Url::parse(&config.rp_origin)?;

@@ -10,7 +10,7 @@
 - **Authentication**: FIDO2/WebAuthn with hardware tokens
 - **Clients**: Next.js PWA (web) + Ratatui TUI (terminal)
 - **AI Features**: Local-only AI assistance (privacy-first)
-- **Infrastructure**: Rust backend on Fly.io, PostgreSQL
+- **Infrastructure**: Rust backend on Shuttle.rs, Next.js on Vercel, PostgreSQL
 
 ## Quick Reference
 
@@ -41,7 +41,7 @@ chai.im/
 ├── package.json                  # pnpm workspace root
 ├── pnpm-workspace.yaml           # Workspace definition
 ├── turbo.json                    # Build orchestration
-├── fly.toml                      # Fly.io deployment
+├── vercel.json                   # Vercel deployment config
 │
 ├── crates/                       # Rust crates
 │   ├── chai-crypto/              # Signal Protocol implementation
@@ -205,14 +205,37 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
 
 ## Deployment
 
-### Fly.io
+### Shuttle.rs (Backend)
+
+The Rust backend is deployed to Shuttle.rs which provides managed PostgreSQL.
 
 ```bash
-fly launch --name chai-server
-fly postgres create --name chai-db
-fly secrets set DATABASE_URL=... JWT_SECRET=... RP_ID=... RP_ORIGIN=...
-fly deploy
+# Install Shuttle CLI (if not installed)
+cargo install cargo-shuttle
+
+# Login to Shuttle
+cargo shuttle login
+
+# Navigate to server crate
+cd crates/chai-server
+
+# Edit Secrets.toml with your production values
+# JWT_SECRET, RP_ID, RP_ORIGIN
+
+# Create and deploy the project
+cargo shuttle project start --name chai-server
+cargo shuttle deploy --features shuttle
 ```
+
+The backend will be available at: `https://chai-server.shuttleapp.rs`
+
+### Vercel (Frontend)
+
+The Next.js frontend is auto-deployed to Vercel on push to master.
+
+Environment variables to set in Vercel:
+- `NEXT_PUBLIC_API_URL=https://chai-server.shuttleapp.rs`
+- `NEXT_PUBLIC_WS_URL=wss://chai-server.shuttleapp.rs/ws`
 
 ### Local Development
 
