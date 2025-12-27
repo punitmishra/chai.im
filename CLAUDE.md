@@ -259,6 +259,100 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl/lib/pkgconfig"
 
 Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
+## Development Session Checkpoint (Dec 26, 2025 - Evening)
+
+### Session Summary
+
+This session focused on code cleanup, optimization, and establishing production-ready patterns.
+
+### Completed Features
+
+**1. Password-Based Authentication (Full Stack)**
+- Server: Added `/auth/password/register` and `/auth/password/login` with argon2 hashing
+- Client: `keyLocker.ts` with PBKDF2 (100k iterations) + AES-256-GCM
+- Identity keys encrypted with user password, stored in IndexedDB
+
+**2. Centralized Configuration & Logging**
+- `lib/config.ts`: API_URL, WS_URL, and app constants in one place
+- `lib/logger.ts`: Environment-aware logging (debug only in dev)
+- Replaced 30+ console statements with structured logger calls
+
+**3. WebSocket Improvements**
+- Type-safe message handling with discriminated unions
+- Automatic one-time prekey replenishment when running low
+- Toast notifications for session restoration failures
+- Configurable ping interval and reconnection delays
+
+**4. UI Components & Theme**
+- `ErrorBoundary`: Crash handling with recovery UI
+- `ToastContainer`: Animated notifications (success/error/warning/info)
+- `Loading`: Consistent spinner component
+- Zinc/Amber color scheme throughout
+
+**5. Testing Infrastructure**
+- Vitest with jsdom environment
+- 25 tests across 4 files (all passing)
+- Crypto polyfills for Node.js environment
+
+**6. Production Hardening**
+- Security headers in next.config.js
+- OpenGraph metadata for social sharing
+- Store exports properly organized
+
+### Architecture Overview
+```
+apps/web/src/
+├── app/                        # Next.js App Router
+│   ├── (chat)/                 # Chat layout group
+│   └── auth/                   # Login/Register pages
+├── components/                 # Shared UI components
+│   ├── ErrorBoundary.tsx
+│   ├── Loading.tsx
+│   └── Toast.tsx
+├── lib/
+│   ├── api/                    # REST API clients
+│   ├── config.ts               # Centralized configuration
+│   ├── crypto/                 # WASM crypto + keyLocker
+│   ├── logger.ts               # Structured logging
+│   └── ws/                     # WebSocket client
+├── store/                      # Zustand stores
+│   ├── authStore.ts            # Auth state (persisted)
+│   ├── chatStore.ts            # Chat state (persisted)
+│   ├── connectionStore.ts      # WebSocket connection
+│   └── toastStore.ts           # Toast notifications
+└── test/                       # Test utilities
+
+crates/chai-server/src/
+├── handlers/
+│   ├── auth.rs                 # WebAuthn handlers
+│   └── password_auth.rs        # Password auth handlers
+├── ws/                         # WebSocket server
+└── db/                         # PostgreSQL queries
+```
+
+### Local Development
+```bash
+# PostgreSQL via Docker
+docker start chai-postgres
+
+# Backend (port 5000)
+PORT=5000 DATABASE_URL="postgres://postgres:postgres@localhost:5433/chai" \
+JWT_SECRET="dev-secret-key" RP_ID="localhost" RP_ORIGIN="http://localhost:5001" \
+cargo run -p chai-server
+
+# Frontend (port 5001)
+cd apps/web && pnpm dev
+
+# Run tests
+pnpm test:run
+```
+
+### Next Steps
+1. End-to-end testing of registration/login flow
+2. Test encrypted messaging between two users
+3. CLI client polish (vim keybindings, better UI)
+4. Deploy to Fly.io for production
+
 ## Future Roadmap
 
 1. **Phase 1**: Core messaging (current)
