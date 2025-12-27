@@ -6,6 +6,15 @@
  */
 
 import type { CryptoManager as WasmCryptoManager } from '@/wasm/chai_crypto';
+import {
+  lockIdentity,
+  unlockIdentity,
+  serializeLockedKey,
+  deserializeLockedKey,
+  isLocked,
+} from './keyLocker';
+import { DB_NAME, STORE_NAME, DB_VERSION } from '@/lib/config';
+import logger from '@/lib/logger';
 
 let wasmModule: typeof import('@/wasm/chai_crypto') | null = null;
 let cryptoManager: WasmCryptoManager | null = null;
@@ -13,6 +22,8 @@ let initPromise: Promise<void> | null = null;
 
 /**
  * Initialize the WASM crypto module.
+ * This auto-loads unlocked identity from storage.
+ * For password-protected identities, use initCryptoWithPassword instead.
  */
 export async function initCrypto(): Promise<WasmCryptoManager> {
   if (cryptoManager) {
@@ -33,19 +44,117 @@ export async function initCrypto(): Promise<WasmCryptoManager> {
   const storedIdentity = await loadIdentityFromStorage();
 
   if (storedIdentity) {
+    // Check if identity is locked (encrypted with password)
+    if (isLocked(storedIdentity)) {
+      throw new Error('Identity is password-protected. Use initCryptoWithPassword().');
+    }
     try {
       cryptoManager = wasmModule.CryptoManager.fromBytes(storedIdentity);
+      logger.crypto.identityRestored();
     } catch (e) {
-      console.warn('Failed to restore identity, creating new one:', e);
+      logger.crypto.identityRestoreFailed(e);
       cryptoManager = new wasmModule.CryptoManager();
       await saveIdentityToStorage(cryptoManager.exportIdentity());
+      logger.crypto.identityCreated();
     }
   } else {
     cryptoManager = new wasmModule.CryptoManager();
     await saveIdentityToStorage(cryptoManager.exportIdentity());
+    logger.crypto.identityCreated();
   }
 
   return cryptoManager;
+}
+
+/**
+ * Initialize crypto with a password-protected identity.
+ * Use this when the user logs in with a password.
+ */
+export async function initCryptoWithPassword(password: string): Promise<WasmCryptoManager> {
+  if (cryptoManager) {
+    return cryptoManager;
+  }
+
+  if (!initPromise) {
+    initPromise = loadWasmModule();
+  }
+
+  await initPromise;
+
+  if (!wasmModule) {
+    throw new Error('Failed to load WASM module');
+  }
+
+  const storedIdentity = await loadIdentityFromStorage();
+
+  if (!storedIdentity) {
+    throw new Error('No identity found. Register first.');
+  }
+
+  if (!isLocked(storedIdentity)) {
+    // Identity not locked, load directly
+    cryptoManager = wasmModule.CryptoManager.fromBytes(storedIdentity);
+    return cryptoManager;
+  }
+
+  // Unlock the identity with password
+  const lockedKey = deserializeLockedKey(storedIdentity);
+  const unlocked = await unlockIdentity(lockedKey, password);
+  cryptoManager = wasmModule.CryptoManager.fromBytes(unlocked);
+
+  return cryptoManager;
+}
+
+/**
+ * Create a new identity and lock it with a password.
+ * Use this during password-based registration.
+ */
+export async function createLockedIdentity(password: string): Promise<{
+  manager: WasmCryptoManager;
+  publicIdentity: Uint8Array;
+}> {
+  if (!initPromise) {
+    initPromise = loadWasmModule();
+  }
+
+  await initPromise;
+
+  if (!wasmModule) {
+    throw new Error('Failed to load WASM module');
+  }
+
+  // Generate new identity
+  const manager = new wasmModule.CryptoManager();
+  cryptoManager = manager;
+
+  // Export identity and lock it
+  const identity = manager.exportIdentity();
+  const locked = await lockIdentity(identity, password);
+  const serialized = serializeLockedKey(locked);
+
+  // Save locked identity
+  await saveIdentityToStorage(serialized);
+
+  return {
+    manager,
+    publicIdentity: manager.publicIdentity(),
+  };
+}
+
+/**
+ * Check if stored identity is password-protected.
+ */
+export async function isIdentityLocked(): Promise<boolean> {
+  const storedIdentity = await loadIdentityFromStorage();
+  if (!storedIdentity) return false;
+  return isLocked(storedIdentity);
+}
+
+/**
+ * Clear the current crypto manager (for logout).
+ */
+export function clearCrypto(): void {
+  cryptoManager = null;
 }
 
 async function loadWasmModule(): Promise<void> {
@@ -60,8 +169,9 @@ async function loadWasmModule(): Promise<void> {
     module.init();
 
     wasmModule = module;
+    logger.debug('WASM crypto module loaded');
   } catch (error) {
-    console.error('Failed to load WASM module:', error);
+    logger.error('Failed to load WASM module', error);
     throw error;
   }
 }
@@ -156,12 +266,9 @@ export async function getPublicIdentity(): Promise<Uint8Array> {
 }
 
 // IndexedDB storage helpers
-const DB_NAME = 'chai-crypto';
-const STORE_NAME = 'keys';
-
 async function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
@@ -235,10 +342,13 @@ export async function saveSessionToStorage(peerId: string): Promise<void> {
       const request = store.put(sessionData, `session:${peerId}`);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
+      request.onsuccess = () => {
+        logger.crypto.sessionSaved(peerId);
+        resolve();
+      };
     });
   } catch (e) {
-    console.warn('Failed to save session:', e);
+    logger.crypto.sessionSaveFailed(e);
   }
 }
 

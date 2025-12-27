@@ -2,7 +2,7 @@
  * Authentication API client for WebAuthn registration and login.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { API_URL } from '@/lib/config';
 
 export interface RegisterStartResponse {
   options: PublicKeyCredentialCreationOptions;

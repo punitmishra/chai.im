@@ -3,8 +3,7 @@
  */
 
 import { useAuthStore } from '@/store/authStore';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { API_URL } from '@/lib/config';
 
 export interface UserSearchResult {
   id: string;

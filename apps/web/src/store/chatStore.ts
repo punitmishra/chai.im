@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { PERSISTED_MESSAGE_LIMIT } from '@/lib/config';
 
 export interface Message {
   id: string;
@@ -35,12 +37,14 @@ interface ChatState {
   setSessionEstablished: (conversationId: string) => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  messages: [],
-  activeConversationId: null,
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      conversations: [],
+      messages: [],
+      activeConversationId: null,
 
-  setActiveConversation: (id) => {
+      setActiveConversation: (id) => {
     set({ activeConversationId: id });
     if (id) {
       get().markAsRead(id);
@@ -113,4 +117,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
   },
-}));
+    }),
+    {
+      name: 'chai-chat',
+      partialize: (state) => ({
+        conversations: state.conversations,
+        messages: state.messages.slice(-PERSISTED_MESSAGE_LIMIT),
+      }),
+    }
+  )
+);
