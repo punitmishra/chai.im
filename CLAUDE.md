@@ -263,57 +263,48 @@ Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
 ### Latest Session Summary
 
-This session implemented full real-time WebSocket support for typing indicators and message reactions.
+All real-time features implemented and merged. Ready for next phase.
 
-### Current PR
-- **PR #12**: https://github.com/punitmishra/chai.im/pull/12
-- Branch: `feat/realtime-features`
-- Previous: **PR #11** merged (UX improvements + security hardening)
-
-### Recent Changes
-
-**1. Real-time Typing Indicators**
-- Backend: `TypingStart`, `TypingStop` client messages
-- Backend: `TypingIndicator` server message forwarding
-- Frontend: Debounced typing (auto-stops after 5s)
-- Frontend: Subscribe to peer typing events
-
-**2. Message Reactions**
-- Backend: `AddReaction`, `RemoveReaction` client messages
-- Backend: `ReactionAdded`, `ReactionRemoved` server messages
-- Frontend: Reactions display under messages with counts
-- Frontend: Toggle reactions on/off by clicking
-- Added `Reaction` type and store methods
-
-**3. Read Receipts**
-- Backend: `MarkRead` client message
-- Backend: `MessageRead` server message
-- Frontend: Read status updates in message bubbles
-
-**4. WebSocket Protocol Extensions**
-- New `ServerMessage` types: `TypingIndicator`, `ReactionAdded`, `ReactionRemoved`, `MessageRead`, `PresenceUpdate`
-- Handler subscriptions: `onTyping()`, `onReaction()`, `onRead()`, `onPresence()`
+### Merged PRs
+- **PR #12**: Real-time typing indicators, message reactions, read receipts ✅
+- **PR #11**: UX improvements, security hardening, group chat infrastructure ✅
 
 ### What's Working
 | Feature | Status |
 |---------|--------|
-| User Registration (WebAuthn + Password) | ✅ Working |
-| E2E Encryption (Signal Protocol) | ✅ Working |
-| 1:1 Messaging | ✅ Working |
-| Self-Chat (Notes to Self) | ✅ Working |
-| Emoji Picker + Autocomplete | ✅ Integrated |
-| Keyboard Shortcuts | ✅ Integrated |
-| Real-time Typing Indicators | ✅ Implemented |
-| Message Reactions | ✅ Implemented |
-| Read Receipts | ✅ Implemented |
+| User Registration (WebAuthn + Password) | ✅ |
+| E2E Encryption (Signal Protocol) | ✅ |
+| 1:1 Messaging | ✅ |
+| Self-Chat (Notes to Self) | ✅ |
+| Emoji Picker + Autocomplete | ✅ |
+| Keyboard Shortcuts | ✅ |
+| Real-time Typing Indicators | ✅ |
+| Message Reactions | ✅ |
+| Read Receipts | ✅ |
+| Group Chat Backend | ✅ |
 
 ### What's Pending
 | Feature | Priority |
 |---------|----------|
-| Group chat frontend integration | Medium |
-| Message search | Low |
+| Group chat frontend integration | High |
+| Message search | Medium |
 | File attachments | Low |
 | Offline message queue | Low |
+
+### Recent Implementations
+
+**Real-time WebSocket Features (PR #12)**
+- Typing indicators with debouncing (5s auto-stop)
+- Message reactions (add/remove/toggle)
+- Read receipts with status updates
+- Presence updates
+
+**UX & Infrastructure (PR #11)**
+- Emoji picker + autocomplete
+- Keyboard shortcuts system
+- Group chat API endpoints
+- CORS security hardening
+- Performance: 16,823 req/sec at 100 concurrent
 
 ### Previous Session Completed Features
 
