@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PERSISTED_MESSAGE_LIMIT } from '@/lib/config';
 
+export interface Reaction {
+  userId: string;
+  emoji: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -9,6 +14,7 @@ export interface Message {
   content: string;
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read';
+  reactions?: Reaction[];
 }
 
 export interface Conversation {
@@ -35,6 +41,8 @@ interface ChatState {
   updateMessageStatus: (messageId: string, status: Message['status']) => void;
   markAsRead: (conversationId: string) => void;
   setSessionEstablished: (conversationId: string) => void;
+  addReaction: (messageId: string, userId: string, emoji: string) => void;
+  removeReaction: (messageId: string, userId: string, emoji: string) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -115,6 +123,33 @@ export const useChatStore = create<ChatState>()(
       conversations: state.conversations.map((c) =>
         c.id === conversationId ? { ...c, hasSession: true } : c
       ),
+    }));
+  },
+
+  addReaction: (messageId, userId, emoji) => {
+    set((state) => ({
+      messages: state.messages.map((m) => {
+        if (m.id !== messageId) return m;
+        const reactions = m.reactions || [];
+        // Don't add duplicate reaction
+        if (reactions.some(r => r.userId === userId && r.emoji === emoji)) {
+          return m;
+        }
+        return { ...m, reactions: [...reactions, { userId, emoji }] };
+      }),
+    }));
+  },
+
+  removeReaction: (messageId, userId, emoji) => {
+    set((state) => ({
+      messages: state.messages.map((m) => {
+        if (m.id !== messageId) return m;
+        const reactions = m.reactions || [];
+        return {
+          ...m,
+          reactions: reactions.filter(r => !(r.userId === userId && r.emoji === emoji)),
+        };
+      }),
     }));
   },
     }),

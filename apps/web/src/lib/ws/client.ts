@@ -16,7 +16,12 @@ type ClientMessage =
   | { type: 'SendMessage'; payload: SendMessagePayload }
   | { type: 'GetPrekeyBundle'; payload: { user_id: string } }
   | { type: 'AckMessages'; payload: { message_ids: string[] } }
-  | { type: 'UploadPrekeys'; payload: { prekeys: number[][] } };
+  | { type: 'UploadPrekeys'; payload: { prekeys: number[][] } }
+  | { type: 'TypingStart'; payload: { recipient_id: string; conversation_id: string } }
+  | { type: 'TypingStop'; payload: { recipient_id: string; conversation_id: string } }
+  | { type: 'AddReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
+  | { type: 'RemoveReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
+  | { type: 'MarkRead'; payload: { conversation_id: string; message_ids: string[] } };
 
 type ServerMessage =
   | { type: 'Pong'; payload: null }
@@ -24,7 +29,12 @@ type ServerMessage =
   | { type: 'MessageSent'; payload: { message_id: string } }
   | { type: 'PrekeyBundle'; payload: PrekeyBundleResponse }
   | { type: 'LowPrekeys'; payload: { remaining: number } }
-  | { type: 'Error'; payload: { code: string; message: string } };
+  | { type: 'Error'; payload: { code: string; message: string } }
+  | { type: 'TypingIndicator'; payload: TypingIndicatorPayload }
+  | { type: 'ReactionAdded'; payload: ReactionPayload }
+  | { type: 'ReactionRemoved'; payload: ReactionPayload }
+  | { type: 'MessageRead'; payload: { message_id: string } }
+  | { type: 'PresenceUpdate'; payload: { user_id: string; online: boolean } };
 
 interface SendMessagePayload {
   recipient_id: string;
@@ -33,14 +43,36 @@ interface SendMessagePayload {
   message_type: number;
 }
 
+interface TypingIndicatorPayload {
+  user_id: string;
+  conversation_id: string;
+  is_typing: boolean;
+}
+
+interface ReactionPayload {
+  message_id: string;
+  conversation_id: string;
+  user_id: string;
+  emoji: string;
+}
+
 type MessageHandler = (message: ServerMessage) => void;
+type TypingHandler = (userId: string, conversationId: string, isTyping: boolean) => void;
+type ReactionHandler = (messageId: string, conversationId: string, userId: string, emoji: string, added: boolean) => void;
+type ReadHandler = (messageId: string) => void;
+type PresenceHandler = (userId: string, online: boolean) => void;
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private baseUrl: string;
   private handlers: Map<string, MessageHandler[]> = new Map();
+  private typingHandlers: TypingHandler[] = [];
+  private reactionHandlers: ReactionHandler[] = [];
+  private readHandlers: ReadHandler[] = [];
+  private presenceHandlers: PresenceHandler[] = [];
   private reconnectTimeout: number | null = null;
   private pingInterval: number | null = null;
+  private typingTimeout: Map<string, number> = new Map(); // Debounce typing
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -160,6 +192,122 @@ export class WebSocketClient {
   }
 
   /**
+   * Send typing indicator (debounced).
+   */
+  sendTypingStart(recipientId: string, conversationId: string): void {
+    // Clear existing timeout for this conversation
+    const key = `${recipientId}:${conversationId}`;
+    const existingTimeout = this.typingTimeout.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    this.send({
+      type: 'TypingStart',
+      payload: { recipient_id: recipientId, conversation_id: conversationId },
+    });
+
+    // Auto-stop typing after 5 seconds
+    const timeout = window.setTimeout(() => {
+      this.sendTypingStop(recipientId, conversationId);
+      this.typingTimeout.delete(key);
+    }, 5000);
+    this.typingTimeout.set(key, timeout);
+  }
+
+  /**
+   * Stop typing indicator.
+   */
+  sendTypingStop(recipientId: string, conversationId: string): void {
+    const key = `${recipientId}:${conversationId}`;
+    const existingTimeout = this.typingTimeout.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      this.typingTimeout.delete(key);
+    }
+
+    this.send({
+      type: 'TypingStop',
+      payload: { recipient_id: recipientId, conversation_id: conversationId },
+    });
+  }
+
+  /**
+   * Add a reaction to a message.
+   */
+  addReaction(messageId: string, conversationId: string, emoji: string): void {
+    this.send({
+      type: 'AddReaction',
+      payload: { message_id: messageId, conversation_id: conversationId, emoji },
+    });
+  }
+
+  /**
+   * Remove a reaction from a message.
+   */
+  removeReaction(messageId: string, conversationId: string, emoji: string): void {
+    this.send({
+      type: 'RemoveReaction',
+      payload: { message_id: messageId, conversation_id: conversationId, emoji },
+    });
+  }
+
+  /**
+   * Mark messages as read.
+   */
+  markRead(conversationId: string, messageIds: string[]): void {
+    if (messageIds.length === 0) return;
+    this.send({
+      type: 'MarkRead',
+      payload: { conversation_id: conversationId, message_ids: messageIds },
+    });
+  }
+
+  /**
+   * Register a typing handler.
+   */
+  onTyping(handler: TypingHandler): () => void {
+    this.typingHandlers.push(handler);
+    return () => {
+      const index = this.typingHandlers.indexOf(handler);
+      if (index !== -1) this.typingHandlers.splice(index, 1);
+    };
+  }
+
+  /**
+   * Register a reaction handler.
+   */
+  onReaction(handler: ReactionHandler): () => void {
+    this.reactionHandlers.push(handler);
+    return () => {
+      const index = this.reactionHandlers.indexOf(handler);
+      if (index !== -1) this.reactionHandlers.splice(index, 1);
+    };
+  }
+
+  /**
+   * Register a read receipt handler.
+   */
+  onRead(handler: ReadHandler): () => void {
+    this.readHandlers.push(handler);
+    return () => {
+      const index = this.readHandlers.indexOf(handler);
+      if (index !== -1) this.readHandlers.splice(index, 1);
+    };
+  }
+
+  /**
+   * Register a presence handler.
+   */
+  onPresence(handler: PresenceHandler): () => void {
+    this.presenceHandlers.push(handler);
+    return () => {
+      const index = this.presenceHandlers.indexOf(handler);
+      if (index !== -1) this.presenceHandlers.splice(index, 1);
+    };
+  }
+
+  /**
    * Register a message handler.
    */
   on(type: string, handler: MessageHandler): () => void {
@@ -237,6 +385,21 @@ export class WebSocketClient {
         break;
       case 'LowPrekeys':
         this.handleLowPrekeys(message.payload as { remaining: number });
+        break;
+      case 'TypingIndicator':
+        this.handleTypingIndicator(message.payload as TypingIndicatorPayload);
+        break;
+      case 'ReactionAdded':
+        this.handleReactionAdded(message.payload as ReactionPayload);
+        break;
+      case 'ReactionRemoved':
+        this.handleReactionRemoved(message.payload as ReactionPayload);
+        break;
+      case 'MessageRead':
+        this.handleMessageRead(message.payload as { message_id: string });
+        break;
+      case 'PresenceUpdate':
+        this.handlePresenceUpdate(message.payload as { user_id: string; online: boolean });
         break;
     }
   }
@@ -324,6 +487,64 @@ export class WebSocketClient {
         logger.info(`Uploaded ${prekeyArrays.length} new prekeys`);
       } catch (error) {
         logger.error('Failed to replenish prekeys', error);
+      }
+    }
+  }
+
+  private handleTypingIndicator(payload: TypingIndicatorPayload): void {
+    for (const handler of this.typingHandlers) {
+      try {
+        handler(payload.user_id, payload.conversation_id, payload.is_typing);
+      } catch (error) {
+        logger.error('Typing handler error', error);
+      }
+    }
+  }
+
+  private handleReactionAdded(payload: ReactionPayload): void {
+    // Update chat store with new reaction
+    useChatStore.getState().addReaction(payload.message_id, payload.user_id, payload.emoji);
+
+    for (const handler of this.reactionHandlers) {
+      try {
+        handler(payload.message_id, payload.conversation_id, payload.user_id, payload.emoji, true);
+      } catch (error) {
+        logger.error('Reaction handler error', error);
+      }
+    }
+  }
+
+  private handleReactionRemoved(payload: ReactionPayload): void {
+    // Update chat store to remove reaction
+    useChatStore.getState().removeReaction(payload.message_id, payload.user_id, payload.emoji);
+
+    for (const handler of this.reactionHandlers) {
+      try {
+        handler(payload.message_id, payload.conversation_id, payload.user_id, payload.emoji, false);
+      } catch (error) {
+        logger.error('Reaction handler error', error);
+      }
+    }
+  }
+
+  private handleMessageRead(payload: { message_id: string }): void {
+    useChatStore.getState().updateMessageStatus(payload.message_id, 'read');
+
+    for (const handler of this.readHandlers) {
+      try {
+        handler(payload.message_id);
+      } catch (error) {
+        logger.error('Read handler error', error);
+      }
+    }
+  }
+
+  private handlePresenceUpdate(payload: { user_id: string; online: boolean }): void {
+    for (const handler of this.presenceHandlers) {
+      try {
+        handler(payload.user_id, payload.online);
+      } catch (error) {
+        logger.error('Presence handler error', error);
       }
     }
   }
