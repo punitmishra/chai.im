@@ -32,10 +32,7 @@ impl ConnectionManager {
     /// Register a new connection.
     pub fn add(&mut self, user_id: UserId, sender: mpsc::Sender<OutgoingMessage>) {
         let conn = Connection { user_id, sender };
-        self.connections
-            .entry(user_id)
-            .or_default()
-            .push(conn);
+        self.connections.entry(user_id).or_default().push(conn);
     }
 
     /// Remove a connection.
@@ -69,10 +66,7 @@ impl ConnectionManager {
 
     /// Get connection count for a user.
     pub fn connection_count(&self, user_id: &UserId) -> usize {
-        self.connections
-            .get(user_id)
-            .map(|c| c.len())
-            .unwrap_or(0)
+        self.connections.get(user_id).map(|c| c.len()).unwrap_or(0)
     }
 }
 

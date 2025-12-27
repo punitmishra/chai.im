@@ -56,8 +56,7 @@ impl Default for Theme {
 impl Config {
     /// Get the config directory path.
     pub fn config_dir() -> Option<PathBuf> {
-        ProjectDirs::from("im", "chai", "chai-cli")
-            .map(|dirs| dirs.config_dir().to_path_buf())
+        ProjectDirs::from("im", "chai", "chai-cli").map(|dirs| dirs.config_dir().to_path_buf())
     }
 
     /// Get the config file path.

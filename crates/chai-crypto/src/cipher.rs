@@ -11,8 +11,10 @@ use rand::RngCore;
 ///
 /// Returns: nonce (12 bytes) || ciphertext || tag (16 bytes)
 pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| CryptoError::InvalidKeyLength { expected: 32, actual: key.len() })?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidKeyLength {
+        expected: 32,
+        actual: key.len(),
+    })?;
 
     let mut nonce_bytes = [0u8; 12];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
@@ -38,8 +40,10 @@ pub fn decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Result<Vec<u8>> {
         return Err(CryptoError::DecryptionFailed);
     }
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| CryptoError::InvalidKeyLength { expected: 32, actual: key.len() })?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidKeyLength {
+        expected: 32,
+        actual: key.len(),
+    })?;
 
     let nonce = Nonce::from_slice(&ciphertext[..12]);
     let ciphertext = &ciphertext[12..];
@@ -53,14 +57,19 @@ pub fn decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Result<Vec<u8>> {
 pub fn encrypt_with_ad(key: &[u8; 32], plaintext: &[u8], ad: &[u8]) -> Result<Vec<u8>> {
     use aes_gcm::aead::Payload;
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| CryptoError::InvalidKeyLength { expected: 32, actual: key.len() })?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidKeyLength {
+        expected: 32,
+        actual: key.len(),
+    })?;
 
     let mut nonce_bytes = [0u8; 12];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    let payload = Payload { msg: plaintext, aad: ad };
+    let payload = Payload {
+        msg: plaintext,
+        aad: ad,
+    };
     let ciphertext = cipher
         .encrypt(nonce, payload)
         .map_err(|_| CryptoError::DecryptionFailed)?;
@@ -80,8 +89,10 @@ pub fn decrypt_with_ad(key: &[u8; 32], ciphertext: &[u8], ad: &[u8]) -> Result<V
         return Err(CryptoError::DecryptionFailed);
     }
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| CryptoError::InvalidKeyLength { expected: 32, actual: key.len() })?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidKeyLength {
+        expected: 32,
+        actual: key.len(),
+    })?;
 
     let nonce = Nonce::from_slice(&ciphertext[..12]);
     let payload = Payload {

@@ -26,8 +26,7 @@ impl Config {
                 .context("Invalid PORT")?,
             database_url: std::env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "postgres://localhost/chai".into()),
-            rp_id: std::env::var("RP_ID")
-                .unwrap_or_else(|_| "localhost".into()),
+            rp_id: std::env::var("RP_ID").unwrap_or_else(|_| "localhost".into()),
             rp_origin: std::env::var("RP_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:3000".into()),
             jwt_secret: std::env::var("JWT_SECRET")

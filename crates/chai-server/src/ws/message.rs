@@ -244,11 +244,7 @@ async fn handle_upload_one_time_prekeys(
     let count =
         prekeys::store_one_time_prekeys(&state.db, Uuid::from(user_id), &prekey_data).await?;
 
-    tracing::info!(
-        "User {:?} uploaded {} one-time prekeys",
-        user_id,
-        count
-    );
+    tracing::info!("User {:?} uploaded {} one-time prekeys", user_id, count);
     Ok(())
 }
 
@@ -378,7 +374,9 @@ async fn handle_add_reaction(
 
     let connections = state.connections.read().await;
     // Send to recipient
-    connections.send_to_user(&recipient_id, outgoing.clone()).await;
+    connections
+        .send_to_user(&recipient_id, outgoing.clone())
+        .await;
     // Also send back to sender for confirmation
     connections.send_to_user(&sender_id, outgoing).await;
 
@@ -412,7 +410,9 @@ async fn handle_remove_reaction(
     };
 
     let connections = state.connections.read().await;
-    connections.send_to_user(&recipient_id, outgoing.clone()).await;
+    connections
+        .send_to_user(&recipient_id, outgoing.clone())
+        .await;
     connections.send_to_user(&sender_id, outgoing).await;
 
     tracing::debug!(

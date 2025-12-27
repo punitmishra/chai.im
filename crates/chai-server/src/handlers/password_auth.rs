@@ -106,9 +106,9 @@ pub async fn password_login(
         .ok_or(AppError::UserNotFound)?;
 
     // Verify user has password auth enabled
-    let password_hash = user
-        .password_hash
-        .ok_or(AppError::AuthenticationFailed("User has no password set".into()))?;
+    let password_hash = user.password_hash.ok_or(AppError::AuthenticationFailed(
+        "User has no password set".into(),
+    ))?;
 
     // Verify password
     let parsed_hash = PasswordHash::new(std::str::from_utf8(&password_hash).unwrap_or(""))

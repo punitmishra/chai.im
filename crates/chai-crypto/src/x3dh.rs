@@ -2,7 +2,7 @@
 //!
 //! Implements the Signal Protocol's X3DH for establishing shared secrets.
 
-use crate::keys::{DHKeyPair, IdentityKeyPair, PreKeyBundle, SignedPreKey, OneTimePreKey};
+use crate::keys::{DHKeyPair, IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
 use crate::{CryptoError, Result};
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -37,7 +37,10 @@ impl X3DHSender {
     /// Perform X3DH as the sender (initiator).
     ///
     /// Returns the shared secret and the initial message to send.
-    pub fn initiate(&self, their_bundle: &PreKeyBundle) -> Result<(SharedSecret, X3DHInitialMessage)> {
+    pub fn initiate(
+        &self,
+        their_bundle: &PreKeyBundle,
+    ) -> Result<(SharedSecret, X3DHInitialMessage)> {
         // Verify the bundle's signature
         their_bundle.verify()?;
 
@@ -113,9 +116,12 @@ impl X3DHReceiver {
     pub fn receive(&mut self, message: &X3DHInitialMessage) -> Result<SharedSecret> {
         // Find the one-time prekey if used
         let one_time_prekey = message.one_time_prekey_id.and_then(|id| {
-            self.one_time_prekeys.iter().position(|k| k.id == id).map(|idx| {
-                self.one_time_prekeys.remove(idx) // Consume the one-time prekey
-            })
+            self.one_time_prekeys
+                .iter()
+                .position(|k| k.id == id)
+                .map(|idx| {
+                    self.one_time_prekeys.remove(idx) // Consume the one-time prekey
+                })
         });
 
         // Get their keys
@@ -211,11 +217,8 @@ mod tests {
         let (alice_secret, initial_message) = alice_sender.initiate(&bob_bundle).unwrap();
 
         // Bob receives
-        let mut bob_receiver = X3DHReceiver::new(
-            bob_identity,
-            bob_signed_prekey,
-            vec![bob_one_time],
-        );
+        let mut bob_receiver =
+            X3DHReceiver::new(bob_identity, bob_signed_prekey, vec![bob_one_time]);
 
         let bob_secret = bob_receiver.receive(&initial_message).unwrap();
 

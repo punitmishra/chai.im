@@ -36,15 +36,12 @@ impl AppState {
             .await?;
 
         // Run migrations
-        sqlx::migrate!("./migrations")
-            .run(&db)
-            .await?;
+        sqlx::migrate!("./migrations").run(&db).await?;
 
         // Create WebAuthn
         let rp_id = config.rp_id.clone();
         let rp_origin = Url::parse(&config.rp_origin)?;
-        let builder = WebauthnBuilder::new(&rp_id, &rp_origin)?
-            .rp_name("Chai.im");
+        let builder = WebauthnBuilder::new(&rp_id, &rp_origin)?.rp_name("Chai.im");
         let webauthn = builder.build()?;
 
         Ok(Self {

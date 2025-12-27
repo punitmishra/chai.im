@@ -2,8 +2,8 @@
 
 mod config;
 mod error;
-mod tui;
 mod network;
+mod tui;
 
 use anyhow::Result;
 use crossterm::{
@@ -62,7 +62,9 @@ async fn run_app<B: ratatui::backend::Backend>(
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
-                        KeyCode::Char('q') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        KeyCode::Char('q')
+                            if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                        {
                             return Ok(());
                         }
                         KeyCode::Esc if app.input_mode == tui::app::InputMode::Normal => {

@@ -15,8 +15,8 @@ pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(30),  // Sidebar
-            Constraint::Min(40),     // Chat area
+            Constraint::Length(30), // Sidebar
+            Constraint::Min(40),    // Chat area
         ])
         .split(f.size());
 
@@ -28,15 +28,19 @@ fn draw_sidebar(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),   // Header
-            Constraint::Min(10),     // Conversations
-            Constraint::Length(3),   // Status
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Conversations
+            Constraint::Length(3), // Status
         ])
         .split(area);
 
     // Header
     let header = Paragraph::new("  Chai.im")
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(header, chunks[0]);
 
@@ -64,8 +68,7 @@ fn draw_sidebar(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Chats "));
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Chats "));
     f.render_widget(list, chunks[1]);
 
     // Status bar
@@ -84,9 +87,9 @@ fn draw_chat_area(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),   // Header
-            Constraint::Min(10),     // Messages
-            Constraint::Length(3),   // Input
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Messages
+            Constraint::Length(3), // Input
         ])
         .split(area);
 
@@ -132,8 +135,8 @@ fn draw_messages(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let messages_list = List::new(messages)
-        .block(Block::default().borders(Borders::ALL).title(" Messages "));
+    let messages_list =
+        List::new(messages).block(Block::default().borders(Borders::ALL).title(" Messages "));
     f.render_widget(messages_list, area);
 }
 
@@ -174,7 +177,10 @@ fn render_message_content(content: &str) -> Text<'static> {
 fn draw_input(f: &mut Frame, app: &App, area: Rect) {
     let (title, style) = match app.input_mode {
         InputMode::Normal => (" Press 'i' to type ", Style::default().fg(Color::DarkGray)),
-        InputMode::Editing => (" Type message (ESC to cancel) ", Style::default().fg(Color::Yellow)),
+        InputMode::Editing => (
+            " Type message (ESC to cancel) ",
+            Style::default().fg(Color::Yellow),
+        ),
         InputMode::Command => (" Command ", Style::default().fg(Color::Magenta)),
     };
 
@@ -191,7 +197,11 @@ fn draw_input(f: &mut Frame, app: &App, area: Rect) {
 
     // Show cursor in editing mode
     if app.input_mode == InputMode::Editing || app.input_mode == InputMode::Command {
-        let prefix_len = if app.input_mode == InputMode::Command { 1 } else { 0 };
+        let prefix_len = if app.input_mode == InputMode::Command {
+            1
+        } else {
+            0
+        };
         f.set_cursor(
             area.x + 1 + prefix_len + app.cursor_position as u16,
             area.y + 1,

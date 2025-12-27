@@ -7,10 +7,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_http::{
-    cors::CorsLayer,
-    trace::TraceLayer,
-};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use chai_server::config::Config;
@@ -41,16 +38,31 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(handlers::health::health_check))
         // WebAuthn auth endpoints
         .route("/auth/register/start", post(handlers::auth::register_start))
-        .route("/auth/register/complete", post(handlers::auth::register_complete))
+        .route(
+            "/auth/register/complete",
+            post(handlers::auth::register_complete),
+        )
         .route("/auth/login/start", post(handlers::auth::login_start))
         .route("/auth/login/complete", post(handlers::auth::login_complete))
         // Password auth endpoints
-        .route("/auth/password/register", post(handlers::password_auth::password_register))
-        .route("/auth/password/login", post(handlers::password_auth::password_login))
+        .route(
+            "/auth/password/register",
+            post(handlers::password_auth::password_register),
+        )
+        .route(
+            "/auth/password/login",
+            post(handlers::password_auth::password_login),
+        )
         // Prekey endpoints
-        .route("/prekeys/bundle/:user_id", get(handlers::prekeys::get_bundle))
+        .route(
+            "/prekeys/bundle/:user_id",
+            get(handlers::prekeys::get_bundle),
+        )
         .route("/prekeys/bundle", post(handlers::prekeys::upload_bundle))
-        .route("/prekeys/one-time", post(handlers::prekeys::upload_one_time))
+        .route(
+            "/prekeys/one-time",
+            post(handlers::prekeys::upload_one_time),
+        )
         // User endpoints
         .route("/users/search", get(handlers::users::search_users))
         .route("/users/:user_id", get(handlers::users::get_user_profile))
@@ -62,16 +74,30 @@ async fn main() -> anyhow::Result<()> {
         .route("/groups/:group_id", get(handlers::groups::get_group))
         .route("/groups/:group_id", put(handlers::groups::update_group))
         .route("/groups/:group_id", delete(handlers::groups::delete_group))
-        .route("/groups/:group_id/members", get(handlers::groups::list_members))
-        .route("/groups/:group_id/members", post(handlers::groups::add_member))
-        .route("/groups/:group_id/members/:user_id", delete(handlers::groups::remove_member))
-        .route("/groups/:group_id/invites", post(handlers::groups::create_invite))
+        .route(
+            "/groups/:group_id/members",
+            get(handlers::groups::list_members),
+        )
+        .route(
+            "/groups/:group_id/members",
+            post(handlers::groups::add_member),
+        )
+        .route(
+            "/groups/:group_id/members/:user_id",
+            delete(handlers::groups::remove_member),
+        )
+        .route(
+            "/groups/:group_id/invites",
+            post(handlers::groups::create_invite),
+        )
         // WebSocket endpoint
         .route("/ws", get(ws::handler::ws_handler))
         // Middleware
         .layer({
             // Parse the origin from config
-            let origin = config.rp_origin.parse::<axum::http::HeaderValue>()
+            let origin = config
+                .rp_origin
+                .parse::<axum::http::HeaderValue>()
                 .expect("Invalid RP_ORIGIN URL");
 
             CorsLayer::new()
@@ -83,11 +109,7 @@ async fn main() -> anyhow::Result<()> {
                     Method::DELETE,
                     Method::OPTIONS,
                 ])
-                .allow_headers([
-                    header::CONTENT_TYPE,
-                    header::AUTHORIZATION,
-                    header::ACCEPT,
-                ])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT])
                 .allow_credentials(true)
         })
         .layer(TraceLayer::new_for_http())

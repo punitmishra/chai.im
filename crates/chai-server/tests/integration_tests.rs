@@ -74,8 +74,12 @@ async fn test_user_search_with_auth() {
         .unwrap();
 
     // Create test users
-    let (_, token) = common::create_test_user(&pool, "searcher_user").await.unwrap();
-    common::create_test_user(&pool, "searchable_alice").await.ok();
+    let (_, token) = common::create_test_user(&pool, "searcher_user")
+        .await
+        .unwrap();
+    common::create_test_user(&pool, "searchable_alice")
+        .await
+        .ok();
     common::create_test_user(&pool, "searchable_bob").await.ok();
 
     let client = server.client();
@@ -96,8 +100,12 @@ async fn test_user_search_with_auth() {
 
     // Cleanup
     common::cleanup_test_user(&pool, "searcher_user").await.ok();
-    common::cleanup_test_user(&pool, "searchable_alice").await.ok();
-    common::cleanup_test_user(&pool, "searchable_bob").await.ok();
+    common::cleanup_test_user(&pool, "searchable_alice")
+        .await
+        .ok();
+    common::cleanup_test_user(&pool, "searchable_bob")
+        .await
+        .ok();
 }
 
 /// Test user search returns empty for no matches.
@@ -118,7 +126,9 @@ async fn test_user_search_no_results() {
         .await
         .unwrap();
 
-    let (_, token) = common::create_test_user(&pool, "no_match_searcher").await.unwrap();
+    let (_, token) = common::create_test_user(&pool, "no_match_searcher")
+        .await
+        .unwrap();
 
     let client = server.client();
 
@@ -137,7 +147,9 @@ async fn test_user_search_no_results() {
     assert!(users.is_empty());
 
     // Cleanup
-    common::cleanup_test_user(&pool, "no_match_searcher").await.ok();
+    common::cleanup_test_user(&pool, "no_match_searcher")
+        .await
+        .ok();
 }
 
 /// Test get user profile requires auth.
@@ -181,7 +193,9 @@ async fn test_get_user_profile() {
         .await
         .unwrap();
 
-    let (user_id, token) = common::create_test_user(&pool, "profile_test_user").await.unwrap();
+    let (user_id, token) = common::create_test_user(&pool, "profile_test_user")
+        .await
+        .unwrap();
 
     let client = server.client();
 
@@ -199,7 +213,9 @@ async fn test_get_user_profile() {
     assert_eq!(body["id"], user_id);
 
     // Cleanup
-    common::cleanup_test_user(&pool, "profile_test_user").await.ok();
+    common::cleanup_test_user(&pool, "profile_test_user")
+        .await
+        .ok();
 }
 
 /// Test WebSocket connection requires token.
@@ -246,7 +262,9 @@ async fn test_websocket_with_valid_token() {
         .await
         .unwrap();
 
-    let (_, token) = common::create_test_user(&pool, "ws_test_user").await.unwrap();
+    let (_, token) = common::create_test_user(&pool, "ws_test_user")
+        .await
+        .unwrap();
 
     // Connect with token
     let ws_url = format!("{}?token={}", server.ws_url, token);
@@ -285,7 +303,9 @@ async fn test_register_duplicate_username() {
         .unwrap();
 
     // Create existing user
-    common::create_test_user(&pool, "existing_user").await.unwrap();
+    common::create_test_user(&pool, "existing_user")
+        .await
+        .unwrap();
 
     let client = server.client();
 

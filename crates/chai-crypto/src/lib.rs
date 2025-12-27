@@ -5,22 +5,22 @@
 //! - Double Ratchet for forward-secure messaging
 //! - AES-256-GCM for authenticated encryption
 
+pub mod cipher;
 pub mod error;
 pub mod keys;
-pub mod x3dh;
 pub mod ratchet;
 pub mod session;
-pub mod cipher;
+pub mod x3dh;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+pub use cipher::{decrypt, encrypt};
 pub use error::CryptoError;
-pub use keys::{IdentityKeyPair, SignedPreKey, OneTimePreKey, PreKeyBundle};
-pub use x3dh::{X3DHSender, X3DHReceiver};
+pub use keys::{IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
 pub use ratchet::DoubleRatchet;
 pub use session::{Session, SessionManager};
-pub use cipher::{encrypt, decrypt};
+pub use x3dh::{X3DHReceiver, X3DHSender};
 
 /// Result type for cryptographic operations.
 pub type Result<T> = std::result::Result<T, CryptoError>;

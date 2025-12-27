@@ -19,10 +19,7 @@ pub struct AuthUser {
 }
 
 /// Extract authenticated user from Authorization header.
-pub async fn authenticate_request(
-    state: &AppState,
-    headers: &HeaderMap,
-) -> Result<AuthUser> {
+pub async fn authenticate_request(state: &AppState, headers: &HeaderMap) -> Result<AuthUser> {
     // Get Authorization header
     let auth_header = headers
         .get(header::AUTHORIZATION)
@@ -94,8 +91,8 @@ pub async fn search_users(
     let limit = query.limit.clamp(1, 50);
 
     // Search for users
-    let results = users::search_by_username(&state.db, search_query, auth_user.user_id, limit)
-        .await?;
+    let results =
+        users::search_by_username(&state.db, search_query, auth_user.user_id, limit).await?;
 
     let users = results
         .into_iter()

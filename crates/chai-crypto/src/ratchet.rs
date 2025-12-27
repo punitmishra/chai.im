@@ -8,11 +8,11 @@ use crate::x3dh::SharedSecret;
 use crate::{CryptoError, Result};
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
 use x25519_dalek::PublicKey as X25519PublicKey;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use serde::{Deserialize, Serialize};
 
 /// Maximum number of skipped message keys to store.
 const MAX_SKIP: u32 = 1000;
@@ -98,8 +98,7 @@ impl MessageHeader {
 
     /// Deserialize header.
     pub fn from_bytes(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
-            .map_err(|e| CryptoError::DeserializationError(e.to_string()))
+        bincode::deserialize(data).map_err(|e| CryptoError::DeserializationError(e.to_string()))
     }
 }
 
@@ -172,8 +171,14 @@ impl DoubleRatchet {
 
     /// Encrypt a message.
     pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<(MessageHeader, Vec<u8>)> {
-        let dh_self = self.dh_self.as_ref().ok_or(CryptoError::SessionNotInitialized)?;
-        let chain_key = self.chain_key_send.as_ref().ok_or(CryptoError::SessionNotInitialized)?;
+        let dh_self = self
+            .dh_self
+            .as_ref()
+            .ok_or(CryptoError::SessionNotInitialized)?;
+        let chain_key = self
+            .chain_key_send
+            .as_ref()
+            .ok_or(CryptoError::SessionNotInitialized)?;
 
         // Advance chain
         let (next_chain, message_key) = chain_key.advance();
@@ -190,7 +195,9 @@ impl DoubleRatchet {
         let ad = header.to_bytes();
         let ciphertext = encrypt_with_ad(message_key.as_bytes(), plaintext, &ad)?;
 
-        self.send_counter = self.send_counter.checked_add(1)
+        self.send_counter = self
+            .send_counter
+            .checked_add(1)
             .ok_or(CryptoError::CounterOverflow)?;
 
         Ok((header, ciphertext))
@@ -199,7 +206,9 @@ impl DoubleRatchet {
     /// Decrypt a message.
     pub fn decrypt(&mut self, header: &MessageHeader, ciphertext: &[u8]) -> Result<Vec<u8>> {
         // Check for skipped message key
-        let skipped_key = self.skipped_keys.remove(&(header.dh_public, header.message_number));
+        let skipped_key = self
+            .skipped_keys
+            .remove(&(header.dh_public, header.message_number));
         if let Some(message_key) = skipped_key {
             let ad = header.to_bytes();
             return decrypt_with_ad(message_key.as_bytes(), ciphertext, &ad);
@@ -215,10 +224,15 @@ impl DoubleRatchet {
         self.skip_message_keys(header.message_number)?;
 
         // Advance receiving chain
-        let chain_key = self.chain_key_recv.as_ref().ok_or(CryptoError::SessionNotInitialized)?;
+        let chain_key = self
+            .chain_key_recv
+            .as_ref()
+            .ok_or(CryptoError::SessionNotInitialized)?;
         let (next_chain, message_key) = chain_key.advance();
         self.chain_key_recv = Some(next_chain);
-        self.recv_counter = header.message_number.checked_add(1)
+        self.recv_counter = header
+            .message_number
+            .checked_add(1)
             .ok_or(CryptoError::CounterOverflow)?;
 
         // Decrypt
@@ -239,12 +253,18 @@ impl DoubleRatchet {
         let dh_remote = self.dh_remote.ok_or(CryptoError::SessionNotInitialized)?;
 
         while self.recv_counter < until {
-            let chain_key = self.chain_key_recv.as_ref().ok_or(CryptoError::SessionNotInitialized)?;
+            let chain_key = self
+                .chain_key_recv
+                .as_ref()
+                .ok_or(CryptoError::SessionNotInitialized)?;
             let (next_chain, message_key) = chain_key.advance();
             self.chain_key_recv = Some(next_chain);
 
-            self.skipped_keys.insert((dh_remote, self.recv_counter), message_key);
-            self.recv_counter = self.recv_counter.checked_add(1)
+            self.skipped_keys
+                .insert((dh_remote, self.recv_counter), message_key);
+            self.recv_counter = self
+                .recv_counter
+                .checked_add(1)
                 .ok_or(CryptoError::CounterOverflow)?;
 
             // Limit skipped keys storage
@@ -269,7 +289,10 @@ impl DoubleRatchet {
         let their_public = X25519PublicKey::from(*their_new_public);
 
         // Derive receiving chain
-        let dh_self = self.dh_self.as_ref().ok_or(CryptoError::SessionNotInitialized)?;
+        let dh_self = self
+            .dh_self
+            .as_ref()
+            .ok_or(CryptoError::SessionNotInitialized)?;
         let dh_output = dh_self.diffie_hellman(&their_public);
         let (root_key, chain_key_recv) = self.root_key.ratchet(&dh_output);
         self.root_key = root_key;
@@ -301,8 +324,7 @@ impl DoubleRatchet {
 
     /// Export state for storage.
     pub fn export(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
-            .map_err(|e| CryptoError::SerializationError(e.to_string()))
+        bincode::serialize(self).map_err(|e| CryptoError::SerializationError(e.to_string()))
     }
 
     /// Import state from storage.

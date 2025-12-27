@@ -38,10 +38,7 @@ pub async fn create_session(
 }
 
 /// Get a session by token hash.
-pub async fn get_by_token_hash(
-    pool: &PgPool,
-    token_hash: &[u8],
-) -> sqlx::Result<Option<Session>> {
+pub async fn get_by_token_hash(pool: &PgPool, token_hash: &[u8]) -> sqlx::Result<Option<Session>> {
     sqlx::query_as::<_, Session>(
         r#"
         SELECT id, user_id, device_id, token_hash, connected_at, last_seen, expires_at

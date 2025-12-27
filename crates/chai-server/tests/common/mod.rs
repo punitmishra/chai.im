@@ -39,12 +39,21 @@ impl TestServer {
         let app = Router::new()
             .route("/health", get(handlers::health::health_check))
             .route("/auth/register/start", post(handlers::auth::register_start))
-            .route("/auth/register/complete", post(handlers::auth::register_complete))
+            .route(
+                "/auth/register/complete",
+                post(handlers::auth::register_complete),
+            )
             .route("/auth/login/start", post(handlers::auth::login_start))
             .route("/auth/login/complete", post(handlers::auth::login_complete))
-            .route("/prekeys/bundle/:user_id", get(handlers::prekeys::get_bundle))
+            .route(
+                "/prekeys/bundle/:user_id",
+                get(handlers::prekeys::get_bundle),
+            )
             .route("/prekeys/bundle", post(handlers::prekeys::upload_bundle))
-            .route("/prekeys/one-time", post(handlers::prekeys::upload_one_time))
+            .route(
+                "/prekeys/one-time",
+                post(handlers::prekeys::upload_one_time),
+            )
             .route("/users/search", get(handlers::users::search_users))
             .route("/users/:user_id", get(handlers::users::get_user_profile))
             .route("/ws", get(ws::handler::ws_handler))

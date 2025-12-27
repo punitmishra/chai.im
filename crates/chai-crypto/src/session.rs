@@ -1,8 +1,8 @@
 //! Session management for encrypted conversations.
 
-use crate::keys::{IdentityKeyPair, PreKeyBundle, SignedPreKey, OneTimePreKey};
+use crate::keys::{IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
 use crate::ratchet::{DoubleRatchet, MessageHeader};
-use crate::x3dh::{X3DHSender, X3DHReceiver, X3DHInitialMessage};
+use crate::x3dh::{X3DHInitialMessage, X3DHReceiver, X3DHSender};
 use crate::{CryptoError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -58,10 +58,8 @@ impl Session {
         let shared_secret = receiver.receive(initial_message)?;
 
         // Initialize Double Ratchet with our signed prekey
-        let ratchet = DoubleRatchet::init_receiver(
-            shared_secret,
-            our_signed_prekey.key_pair.clone(),
-        );
+        let ratchet =
+            DoubleRatchet::init_receiver(shared_secret, our_signed_prekey.key_pair.clone());
 
         Ok(Self {
             peer_id,
@@ -83,8 +81,7 @@ impl Session {
 
     /// Export session state for storage.
     pub fn export(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
-            .map_err(|e| CryptoError::SerializationError(e.to_string()))
+        bincode::serialize(self).map_err(|e| CryptoError::SerializationError(e.to_string()))
     }
 
     /// Import session state from storage.
@@ -106,14 +103,12 @@ pub struct EncryptedMessage {
 impl EncryptedMessage {
     /// Serialize for transmission.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
-            .map_err(|e| CryptoError::SerializationError(e.to_string()))
+        bincode::serialize(self).map_err(|e| CryptoError::SerializationError(e.to_string()))
     }
 
     /// Deserialize from bytes.
     pub fn from_bytes(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
-            .map_err(|e| CryptoError::DeserializationError(e.to_string()))
+        bincode::deserialize(data).map_err(|e| CryptoError::DeserializationError(e.to_string()))
     }
 }
 
@@ -185,11 +180,8 @@ impl SessionManager {
         peer_id: String,
         their_bundle: &PreKeyBundle,
     ) -> Result<(EncryptedMessage, X3DHInitialMessage)> {
-        let (session, initial_message) = Session::initiate(
-            &self.identity,
-            peer_id.clone(),
-            their_bundle,
-        )?;
+        let (session, initial_message) =
+            Session::initiate(&self.identity, peer_id.clone(), their_bundle)?;
 
         self.sessions.insert(peer_id.clone(), session);
 
@@ -234,14 +226,18 @@ impl SessionManager {
 
     /// Encrypt a message for a peer.
     pub fn encrypt(&mut self, peer_id: &str, plaintext: &[u8]) -> Result<EncryptedMessage> {
-        let session = self.sessions.get_mut(peer_id)
+        let session = self
+            .sessions
+            .get_mut(peer_id)
             .ok_or_else(|| CryptoError::SessionNotFound(peer_id.to_string()))?;
         session.encrypt(plaintext)
     }
 
     /// Decrypt a message from a peer.
     pub fn decrypt(&mut self, peer_id: &str, message: &EncryptedMessage) -> Result<Vec<u8>> {
-        let session = self.sessions.get_mut(peer_id)
+        let session = self
+            .sessions
+            .get_mut(peer_id)
             .ok_or_else(|| CryptoError::SessionNotFound(peer_id.to_string()))?;
         session.decrypt(message)
     }

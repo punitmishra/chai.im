@@ -406,9 +406,9 @@ pub async fn create_invite(
     let invite_code = generate_invite_code();
 
     // Calculate expiration
-    let expires_at = req.expires_in_hours.map(|hours| {
-        time::OffsetDateTime::now_utc() + time::Duration::hours(hours)
-    });
+    let expires_at = req
+        .expires_in_hours
+        .map(|hours| time::OffsetDateTime::now_utc() + time::Duration::hours(hours));
 
     let invite = groups::create_invite_link(
         &state.db,

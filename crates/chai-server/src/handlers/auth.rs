@@ -145,7 +145,9 @@ pub async fn login_start(
     // Get user's credentials
     let creds = credentials::get_by_user_id(&state.db, user.id).await?;
     if creds.is_empty() {
-        return Err(AppError::AuthenticationFailed("No credentials found".into()));
+        return Err(AppError::AuthenticationFailed(
+            "No credentials found".into(),
+        ));
     }
 
     // Deserialize passkeys
@@ -155,7 +157,9 @@ pub async fn login_start(
         .collect();
 
     if passkeys.is_empty() {
-        return Err(AppError::Internal("Failed to deserialize credentials".into()));
+        return Err(AppError::Internal(
+            "Failed to deserialize credentials".into(),
+        ));
     }
 
     // Start WebAuthn authentication

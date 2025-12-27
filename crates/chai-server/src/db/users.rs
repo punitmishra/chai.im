@@ -23,11 +23,7 @@ pub struct UserWithPassword {
 }
 
 /// Create a new user.
-pub async fn create_user(
-    pool: &PgPool,
-    username: &str,
-    identity_key: &[u8],
-) -> sqlx::Result<User> {
+pub async fn create_user(pool: &PgPool, username: &str, identity_key: &[u8]) -> sqlx::Result<User> {
     sqlx::query_as::<_, User>(
         r#"
         INSERT INTO users (username, identity_key)

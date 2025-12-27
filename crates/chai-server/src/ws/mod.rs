@@ -1,5 +1,5 @@
 //! WebSocket handling.
 
-pub mod handler;
 pub mod connection;
+pub mod handler;
 pub mod message;

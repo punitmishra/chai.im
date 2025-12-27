@@ -266,7 +266,10 @@ impl App {
         };
 
         // Add message to local list
-        let messages = self.conversation_messages.entry(conv.id.clone()).or_default();
+        let messages = self
+            .conversation_messages
+            .entry(conv.id.clone())
+            .or_default();
         messages.push(Message {
             sender: "You".into(),
             content: content.clone(),
@@ -277,7 +280,9 @@ impl App {
         // Send via WebSocket if connected
         if let Some(client) = &self.client {
             // Parse recipient as UUID (conversation ID is conv_{user_id})
-            let recipient_uuid = conv.id.strip_prefix("conv_")
+            let recipient_uuid = conv
+                .id
+                .strip_prefix("conv_")
                 .and_then(|s| uuid::Uuid::parse_str(s).ok())
                 .unwrap_or_else(uuid::Uuid::nil);
 

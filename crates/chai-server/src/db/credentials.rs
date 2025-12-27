@@ -37,10 +37,7 @@ pub async fn create_credential(
 }
 
 /// Get all credentials for a user.
-pub async fn get_by_user_id(
-    pool: &PgPool,
-    user_id: Uuid,
-) -> sqlx::Result<Vec<WebAuthnCredential>> {
+pub async fn get_by_user_id(pool: &PgPool, user_id: Uuid) -> sqlx::Result<Vec<WebAuthnCredential>> {
     sqlx::query_as::<_, WebAuthnCredential>(
         r#"
         SELECT id, user_id, credential_id, public_key, counter, created_at

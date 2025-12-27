@@ -2,8 +2,8 @@
 //!
 //! This module provides JavaScript bindings for the Signal Protocol implementation.
 
-use crate::keys::{IdentityKeyPair, PreKeyBundle, IdentityPublicKey};
-use crate::session::{SessionManager, EncryptedMessage};
+use crate::keys::{IdentityKeyPair, IdentityPublicKey, PreKeyBundle};
+use crate::session::{EncryptedMessage, SessionManager};
 use crate::x3dh::X3DHInitialMessage;
 use wasm_bindgen::prelude::*;
 
@@ -118,10 +118,11 @@ impl CryptoManager {
     /// bundle_data format: same as generatePrekeyBundle output
     #[wasm_bindgen(js_name = initSession)]
     pub fn init_session(&mut self, peer_id: &str, bundle_data: &[u8]) -> Result<Vec<u8>, JsValue> {
-        let bundle = parse_prekey_bundle(bundle_data)
-            .map_err(|e| JsValue::from_str(&e))?;
+        let bundle = parse_prekey_bundle(bundle_data).map_err(|e| JsValue::from_str(&e))?;
 
-        let (encrypted, initial) = self.inner.initiate_session(peer_id.to_string(), &bundle)
+        let (encrypted, initial) = self
+            .inner
+            .initiate_session(peer_id.to_string(), &bundle)
             .map_err(|e| JsValue::from_str(&format!("Session init failed: {}", e)))?;
 
         // Return the initial message as bytes
@@ -140,7 +141,8 @@ impl CryptoManager {
         }
 
         // Serialize encrypted message
-        let enc_bytes = encrypted.to_bytes()
+        let enc_bytes = encrypted
+            .to_bytes()
             .map_err(|e| JsValue::from_str(&format!("Serialization failed: {}", e)))?;
         data.extend_from_slice(&(enc_bytes.len() as u32).to_le_bytes());
         data.extend_from_slice(&enc_bytes);
@@ -151,20 +153,23 @@ impl CryptoManager {
     /// Receive a session from a peer's initial message.
     #[wasm_bindgen(js_name = receiveSession)]
     pub fn receive_session(&mut self, peer_id: &str, initial_data: &[u8]) -> Result<(), JsValue> {
-        let initial = parse_initial_message(initial_data)
-            .map_err(|e| JsValue::from_str(&e))?;
+        let initial = parse_initial_message(initial_data).map_err(|e| JsValue::from_str(&e))?;
 
-        self.inner.receive_session(peer_id.to_string(), &initial)
+        self.inner
+            .receive_session(peer_id.to_string(), &initial)
             .map_err(|e| JsValue::from_str(&format!("Receive session failed: {}", e)))
     }
 
     /// Encrypt a message for a peer.
     #[wasm_bindgen]
     pub fn encrypt(&mut self, peer_id: &str, plaintext: &[u8]) -> Result<Vec<u8>, JsValue> {
-        let encrypted = self.inner.encrypt(peer_id, plaintext)
+        let encrypted = self
+            .inner
+            .encrypt(peer_id, plaintext)
             .map_err(|e| JsValue::from_str(&format!("Encryption failed: {}", e)))?;
 
-        encrypted.to_bytes()
+        encrypted
+            .to_bytes()
             .map_err(|e| JsValue::from_str(&format!("Serialization failed: {}", e)))
     }
 
@@ -174,7 +179,8 @@ impl CryptoManager {
         let message = EncryptedMessage::from_bytes(ciphertext)
             .map_err(|e| JsValue::from_str(&format!("Deserialization failed: {}", e)))?;
 
-        self.inner.decrypt(peer_id, &message)
+        self.inner
+            .decrypt(peer_id, &message)
             .map_err(|e| JsValue::from_str(&format!("Decryption failed: {}", e)))
     }
 
@@ -187,10 +193,13 @@ impl CryptoManager {
     /// Export a session for storage.
     #[wasm_bindgen(js_name = exportSession)]
     pub fn export_session(&self, peer_id: &str) -> Result<Vec<u8>, JsValue> {
-        let session = self.inner.get_session(peer_id)
+        let session = self
+            .inner
+            .get_session(peer_id)
             .ok_or_else(|| JsValue::from_str("Session not found"))?;
 
-        session.export()
+        session
+            .export()
             .map_err(|e| JsValue::from_str(&format!("Export failed: {}", e)))
     }
 
@@ -216,7 +225,8 @@ impl Default for CryptoManager {
 
 /// Parse a prekey bundle from bytes.
 fn parse_prekey_bundle(data: &[u8]) -> Result<PreKeyBundle, String> {
-    if data.len() < 101 {  // 32 + 32 + 64 + 4 + 1 = 133 minimum without variable signature
+    if data.len() < 101 {
+        // 32 + 32 + 64 + 4 + 1 = 133 minimum without variable signature
         return Err("Bundle data too short".into());
     }
 
@@ -241,7 +251,10 @@ fn parse_prekey_bundle(data: &[u8]) -> Result<PreKeyBundle, String> {
 
     // Signed prekey ID (4 bytes)
     let signed_prekey_id = u32::from_le_bytes([
-        data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3],
     ]);
     offset += 4;
 
@@ -252,7 +265,10 @@ fn parse_prekey_bundle(data: &[u8]) -> Result<PreKeyBundle, String> {
         otp.copy_from_slice(&data[offset..offset + 32]);
         offset += 32;
         let otp_id = u32::from_le_bytes([
-            data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+            data[offset],
+            data[offset + 1],
+            data[offset + 2],
+            data[offset + 3],
         ]);
         (Some(otp), Some(otp_id))
     } else {
@@ -271,7 +287,8 @@ fn parse_prekey_bundle(data: &[u8]) -> Result<PreKeyBundle, String> {
 
 /// Parse an X3DH initial message from bytes.
 fn parse_initial_message(data: &[u8]) -> Result<X3DHInitialMessage, String> {
-    if data.len() < 69 {  // 32 + 32 + 4 + 1 = 69 minimum
+    if data.len() < 69 {
+        // 32 + 32 + 4 + 1 = 69 minimum
         return Err("Initial message too short".into());
     }
 
@@ -289,7 +306,10 @@ fn parse_initial_message(data: &[u8]) -> Result<X3DHInitialMessage, String> {
 
     // Signed prekey ID (4 bytes)
     let signed_prekey_id = u32::from_le_bytes([
-        data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3],
     ]);
     offset += 4;
 
@@ -297,7 +317,10 @@ fn parse_initial_message(data: &[u8]) -> Result<X3DHInitialMessage, String> {
     let one_time_prekey_id = if data[offset] == 1 {
         offset += 1;
         Some(u32::from_le_bytes([
-            data[offset], data[offset + 1], data[offset + 2], data[offset + 3]
+            data[offset],
+            data[offset + 1],
+            data[offset + 2],
+            data[offset + 3],
         ]))
     } else {
         None
