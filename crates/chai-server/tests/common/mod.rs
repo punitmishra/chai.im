@@ -8,6 +8,7 @@ use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
 /// Test server wrapper.
+#[allow(dead_code)]
 pub struct TestServer {
     pub addr: SocketAddr,
     pub base_url: String,
