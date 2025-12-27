@@ -52,6 +52,7 @@ impl<'a> Widget for CodeBlock<'a> {
 }
 
 /// Convert syntect style to ratatui color.
+#[allow(dead_code)]
 fn syntect_to_ratatui_color(color: syntect::highlighting::Color) -> Color {
     Color::Rgb(color.r, color.g, color.b)
 }

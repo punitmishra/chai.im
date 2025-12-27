@@ -128,7 +128,7 @@ fn draw_messages(f: &mut Frame, app: &App, area: Rect) {
                 header,
                 style.add_modifier(Modifier::BOLD),
             )))
-            .chain(content.lines.into_iter())
+            .chain(content.lines)
             .collect();
 
             ListItem::new(lines)
