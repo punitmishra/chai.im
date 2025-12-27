@@ -84,7 +84,7 @@ export default function Home() {
         <p className="text-sm text-zinc-600 mt-8">
           Open source &middot;{' '}
           <a
-            href="https://github.com/chai-im/chai.im"
+            href="https://github.com/punitmishra/chai.im"
             className="text-amber-400 hover:text-amber-300 transition-colors"
             target="_blank"
             rel="noopener noreferrer"
