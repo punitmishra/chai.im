@@ -287,7 +287,11 @@ Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
 ### Latest Session Summary
 
-All real-time features implemented and merged. Ready for next phase.
+Group chat frontend integration in progress. Real-time features complete.
+
+### Current PR
+- **PR #13**: https://github.com/punitmishra/chai.im/pull/13
+- Branch: `feat/group-chat-frontend`
 
 ### Merged PRs
 - **PR #12**: Real-time typing indicators, message reactions, read receipts ✅
@@ -306,11 +310,12 @@ All real-time features implemented and merged. Ready for next phase.
 | Message Reactions | ✅ |
 | Read Receipts | ✅ |
 | Group Chat Backend | ✅ |
+| Group Chat Frontend (PR #13) | 🔄 In Progress |
 
 ### What's Pending
 | Feature | Priority |
 |---------|----------|
-| Group chat frontend integration | High |
+| Group message WebSocket routing | High |
 | Message search | Medium |
 | File attachments | Low |
 | Offline message queue | Low |

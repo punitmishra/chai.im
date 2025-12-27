@@ -5,15 +5,18 @@ import { useParams, useRouter } from 'next/navigation';
 import { useChatStore, Message } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { useConnectionStore } from '@/store/connectionStore';
+import { useGroupStore } from '@/store/groupStore';
 import { getWebSocketClient, connectIfAuthenticated } from '@/lib/ws/client';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { TypingIndicator } from '@/components/TypingIndicator';
 import { MessageReactionPicker } from '@/components/ReactionPicker';
+import { GroupMembersModal } from '@/components/GroupMembersModal';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
 
-// Self-chat conversation ID prefix
+// Chat type prefixes
 const SELF_CHAT_PREFIX = 'self_';
+const GROUP_CHAT_PREFIX = 'group_';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -22,6 +25,7 @@ export default function ConversationPage() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -34,6 +38,7 @@ export default function ConversationPage() {
   const allMessages = useChatStore((state) => state.messages);
   const conversations = useChatStore((state) => state.conversations);
   const addMessage = useChatStore((state) => state.addMessage);
+  const groups = useGroupStore((state) => state.groups);
 
   // Emoji autocomplete hook
   const emojiAutocomplete = useEmojiAutocomplete();
@@ -41,8 +46,16 @@ export default function ConversationPage() {
   // Keyboard shortcuts
   const { registerShortcut, unregisterShortcut } = useKeyboardShortcuts();
 
-  // Check if this is a self-chat
+  // Check chat type
   const isSelfChat = conversationId.startsWith(SELF_CHAT_PREFIX);
+  const isGroupChat = conversationId.startsWith(GROUP_CHAT_PREFIX);
+  const groupId = isGroupChat ? conversationId.slice(GROUP_CHAT_PREFIX.length) : null;
+
+  // Get group info if this is a group chat
+  const group = useMemo(
+    () => (groupId ? groups.find((g) => g.id === groupId) : null),
+    [groups, groupId]
+  );
 
   // Filter messages with useMemo to avoid infinite loop
   const messages = useMemo(
@@ -67,13 +80,13 @@ export default function ConversationPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Request prekey bundle when starting a new conversation (only for non-self chats)
+  // Request prekey bundle when starting a new conversation (only for 1:1 chats)
   useEffect(() => {
-    if (conversation && !conversation.hasSession && !isSelfChat) {
+    if (conversation && !conversation.hasSession && !isSelfChat && !isGroupChat) {
       const client = getWebSocketClient();
       client.requestPrekeyBundle(conversation.recipientId);
     }
-  }, [conversation, isSelfChat]);
+  }, [conversation, isSelfChat, isGroupChat]);
 
   // Register keyboard shortcuts
   useEffect(() => {
@@ -210,7 +223,7 @@ export default function ConversationPage() {
     }
   };
 
-  const recipientName = conversation?.name || 'Chat';
+  const recipientName = isGroupChat ? (group?.name || 'Group Chat') : (conversation?.name || 'Chat');
   const isOnline = isSelfChat || connectionStatus === 'connected';
 
   return (
@@ -224,12 +237,18 @@ export default function ConversationPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
+          ) : isGroupChat ? (
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 font-semibold text-white text-lg shadow-lg shadow-purple-500/20">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 font-semibold text-white text-lg shadow-inner">
               {recipientName.charAt(0).toUpperCase()}
             </div>
           )}
-          {!isSelfChat && (
+          {!isSelfChat && !isGroupChat && (
             <span
               className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-zinc-900 ${
                 isOnline ? 'bg-green-500' : 'bg-zinc-500'
@@ -240,10 +259,26 @@ export default function ConversationPage() {
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-white text-lg truncate">{recipientName}</h1>
           <p className="text-sm text-zinc-500">
-            {isSelfChat ? 'Private notes, stored locally' : isOnline ? 'Online' : 'Connecting...'}
+            {isSelfChat
+              ? 'Private notes, stored locally'
+              : isGroupChat
+                ? `${group?.memberCount || 0} members${group?.isPublic ? ' · Public' : ''}`
+                : isOnline ? 'Online' : 'Connecting...'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Group members button */}
+          {isGroupChat && groupId && (
+            <button
+              onClick={() => setShowMembers(true)}
+              className="p-2.5 rounded-xl hover:bg-zinc-800/50 text-zinc-400 hover:text-white transition-all duration-200"
+              title="View members"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m9 5.197v-1a6 6 0 00-6-6" />
+              </svg>
+            </button>
+          )}
           {/* Encryption badge */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
             <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -379,6 +414,17 @@ export default function ConversationPage() {
           </div>
         </div>
       </form>
+
+      {/* Group Members Modal */}
+      {isGroupChat && groupId && group && (
+        <GroupMembersModal
+          isOpen={showMembers}
+          onClose={() => setShowMembers(false)}
+          groupId={groupId}
+          groupName={group.name}
+          ownerId={group.ownerId}
+        />
+      )}
     </div>
   );
 }

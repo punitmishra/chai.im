@@ -46,7 +46,7 @@ export default function ChatLayout({
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/groups/me`, {
+      const response = await fetch(`${apiUrl}/groups`, {
         headers: {
           Authorization: `Bearer ${sessionToken}`,
         },
