@@ -32,6 +32,38 @@ pub enum ClientMessage {
 
     /// Subscribe to presence updates.
     SubscribePresence { user_ids: Vec<UserId> },
+
+    /// Typing indicator start.
+    TypingStart {
+        recipient_id: UserId,
+        conversation_id: ConversationId,
+    },
+
+    /// Typing indicator stop.
+    TypingStop {
+        recipient_id: UserId,
+        conversation_id: ConversationId,
+    },
+
+    /// Add a reaction to a message.
+    AddReaction {
+        message_id: MessageId,
+        conversation_id: ConversationId,
+        emoji: String,
+    },
+
+    /// Remove a reaction from a message.
+    RemoveReaction {
+        message_id: MessageId,
+        conversation_id: ConversationId,
+        emoji: String,
+    },
+
+    /// Mark messages as read.
+    MarkRead {
+        conversation_id: ConversationId,
+        message_ids: Vec<MessageId>,
+    },
 }
 
 /// Server-to-client message types.
@@ -68,6 +100,29 @@ pub enum ServerMessage {
 
     /// User presence update.
     PresenceUpdate { user_id: UserId, online: bool },
+
+    /// Typing indicator from another user.
+    TypingIndicator {
+        user_id: UserId,
+        conversation_id: ConversationId,
+        is_typing: bool,
+    },
+
+    /// Reaction added to a message.
+    ReactionAdded {
+        message_id: MessageId,
+        conversation_id: ConversationId,
+        user_id: UserId,
+        emoji: String,
+    },
+
+    /// Reaction removed from a message.
+    ReactionRemoved {
+        message_id: MessageId,
+        conversation_id: ConversationId,
+        user_id: UserId,
+        emoji: String,
+    },
 
     /// Error response.
     Error { code: ErrorCode, message: String },

@@ -119,25 +119,42 @@ export default function ConversationPage() {
     emojiAutocomplete.setInputRef(inputRef.current);
   }, [emojiAutocomplete]);
 
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (isSelfChat || !conversation) return;
+
+    const client = getWebSocketClient();
+    const unsubscribe = client.onTyping((userId, convId, isTyping) => {
+      if (convId === conversationId && userId === conversation.recipientId) {
+        setPeerTyping(isTyping);
+      }
+    });
+
+    return unsubscribe;
+  }, [isSelfChat, conversation, conversationId]);
+
   // Handle typing indicator
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     emojiAutocomplete.handleInputChange(e);
 
     // Send typing indicator (debounced)
-    if (!isSelfChat && connectionStatus === 'connected') {
+    if (!isSelfChat && connectionStatus === 'connected' && conversation) {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      // TODO: Send typing start via WebSocket
-      // getWebSocketClient().sendTypingIndicator(conversation?.recipientId, true);
+
+      // Send typing start via WebSocket
+      getWebSocketClient().sendTypingStart(conversation.recipientId, conversationId);
 
       typingTimeoutRef.current = setTimeout(() => {
-        // TODO: Send typing stop via WebSocket
-        // getWebSocketClient().sendTypingIndicator(conversation?.recipientId, false);
+        // Send typing stop via WebSocket
+        if (conversation) {
+          getWebSocketClient().sendTypingStop(conversation.recipientId, conversationId);
+        }
       }, 2000);
     }
-  }, [emojiAutocomplete, isSelfChat, connectionStatus]);
+  }, [emojiAutocomplete, isSelfChat, connectionStatus, conversation, conversationId]);
 
   // Handle emoji selection from picker
   const handleEmojiSelect = useCallback((emoji: string) => {
@@ -271,6 +288,7 @@ export default function ConversationPage() {
               key={message.id}
               message={message}
               isSelf={message.senderId === user?.id}
+              conversationId={conversationId}
             />
           ))
         )}
@@ -368,18 +386,47 @@ export default function ConversationPage() {
 function MessageBubble({
   message,
   isSelf,
+  conversationId,
 }: {
   message: Message;
   isSelf: boolean;
+  conversationId: string;
 }) {
   const [showReactions, setShowReactions] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const addReaction = useChatStore((state) => state.addReaction);
+  const removeReaction = useChatStore((state) => state.removeReaction);
   const isCode = message.content.includes('```');
   const timestamp = new Date(message.timestamp);
 
   const handleReaction = (messageId: string, emoji: string) => {
-    // TODO: Send reaction via WebSocket
-    console.log('React to message:', messageId, 'with', emoji);
+    // Check if user already reacted with this emoji
+    const existingReaction = message.reactions?.find(
+      r => r.userId === user?.id && r.emoji === emoji
+    );
+
+    if (existingReaction) {
+      // Remove reaction
+      removeReaction(messageId, user?.id || '', emoji);
+      getWebSocketClient().removeReaction(messageId, conversationId, emoji);
+    } else {
+      // Add reaction
+      addReaction(messageId, user?.id || '', emoji);
+      getWebSocketClient().addReaction(messageId, conversationId, emoji);
+    }
   };
+
+  // Group reactions by emoji
+  const reactionGroups = useMemo(() => {
+    if (!message.reactions?.length) return [];
+    const groups = new Map<string, string[]>();
+    for (const r of message.reactions) {
+      const existing = groups.get(r.emoji) || [];
+      existing.push(r.userId);
+      groups.set(r.emoji, existing);
+    }
+    return Array.from(groups.entries());
+  }, [message.reactions]);
 
   return (
     <div
@@ -414,6 +461,26 @@ function MessageBubble({
             )}
           </div>
         </div>
+
+        {/* Display reactions */}
+        {reactionGroups.length > 0 && (
+          <div className={`flex gap-1 mt-1 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+            {reactionGroups.map(([emoji, userIds]) => (
+              <button
+                key={emoji}
+                onClick={() => handleReaction(message.id, emoji)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
+                  userIds.includes(user?.id || '')
+                    ? 'bg-amber-500/20 border border-amber-500/40'
+                    : 'bg-zinc-800/50 border border-zinc-700/50 hover:bg-zinc-700/50'
+                }`}
+              >
+                <span>{emoji}</span>
+                {userIds.length > 1 && <span className="text-zinc-400">{userIds.length}</span>}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Reaction picker on hover */}
         {showReactions && (

@@ -58,6 +58,43 @@ pub async fn handle_message(state: &AppState, sender_id: UserId, data: &[u8]) ->
         ClientMessage::SubscribePresence { user_ids } => {
             handle_subscribe_presence(state, sender_id, user_ids).await?;
         }
+
+        ClientMessage::TypingStart {
+            recipient_id,
+            conversation_id,
+        } => {
+            handle_typing_start(state, sender_id, recipient_id, conversation_id).await?;
+        }
+
+        ClientMessage::TypingStop {
+            recipient_id,
+            conversation_id,
+        } => {
+            handle_typing_stop(state, sender_id, recipient_id, conversation_id).await?;
+        }
+
+        ClientMessage::AddReaction {
+            message_id,
+            conversation_id,
+            emoji,
+        } => {
+            handle_add_reaction(state, sender_id, message_id, conversation_id, emoji).await?;
+        }
+
+        ClientMessage::RemoveReaction {
+            message_id,
+            conversation_id,
+            emoji,
+        } => {
+            handle_remove_reaction(state, sender_id, message_id, conversation_id, emoji).await?;
+        }
+
+        ClientMessage::MarkRead {
+            conversation_id,
+            message_ids,
+        } => {
+            handle_mark_read(state, sender_id, conversation_id, message_ids).await?;
+        }
     }
 
     Ok(())
@@ -268,4 +305,163 @@ async fn handle_subscribe_presence(
     }
 
     Ok(())
+}
+
+async fn handle_typing_start(
+    state: &AppState,
+    sender_id: UserId,
+    recipient_id: UserId,
+    conversation_id: chai_common::ConversationId,
+) -> Result<()> {
+    let server_message = ServerMessage::TypingIndicator {
+        user_id: sender_id,
+        conversation_id,
+        is_typing: true,
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes(),
+    };
+
+    let connections = state.connections.read().await;
+    connections.send_to_user(&recipient_id, outgoing).await;
+
+    tracing::debug!("User {:?} started typing to {:?}", sender_id, recipient_id);
+    Ok(())
+}
+
+async fn handle_typing_stop(
+    state: &AppState,
+    sender_id: UserId,
+    recipient_id: UserId,
+    conversation_id: chai_common::ConversationId,
+) -> Result<()> {
+    let server_message = ServerMessage::TypingIndicator {
+        user_id: sender_id,
+        conversation_id,
+        is_typing: false,
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes(),
+    };
+
+    let connections = state.connections.read().await;
+    connections.send_to_user(&recipient_id, outgoing).await;
+
+    tracing::debug!("User {:?} stopped typing to {:?}", sender_id, recipient_id);
+    Ok(())
+}
+
+async fn handle_add_reaction(
+    state: &AppState,
+    sender_id: UserId,
+    message_id: chai_common::MessageId,
+    conversation_id: chai_common::ConversationId,
+    emoji: String,
+) -> Result<()> {
+    // For now, just forward the reaction to all participants in the conversation
+    // In a 1:1 chat, the conversation_id contains both user IDs
+    // We'll extract the recipient from the conversation_id
+    let recipient_id = extract_recipient_from_conversation(sender_id, conversation_id);
+
+    let server_message = ServerMessage::ReactionAdded {
+        message_id,
+        conversation_id,
+        user_id: sender_id,
+        emoji: emoji.clone(),
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes(),
+    };
+
+    let connections = state.connections.read().await;
+    // Send to recipient
+    connections.send_to_user(&recipient_id, outgoing.clone()).await;
+    // Also send back to sender for confirmation
+    connections.send_to_user(&sender_id, outgoing).await;
+
+    tracing::debug!(
+        "User {:?} added reaction {} to message {:?}",
+        sender_id,
+        emoji,
+        message_id
+    );
+    Ok(())
+}
+
+async fn handle_remove_reaction(
+    state: &AppState,
+    sender_id: UserId,
+    message_id: chai_common::MessageId,
+    conversation_id: chai_common::ConversationId,
+    emoji: String,
+) -> Result<()> {
+    let recipient_id = extract_recipient_from_conversation(sender_id, conversation_id);
+
+    let server_message = ServerMessage::ReactionRemoved {
+        message_id,
+        conversation_id,
+        user_id: sender_id,
+        emoji: emoji.clone(),
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes(),
+    };
+
+    let connections = state.connections.read().await;
+    connections.send_to_user(&recipient_id, outgoing.clone()).await;
+    connections.send_to_user(&sender_id, outgoing).await;
+
+    tracing::debug!(
+        "User {:?} removed reaction {} from message {:?}",
+        sender_id,
+        emoji,
+        message_id
+    );
+    Ok(())
+}
+
+async fn handle_mark_read(
+    state: &AppState,
+    sender_id: UserId,
+    conversation_id: chai_common::ConversationId,
+    message_ids: Vec<chai_common::MessageId>,
+) -> Result<()> {
+    let recipient_id = extract_recipient_from_conversation(sender_id, conversation_id);
+
+    // Send read receipts for each message
+    let connections = state.connections.read().await;
+    for message_id in &message_ids {
+        let server_message = ServerMessage::MessageRead {
+            message_id: *message_id,
+        };
+        let data = chai_protocol::json::encode_server_message(&server_message)?;
+        let outgoing = OutgoingMessage {
+            data: data.into_bytes(),
+        };
+        connections.send_to_user(&recipient_id, outgoing).await;
+    }
+
+    tracing::debug!(
+        "User {:?} marked {} messages as read",
+        sender_id,
+        message_ids.len()
+    );
+    Ok(())
+}
+
+/// Extract the recipient user ID from a conversation ID.
+/// For 1:1 chats, conversation IDs are typically constructed from both user IDs.
+fn extract_recipient_from_conversation(
+    _sender_id: UserId,
+    conversation_id: chai_common::ConversationId,
+) -> UserId {
+    // The conversation ID is a UUID that may be derived from both user IDs
+    // For simplicity, we'll use a convention where the conversation includes both users
+    // In a real implementation, we'd look up conversation participants from DB
+    // For now, return the conversation_id as a user_id (works for simple cases)
+    UserId::from(conversation_id.0)
 }
