@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
+import { useConnectionStore } from '@/store/connectionStore';
+import { connectIfAuthenticated, getWebSocketClient } from '@/lib/ws/client';
+import { clearCrypto } from '@/lib/crypto/wasm';
 
 export default function ChatLayout({
   children,
@@ -12,25 +15,70 @@ export default function ChatLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const conversations = useChatStore((state) => state.conversations);
   const user = useAuthStore((state) => state.user);
+  const sessionToken = useAuthStore((state) => state.sessionToken);
+  const connectionStatus = useConnectionStore((state) => state.status);
+
+  // Handle hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Redirect to login if not authenticated (only after hydration)
+  useEffect(() => {
+    if (mounted && !sessionToken) {
+      router.push('/auth/login');
+    }
+  }, [mounted, sessionToken, router]);
+
+  // Connect WebSocket when authenticated
+  useEffect(() => {
+    if (sessionToken) {
+      connectIfAuthenticated();
+    }
+  }, [sessionToken]);
+
+  // Show loading during hydration or if not authenticated
+  if (!mounted || !sessionToken) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-950">
+        <div className="flex items-center gap-3 text-zinc-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const isOnline = connectionStatus === 'connected';
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-zinc-950">
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'w-80' : 'w-0'
-        } flex flex-col border-r border-dark-800 bg-dark-900 transition-all duration-200`}
+        } flex flex-col border-r border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-dark-800 p-4">
-          <Link href="/" className="text-xl font-bold">
-            <span className="text-primary-500">Chai</span>
-            <span className="text-dark-400">.im</span>
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800/50">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <span className="text-sm">☕</span>
+            </div>
+            <span className="text-lg font-semibold">
+              <span className="text-amber-400">Chai</span>
+              <span className="text-zinc-500">.im</span>
+            </span>
           </Link>
-          <Link href="/chat/new" className="btn-ghost p-2">
+          <Link
+            href="/new"
+            className="p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-all duration-200 text-zinc-400 hover:text-white hover:scale-105 active:scale-95"
+          >
             <svg
               className="h-5 w-5"
               fill="none"
@@ -48,11 +96,22 @@ export default function ChatLayout({
         </div>
 
         {/* Conversation list */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {conversations.length === 0 ? (
-            <div className="text-center py-8 text-dark-400">
-              <p className="text-sm">No conversations yet</p>
-              <Link href="/chat/new" className="text-primary-500 text-sm hover:underline">
+            <div className="text-center py-12 px-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-800/50 flex items-center justify-center">
+                <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                </svg>
+              </div>
+              <p className="text-sm text-zinc-500 mb-3">No conversations yet</p>
+              <Link
+                href="/new"
+                className="inline-flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
                 Start a new chat
               </Link>
             </div>
@@ -60,31 +119,34 @@ export default function ChatLayout({
             conversations.map((conv) => (
               <Link
                 key={conv.id}
-                href={`/chat/${conv.id}`}
-                className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
-                  pathname === `/chat/${conv.id}`
-                    ? 'bg-dark-800'
-                    : 'hover:bg-dark-800/50'
+                href={`/${conv.id}`}
+                className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
+                  pathname === `/${conv.id}`
+                    ? 'bg-zinc-800/70 shadow-lg'
+                    : 'hover:bg-zinc-800/40'
                 }`}
               >
                 {/* Avatar */}
-                <div className="relative">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-dark-700 font-medium">
+                <div className="relative flex-shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 font-medium text-white text-lg shadow-inner">
                     {conv.name[0].toUpperCase()}
                   </div>
+                  {pathname === `/${conv.id}` && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-zinc-900" />
+                  )}
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 truncate">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{conv.name}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-white truncate">{conv.name}</span>
                     {conv.unreadCount > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-xs font-medium">
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-black">
                         {conv.unreadCount}
                       </span>
                     )}
                   </div>
-                  <p className="truncate text-sm text-dark-400">
+                  <p className="truncate text-sm text-zinc-500 mt-0.5">
                     {conv.lastMessage || 'No messages yet'}
                   </p>
                 </div>
@@ -94,24 +156,52 @@ export default function ChatLayout({
         </div>
 
         {/* User section */}
-        <div className="border-t border-dark-800 p-4">
-          <Link
-            href="/settings"
-            className="flex items-center gap-3 rounded-lg p-2 hover:bg-dark-800"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 font-medium">
-              {user?.username?.[0]?.toUpperCase() || 'U'}
+        <div className="border-t border-zinc-800/50 p-4">
+          <div className="flex items-center gap-3 rounded-2xl p-3 bg-zinc-800/30">
+            <div className="relative">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 font-semibold text-black shadow-lg shadow-amber-500/20">
+                {user?.username?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-zinc-800 ${isOnline ? 'bg-green-500' : 'bg-zinc-500'}`} />
             </div>
-            <div className="flex-1">
-              <div className="font-medium">{user?.username || 'User'}</div>
-              <div className="text-sm text-dark-400">Settings</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-white truncate">{user?.username || 'User'}</div>
+              <div className="text-xs text-zinc-500">{isOnline ? 'Online' : 'Connecting...'}</div>
             </div>
-          </Link>
+            <button
+              onClick={() => {
+                getWebSocketClient().disconnect();
+                clearCrypto();
+                useAuthStore.getState().logout();
+                router.push('/auth/login');
+              }}
+              className="p-2.5 rounded-xl hover:bg-zinc-700/50 text-zinc-500 hover:text-white transition-all duration-200"
+              title="Logout"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+            </button>
+          </div>
         </div>
       </aside>
 
+      {/* Toggle sidebar button (mobile) */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-amber-500 text-black shadow-xl shadow-amber-500/30 md:hidden hover:bg-amber-400 transition-all duration-200 hover:scale-105 active:scale-95"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          {sidebarOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
+
       {/* Main content */}
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="flex-1 overflow-hidden bg-zinc-950">{children}</main>
     </div>
   );
 }

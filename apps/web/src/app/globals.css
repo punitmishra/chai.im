@@ -1,6 +1,22 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-dark-50: #fafafa;
+  --color-dark-100: #f4f4f5;
+  --color-dark-200: #e4e4e7;
+  --color-dark-300: #d4d4d8;
+  --color-dark-400: #a1a1aa;
+  --color-dark-500: #71717a;
+  --color-dark-600: #52525b;
+  --color-dark-700: #3f3f46;
+  --color-dark-800: #27272a;
+  --color-dark-900: #18181b;
+  --color-dark-950: #09090b;
+
+  --color-primary-400: #fbbf24;
+  --color-primary-500: #f59e0b;
+  --color-primary-600: #d97706;
+}
 
 @layer base {
   :root {
@@ -10,55 +26,103 @@
   }
 
   html {
-    @apply scroll-smooth;
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-dark-950 text-white;
+    background-color: var(--color-dark-950);
+    color: white;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    @apply w-2;
+    width: 0.5rem;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-dark-900;
+    background-color: var(--color-dark-900);
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-dark-600 rounded-full;
+    background-color: var(--color-dark-600);
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-dark-500;
+    background-color: var(--color-dark-500);
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-50;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: colors 0.15s;
+  }
+
+  .btn:focus-visible {
+    outline: none;
+    ring: 2px;
+    ring-color: var(--color-primary-500);
+  }
+
+  .btn:disabled {
+    pointer-events: none;
+    opacity: 0.5;
   }
 
   .btn-primary {
-    @apply btn bg-primary-500 text-white hover:bg-primary-600;
+    background-color: var(--color-primary-500);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-primary-600);
   }
 
   .btn-secondary {
-    @apply btn bg-dark-800 text-white hover:bg-dark-700;
+    background-color: var(--color-dark-800);
+    color: white;
   }
 
-  .btn-ghost {
-    @apply btn hover:bg-dark-800;
+  .btn-secondary:hover {
+    background-color: var(--color-dark-700);
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-dark-800);
   }
 
   .input {
-    @apply w-full rounded-lg border border-dark-700 bg-dark-900 px-4 py-2 text-white placeholder-dark-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-dark-700);
+    background-color: var(--color-dark-900);
+    padding: 0.5rem 1rem;
+    color: white;
+  }
+
+  .input::placeholder {
+    color: var(--color-dark-400);
+  }
+
+  .input:focus {
+    border-color: var(--color-primary-500);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-primary-500);
   }
 
   .card {
-    @apply rounded-xl border border-dark-800 bg-dark-900 p-6;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-dark-800);
+    background-color: var(--color-dark-900);
+    padding: 1.5rem;
   }
 }
 

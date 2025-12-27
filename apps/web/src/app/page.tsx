@@ -1,65 +1,57 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(false);
-
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-md space-y-8 text-center">
+    <main className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+      <div className="w-full max-w-sm text-center">
         {/* Logo */}
-        <div className="space-y-4">
-          <h1 className="text-5xl font-bold tracking-tight">
-            <span className="text-primary-500">Chai</span>
-            <span className="text-dark-400">.im</span>
+        <div className="mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 mb-6 shadow-xl shadow-amber-500/30">
+            <span className="text-4xl">☕</span>
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight">
+            <span className="text-amber-400">Chai</span>
+            <span className="text-zinc-500">.im</span>
           </h1>
-          <p className="text-lg text-dark-400">
+          <p className="text-zinc-500 mt-2">
             Secure, end-to-end encrypted messaging
           </p>
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-2 gap-4 py-8">
-          <Feature
-            icon="🔐"
-            title="E2E Encrypted"
-            description="Signal Protocol"
-          />
-          <Feature
-            icon="🔑"
-            title="Hardware Keys"
-            description="FIDO2 WebAuthn"
-          />
-          <Feature
-            icon="⚡"
-            title="Real-time"
-            description="WebSocket"
-          />
-          <Feature
-            icon="🤖"
-            title="AI Powered"
-            description="Local LLMs"
-          />
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <Feature icon="🔐" title="E2E Encrypted" description="Signal Protocol" />
+          <Feature icon="🔑" title="Hardware Keys" description="FIDO2 WebAuthn" />
+          <Feature icon="⚡" title="Real-time" description="WebSocket" />
+          <Feature icon="🤖" title="AI Powered" description="Local LLMs" />
         </div>
 
         {/* CTA */}
-        <div className="space-y-4">
-          <Link href="/auth/register" className="btn-primary w-full block">
+        <div className="space-y-3">
+          <Link
+            href="/auth/register"
+            className="w-full block py-3.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-semibold rounded-2xl transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30"
+          >
             Get Started
           </Link>
-          <Link href="/auth/login" className="btn-secondary w-full block">
+          <Link
+            href="/auth/login"
+            className="w-full block py-3.5 px-4 bg-zinc-900/50 hover:bg-zinc-800/50 text-white font-medium rounded-2xl transition-all duration-200 border border-zinc-800/50"
+          >
             Sign In
           </Link>
         </div>
 
         {/* Footer */}
-        <p className="text-sm text-dark-500">
+        <p className="text-sm text-zinc-600 mt-8">
           Open source &middot;{' '}
           <a
             href="https://github.com/chai-im/chai.im"
-            className="text-primary-500 hover:underline"
+            className="text-amber-400 hover:text-amber-300 transition-colors"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             GitHub
           </a>
@@ -79,10 +71,10 @@ function Feature({
   description: string;
 }) {
   return (
-    <div className="card text-left">
-      <div className="text-2xl">{icon}</div>
-      <h3 className="mt-2 font-semibold">{title}</h3>
-      <p className="text-sm text-dark-400">{description}</p>
+    <div className="p-4 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-left hover:border-zinc-700/50 transition-all duration-200">
+      <div className="text-2xl mb-2">{icon}</div>
+      <h3 className="font-medium text-white text-sm">{title}</h3>
+      <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
     </div>
   );
 }
