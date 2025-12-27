@@ -9,8 +9,8 @@ use zeroize::ZeroizeOnDrop;
 
 /// Identity key pair (Ed25519 for signing).
 #[derive(Clone, ZeroizeOnDrop)]
-#[allow(unused_assignments)]
 pub struct IdentityKeyPair {
+    #[allow(unused_assignments)]
     #[zeroize(skip)]
     signing_key: SigningKey,
 }
@@ -119,9 +119,9 @@ mod verifying_key_serde {
 
 /// X25519 key pair for Diffie-Hellman.
 #[derive(Clone, ZeroizeOnDrop)]
-#[allow(unused_assignments)]
 pub struct DHKeyPair {
     secret: StaticSecret,
+    #[allow(unused_assignments)]
     #[zeroize(skip)]
     public: X25519PublicKey,
 }

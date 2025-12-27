@@ -42,6 +42,9 @@ importers:
       '@chai/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      '@eslint/eslintrc':
+        specifier: ^3.3.3
+        version: 3.3.3
       '@tailwindcss/postcss':
         specifier: ^4.1.18
         version: 4.1.18
