@@ -263,47 +263,36 @@ Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
 ### Latest Session Summary
 
-This session focused on integrating the emoji system, keyboard shortcuts, message reactions, and typing indicators into the chat interface.
+This session implemented full real-time WebSocket support for typing indicators and message reactions.
 
 ### Current PR
-- **PR #11**: https://github.com/punitmishra/chai.im/pull/11
-- Branch: `feat/ux-security-improvements`
+- **PR #12**: https://github.com/punitmishra/chai.im/pull/12
+- Branch: `feat/realtime-features`
+- Previous: **PR #11** merged (UX improvements + security hardening)
 
 ### Recent Changes
 
-**1. Chat Input Enhancements**
-- Integrated emoji picker with button in chat input
-- Added emoji autocomplete (type `:` to trigger)
-- Added keyboard shortcuts (Ctrl+Shift+E for emoji, Ctrl+I for focus)
-- Added typing indicator component (UI ready, WebSocket TODO)
-- Added message reactions on hover
+**1. Real-time Typing Indicators**
+- Backend: `TypingStart`, `TypingStop` client messages
+- Backend: `TypingIndicator` server message forwarding
+- Frontend: Debounced typing (auto-stops after 5s)
+- Frontend: Subscribe to peer typing events
 
-**2. UX Quick Wins**
-- Added encryption badge to conversation header ("Encrypted" pill with lock icon)
-- Improved empty conversation state with wave emoji and personalized message
-- Added offline warning banner when disconnected from server
-- Added step labels to registration progress indicator
-- Added password hint on login page
-- Added encryption info badge in new conversation search results
+**2. Message Reactions**
+- Backend: `AddReaction`, `RemoveReaction` client messages
+- Backend: `ReactionAdded`, `ReactionRemoved` server messages
+- Frontend: Reactions display under messages with counts
+- Frontend: Toggle reactions on/off by clicking
+- Added `Reaction` type and store methods
 
-**3. Backend Security Fixes**
-- Fixed CORS: Changed from `Any` to specific `RP_ORIGIN`
-- Added explicit allowed methods (GET, POST, PUT, DELETE, OPTIONS)
-- Added explicit allowed headers (Content-Type, Authorization, Accept)
-- Enabled credentials support for authenticated requests
+**3. Read Receipts**
+- Backend: `MarkRead` client message
+- Backend: `MessageRead` server message
+- Frontend: Read status updates in message bubbles
 
-**4. Performance Benchmarks (Local, M1 Mac)**
-```
-Health Endpoint (50 concurrent):
-  - Requests/sec: 2,522
-  - Mean latency: 19.8ms
-  - 99th percentile: 77ms
-
-Health Endpoint (100 concurrent):
-  - Requests/sec: 16,823
-  - Mean latency: 5.9ms
-  - 99th percentile: 10ms
-```
+**4. WebSocket Protocol Extensions**
+- New `ServerMessage` types: `TypingIndicator`, `ReactionAdded`, `ReactionRemoved`, `MessageRead`, `PresenceUpdate`
+- Handler subscriptions: `onTyping()`, `onReaction()`, `onRead()`, `onPresence()`
 
 ### What's Working
 | Feature | Status |
@@ -314,17 +303,17 @@ Health Endpoint (100 concurrent):
 | Self-Chat (Notes to Self) | ✅ Working |
 | Emoji Picker + Autocomplete | ✅ Integrated |
 | Keyboard Shortcuts | ✅ Integrated |
-| Message Reactions UI | ✅ Integrated |
-| Typing Indicator UI | ✅ Integrated |
+| Real-time Typing Indicators | ✅ Implemented |
+| Message Reactions | ✅ Implemented |
+| Read Receipts | ✅ Implemented |
 
 ### What's Pending
 | Feature | Priority |
 |---------|----------|
-| WebSocket typing indicator messages | High |
-| WebSocket reaction messages | High |
 | Group chat frontend integration | Medium |
 | Message search | Low |
 | File attachments | Low |
+| Offline message queue | Low |
 
 ### Previous Session Completed Features
 
