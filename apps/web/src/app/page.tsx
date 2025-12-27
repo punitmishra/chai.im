@@ -1,8 +1,44 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Home() {
+  const router = useRouter();
+  const sessionToken = useAuthStore((state) => state.sessionToken);
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+
+  // Redirect to chat if already authenticated
+  useEffect(() => {
+    if (hasHydrated && sessionToken) {
+      router.replace('/chat');
+    }
+  }, [hasHydrated, sessionToken, router]);
+
+  // Show loading while checking auth
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="flex items-center gap-3 text-zinc-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+        </div>
+      </div>
+    );
+  }
+
+  // If authenticated, show loading while redirecting
+  if (sessionToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="flex items-center gap-3 text-zinc-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
       <div className="w-full max-w-sm text-center">

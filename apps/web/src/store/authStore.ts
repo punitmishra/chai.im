@@ -10,8 +10,10 @@ interface AuthState {
   user: User | null;
   sessionToken: string | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
   setUser: (user: User, token: string) => void;
   logout: () => void;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       sessionToken: null,
       isAuthenticated: false,
+      _hasHydrated: false,
 
       setUser: (user, token) =>
         set({
@@ -34,6 +37,8 @@ export const useAuthStore = create<AuthState>()(
           sessionToken: null,
           isAuthenticated: false,
         }),
+
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'chai-auth',
@@ -42,6 +47,9 @@ export const useAuthStore = create<AuthState>()(
         sessionToken: state.sessionToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

@@ -42,7 +42,7 @@ export default function LoginPage() {
 
       const { user_id, session_token } = await loginComplete(username, credential);
       setUser({ id: user_id, username }, session_token);
-      router.push('/');
+      router.push('/chat');
     } catch (err) {
       logger.error('Login error', err);
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -79,7 +79,7 @@ export default function LoginPage() {
       }
 
       setUser({ id: user_id, username }, session_token);
-      router.push('/');
+      router.push('/chat');
     } catch (err) {
       logger.error('Login error', err);
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -188,6 +188,9 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 autoFocus
               />
+              <p className="mt-2 text-xs text-zinc-600">
+                The password you created during registration
+              </p>
             </div>
 
             <button
