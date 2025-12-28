@@ -11,8 +11,8 @@ import {
   SecurityBadges,
 } from '@/components/launch';
 
-// Launch date: January 1, 2026
-const LAUNCH_DATE = new Date('2026-01-01T00:00:00Z');
+// Launch date: February 1, 2026
+const LAUNCH_DATE = new Date('2026-02-01T00:00:00Z');
 
 export default function Home() {
   const router = useRouter();
