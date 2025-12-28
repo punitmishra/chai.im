@@ -3,6 +3,7 @@
 //! This module provides JavaScript bindings for the Signal Protocol implementation.
 
 use crate::keys::{IdentityKeyPair, IdentityPublicKey, PreKeyBundle};
+use crate::mnemonic::{self, MnemonicStrength};
 use crate::session::{EncryptedMessage, SessionManager};
 use crate::x3dh::X3DHInitialMessage;
 use wasm_bindgen::prelude::*;
@@ -221,6 +222,52 @@ impl Default for CryptoManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// Standalone mnemonic functions (not bound to CryptoManager instance)
+
+/// Generate a new BIP39 mnemonic phrase.
+/// word_count: 12 or 24
+#[wasm_bindgen(js_name = generateMnemonic)]
+pub fn generate_mnemonic(word_count: u8) -> Result<String, JsValue> {
+    let strength = match word_count {
+        12 => MnemonicStrength::Words12,
+        24 => MnemonicStrength::Words24,
+        _ => return Err(JsValue::from_str("Word count must be 12 or 24")),
+    };
+    Ok(mnemonic::generate_mnemonic(strength))
+}
+
+/// Validate a BIP39 mnemonic phrase.
+#[wasm_bindgen(js_name = validateMnemonic)]
+pub fn validate_mnemonic(words: &str) -> bool {
+    mnemonic::validate_mnemonic(words)
+}
+
+/// Create a CryptoManager from a mnemonic phrase.
+#[wasm_bindgen(js_name = cryptoFromMnemonic)]
+pub fn crypto_from_mnemonic(words: &str, passphrase: &str) -> Result<CryptoManager, JsValue> {
+    let identity = mnemonic::derive_identity_from_words(words, passphrase)
+        .map_err(|e| JsValue::from_str(&format!("Invalid mnemonic: {}", e)))?;
+
+    Ok(CryptoManager {
+        inner: SessionManager::from_identity(identity),
+    })
+}
+
+/// Sign a challenge with an identity key (for authentication).
+/// Returns the Ed25519 signature.
+#[wasm_bindgen(js_name = signChallenge)]
+pub fn sign_challenge(identity_bytes: &[u8], challenge: &[u8]) -> Result<Vec<u8>, JsValue> {
+    if identity_bytes.len() != 32 {
+        return Err(JsValue::from_str("Identity bytes must be 32 bytes"));
+    }
+
+    let mut bytes = [0u8; 32];
+    bytes.copy_from_slice(identity_bytes);
+    let identity = IdentityKeyPair::from_bytes(&bytes);
+
+    Ok(identity.sign(challenge))
 }
 
 /// Parse a prekey bundle from bytes.

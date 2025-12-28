@@ -5,19 +5,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { registerStart, registerComplete } from '@/lib/api/auth';
-import { passwordRegister } from '@/lib/api/password-auth';
-import { initCrypto, generatePrekeyBundle, createLockedIdentity } from '@/lib/crypto/wasm';
+import { identityRegister } from '@/lib/api/identity-auth';
+import { initCrypto, generatePrekeyBundle, generateMnemonic, createIdentityFromMnemonic } from '@/lib/crypto/wasm';
+import { MnemonicDisplay } from '@/components/auth';
 import { API_URL } from '@/lib/config';
 import logger from '@/lib/logger';
 
-type Step = 'username' | 'method' | 'security-key' | 'password';
+type Step = 'username' | 'method' | 'security-key' | 'mnemonic-generate' | 'mnemonic-confirm';
 
 export default function RegisterPage() {
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [mnemonic, setMnemonic] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<Step>('username');
@@ -71,33 +71,36 @@ export default function RegisterPage() {
     }
   };
 
-  const handlePasswordRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-
+  const handleGenerateMnemonic = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      const { publicIdentity } = await createLockedIdentity(password);
+      const words = await generateMnemonic(24);
+      setMnemonic(words);
+      setStep('mnemonic-generate');
+    } catch (err) {
+      logger.error('Mnemonic generation error', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate recovery phrase');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      const { user_id, session_token } = await passwordRegister(
-        username,
-        password,
-        publicIdentity
-      );
+  const handleMnemonicConfirmed = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Create identity from mnemonic and save to IndexedDB
+      const { publicIdentity } = await createIdentityFromMnemonic(mnemonic);
+
+      // Register with server using identity key
+      const { user_id, session_token } = await identityRegister(username, publicIdentity);
 
       setUser({ id: user_id, username }, session_token);
 
+      // Upload prekey bundle
       try {
         const prekeyBundle = await generatePrekeyBundle();
         await uploadPrekeyBundle(session_token, prekeyBundle);
@@ -179,21 +182,24 @@ export default function RegisterPage() {
               </div>
             </button>
 
-            {/* Password Option */}
+            {/* Recovery Phrase Option */}
             <button
-              onClick={() => setStep('password')}
+              onClick={handleGenerateMnemonic}
+              disabled={isLoading}
               className="w-full p-5 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-left hover:border-amber-500/50 hover:bg-zinc-800/30 transition-all duration-200 group"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 flex items-center justify-center flex-shrink-0">
                   <svg className="w-6 h-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M12 17.25h8.25" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-medium group-hover:text-amber-400 transition-colors">Password</h3>
+                  <h3 className="text-white font-medium group-hover:text-amber-400 transition-colors">
+                    {isLoading ? 'Generating...' : 'Recovery Phrase'}
+                  </h3>
                   <p className="text-sm text-zinc-500 mt-1">
-                    Create a strong password. Works on any device.
+                    24-word backup phrase. Works on any device.
                   </p>
                 </div>
               </div>
@@ -247,71 +253,43 @@ export default function RegisterPage() {
           </div>
         );
 
-      case 'password':
+      case 'mnemonic-generate':
         return (
-          <form onSubmit={handlePasswordRegister} className="space-y-4">
-            <div>
-              <label htmlFor="password" className="block text-sm text-zinc-400 mb-1.5">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
-                placeholder="Create a strong password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm text-zinc-400 mb-1.5">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
-                placeholder="Confirm your password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-              <p className="mt-2 text-xs text-zinc-600">
-                Minimum 8 characters. This password protects your encryption keys.
+          <div className="space-y-4">
+            <div className="p-4 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl">
+              <h3 className="text-white font-medium mb-2">Your Recovery Phrase</h3>
+              <p className="text-sm text-zinc-500">
+                This is your secret backup. Write it down and store it safely.
               </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || password.length < 8}
-              className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20 disabled:shadow-none"
-            >
-              {isLoading ? (
-                <span className="inline-flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                  Creating account...
-                </span>
-              ) : (
-                'Create Account'
-              )}
-            </button>
+            <MnemonicDisplay
+              words={mnemonic}
+              onConfirmed={handleMnemonicConfirmed}
+            />
+
+            {isLoading && (
+              <div className="flex items-center justify-center gap-2 text-amber-400">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-400" />
+                Creating account...
+              </div>
+            )}
 
             <button
-              type="button"
-              onClick={() => setStep('method')}
-              className="w-full py-3 px-4 text-zinc-400 hover:text-white hover:bg-zinc-800/30 font-medium rounded-2xl transition-all duration-200"
+              onClick={() => {
+                setMnemonic('');
+                setStep('method');
+              }}
+              disabled={isLoading}
+              className="w-full py-3 px-4 text-zinc-400 hover:text-white hover:bg-zinc-800/30 font-medium rounded-2xl transition-all duration-200 disabled:opacity-50"
             >
               Back
             </button>
-          </form>
+          </div>
         );
+
+      default:
+        return null;
     }
   };
 
@@ -320,7 +298,8 @@ export default function RegisterPage() {
       case 'username': return 'Create account';
       case 'method': return 'Choose security';
       case 'security-key': return 'Security key';
-      case 'password': return 'Set password';
+      case 'mnemonic-generate': return 'Save your phrase';
+      case 'mnemonic-confirm': return 'Confirm phrase';
     }
   };
 
@@ -329,13 +308,14 @@ export default function RegisterPage() {
       case 'username': return 'Choose your username';
       case 'method': return `Registering as @${username}`;
       case 'security-key': return 'Hardware or biometric authentication';
-      case 'password': return 'Create a strong password';
+      case 'mnemonic-generate': return 'Write down these 24 words';
+      case 'mnemonic-confirm': return 'Verify you saved them correctly';
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-8">
+      <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 mb-4 shadow-lg shadow-amber-500/20">
@@ -350,12 +330,12 @@ export default function RegisterPage() {
           <div className="flex gap-2 mb-2">
             <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'username' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
             <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'method' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${['security-key', 'password'].includes(step) ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${['security-key', 'mnemonic-generate', 'mnemonic-confirm'].includes(step) ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-zinc-800'}`} />
           </div>
           <div className="flex justify-between text-xs text-zinc-600">
             <span className={step === 'username' ? 'text-amber-400' : ''}>Username</span>
             <span className={step === 'method' ? 'text-amber-400' : ''}>Security</span>
-            <span className={['security-key', 'password'].includes(step) ? 'text-amber-400' : ''}>Complete</span>
+            <span className={['security-key', 'mnemonic-generate', 'mnemonic-confirm'].includes(step) ? 'text-amber-400' : ''}>Complete</span>
           </div>
         </div>
 

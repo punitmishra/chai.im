@@ -1,6 +1,7 @@
 //! Application state.
 
 use crate::config::Config;
+use crate::handlers::identity_auth::ChallengeStore;
 use crate::ws::connection::ConnectionManager;
 use anyhow::Result;
 use sqlx::postgres::PgPoolOptions;
@@ -24,6 +25,8 @@ pub struct AppState {
     pub reg_states: Arc<RwLock<HashMap<String, PasskeyRegistration>>>,
     /// In-flight authentication states (username -> PasskeyAuthentication).
     pub auth_states: Arc<RwLock<HashMap<String, PasskeyAuthentication>>>,
+    /// Challenge store for identity key auth.
+    pub challenge_store: ChallengeStore,
 }
 
 impl AppState {
@@ -57,6 +60,7 @@ impl AppState {
             config: config.clone(),
             reg_states: Arc::new(RwLock::new(HashMap::new())),
             auth_states: Arc::new(RwLock::new(HashMap::new())),
+            challenge_store: ChallengeStore::new(),
         })
     }
 }

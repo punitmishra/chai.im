@@ -130,4 +130,77 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Glow pulse animation for hero logo */
+  .glow-pulse {
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes glowPulse {
+    0%, 100% {
+      box-shadow: 0 25px 50px -12px rgba(245, 158, 11, 0.25);
+    }
+    50% {
+      box-shadow: 0 25px 50px -12px rgba(245, 158, 11, 0.45);
+    }
+  }
+
+  /* Staggered entrance for feature cards */
+  .feature-card {
+    animation: fadeInUp 0.6s ease-out backwards;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Typing cursor effect */
+  .typing-cursor::after {
+    content: '|';
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Scramble text shimmer */
+  .scramble-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(251, 191, 36, 0) 0%,
+      rgba(251, 191, 36, 0.3) 50%,
+      rgba(251, 191, 36, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Countdown digit flip */
+  .flip-enter {
+    animation: flipIn 0.3s ease-out;
+  }
+
+  @keyframes flipIn {
+    from {
+      transform: rotateX(-90deg);
+      opacity: 0;
+    }
+    to {
+      transform: rotateX(0);
+      opacity: 1;
+    }
+  }
 }
