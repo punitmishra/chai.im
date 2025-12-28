@@ -27,7 +27,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/auth/login/start", post(handlers::auth::login_start))
         .route("/auth/login/complete", post(handlers::auth::login_complete))
-        // Password auth endpoints
+        // Password auth endpoints (legacy)
         .route(
             "/auth/password/register",
             post(handlers::password_auth::password_register),
@@ -35,6 +35,19 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/auth/password/login",
             post(handlers::password_auth::password_login),
+        )
+        // Identity key auth endpoints (mnemonic-based)
+        .route(
+            "/auth/identity/register",
+            post(handlers::identity_auth::identity_register),
+        )
+        .route(
+            "/auth/identity/challenge",
+            post(handlers::identity_auth::request_challenge),
+        )
+        .route(
+            "/auth/identity/verify",
+            post(handlers::identity_auth::verify_signature),
         )
         // Prekey endpoints
         .route(

@@ -552,6 +552,7 @@ dependencies = [
  "chai-crypto",
  "chai-protocol",
  "dotenvy",
+ "ed25519-dalek",
  "futures",
  "futures-util",
  "rand 0.8.5",
