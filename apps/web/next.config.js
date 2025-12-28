@@ -6,7 +6,7 @@ const nextConfig = {
   turbopack: {},
 
   // Exclude heavy ML packages from server bundling
-  serverExternalPackages: ['@xenova/transformers', 'onnxruntime-node', 'sharp'],
+  serverExternalPackages: ['@xenova/transformers', 'onnxruntime-node', 'onnxruntime-web', 'sharp'],
 
   // Enable WebAssembly
   webpack: (config, { isServer }) => {
@@ -14,6 +14,7 @@ const nextConfig = {
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push('@xenova/transformers');
+      config.externals.push('onnxruntime-node');
     }
     config.experiments = {
       ...config.experiments,
