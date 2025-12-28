@@ -24,6 +24,7 @@ pub struct WaitlistSignupResponse {
 }
 
 #[derive(Debug, FromRow)]
+#[allow(dead_code)]
 struct WaitlistEntry {
     id: uuid::Uuid,
 }

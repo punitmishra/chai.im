@@ -81,7 +81,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, user_id: UserId)
         while let Some(msg) = rx.recv().await {
             // Convert Bytes to Vec<u8> for axum's Message::Binary
             if sender
-                .send(Message::Binary(msg.data.to_vec().into()))
+                .send(Message::Binary(msg.data.to_vec()))
                 .await
                 .is_err()
             {
