@@ -287,13 +287,24 @@ Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
 ### Latest Session Summary
 
-Launch page with waitlist signup and Slack-like features implemented. Ready for production deployment.
+Launch page with waitlist signup deployed to production. Backend on Fly.io, frontend on Vercel. All systems operational.
 
-### Merged PRs
+### Merged PRs (This Session)
+- **PR #20**: Fix Vercel build - exclude @xenova/transformers from server bundle ✅
+- **PR #19**: Docs update checkpoint for Dec 28 with launch page features ✅
+
+### Merged PRs (Previous)
 - **Commit 38b8617**: Slack-like features and waitlist signup ✅
 - **PR #18**: Launch date update (February 1, 2026) ✅
 - **PR #12**: Real-time typing indicators, message reactions, read receipts ✅
 - **PR #11**: UX improvements, security hardening, group chat infrastructure ✅
+
+### Production Status
+| Service | URL | Status |
+|---------|-----|--------|
+| Frontend | https://chai.im | ✅ Live |
+| Backend | https://chai-server.fly.dev | ✅ Live |
+| Waitlist API | https://chai-server.fly.dev/waitlist | ✅ Working |
 
 ### What's Working
 | Feature | Status |
@@ -308,21 +319,43 @@ Launch page with waitlist signup and Slack-like features implemented. Ready for 
 | Message Reactions | ✅ |
 | Read Receipts | ✅ |
 | Group Chat Backend | ✅ |
-| **Launch Page** | ✅ |
-| **Countdown Timer** | ✅ |
-| **Encryption Demo** | ✅ |
-| **Waitlist Signup** | ✅ |
-| **Security Badges** | ✅ |
+| **Launch Page** | ✅ Deployed |
+| **Countdown Timer** | ✅ Deployed |
+| **Encryption Demo** | ✅ Deployed |
+| **Waitlist Signup** | ✅ Deployed |
+| **Security Badges** | ✅ Deployed |
+| **Local AI Features** | ⚠️ Disabled (see Known Issues) |
 
 ### What's Pending
 | Feature | Priority |
 |---------|----------|
+| Re-enable @xenova/transformers AI features | High |
 | Group chat frontend integration | High |
 | Message search | Medium |
 | File attachments | Low |
 | Offline message queue | Low |
 
+### Known Issues
+
+**Vercel GitHub Integration**
+- GitHub status checks show "Deployment failed" even when site is live
+- This appears to be a stale integration issue after project move to greplabs team
+- **Workaround**: Check Vercel dashboard directly at https://vercel.com/greplabs/chai.im
+- Site is actually deployed and working despite the status
+
+**@xenova/transformers Disabled**
+- The ML package was temporarily removed due to native dependency issues (sharp, onnxruntime-node)
+- AI features (summarization, smart replies, semantic search) are disabled
+- Code gracefully handles missing package
+- **To re-enable**: Add back to package.json with proper serverExternalPackages config
+
 ### Recent Implementations
+
+**Deployment & Infrastructure (Dec 28)**
+- Deployed backend to Fly.io with waitlist migration
+- Fixed Vercel build issues with server-side ML package exclusion
+- Added `serverExternalPackages` config for Next.js
+- Added webpack externals for @xenova/transformers
 
 **Launch Page & Waitlist (Dec 28)**
 - Interactive countdown timer to Feb 1, 2026 launch
@@ -433,21 +466,31 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 
 | Track | Status | Description |
 |-------|--------|-------------|
-| LAUNCH-PAGE | ✅ Complete | Launch page, countdown, waitlist |
+| LAUNCH-PAGE | ✅ Deployed | Launch page, countdown, waitlist |
+| DEPLOYMENT | ✅ Complete | Fly.io backend, Vercel frontend |
 | WEB-REALTIME | ✅ Complete | Typing indicators, read receipts |
 | EMOJI | ✅ Complete | Emoji picker, reactions |
+| LOCAL-AI | ⚠️ Disabled | @xenova/transformers needs fix |
 | CLI-CRYPTO | 🟡 In Progress | E2E encryption integration |
 | CLI-AUTH | 🟡 In Progress | Login/register TUI screens |
 | GROUP-CHAT | 🟡 In Progress | Group chat frontend |
 
 ### Feature Checklist
 
-**Launch Page** (✅ Complete):
+**Launch Page** (✅ Deployed to Production):
 - [x] Countdown timer to launch
 - [x] Real-time encryption demo
 - [x] Email waitlist signup
 - [x] Security badges
 - [x] Waitlist API endpoints
+- [x] Database migration applied
+
+**Local AI Features** (⚠️ Temporarily Disabled):
+- [ ] Re-add @xenova/transformers with proper config
+- [ ] Message summarization
+- [ ] Smart replies
+- [ ] Semantic search
+- [ ] Translation
 
 **CLI Client**:
 - [ ] E2E encryption with chai-crypto
