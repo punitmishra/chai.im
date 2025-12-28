@@ -492,7 +492,10 @@ impl MessageBatcher {
     ///
     /// Returns immediately with the pre-generated message ID.
     /// The actual database insert happens asynchronously.
-    pub async fn submit(&self, message: PendingMessage) -> Result<BatchedMessageResult, mpsc::error::SendError<PendingMessage>> {
+    pub async fn submit(
+        &self,
+        message: PendingMessage,
+    ) -> Result<BatchedMessageResult, mpsc::error::SendError<PendingMessage>> {
         let id = message.id;
         self.tx.send(message).await?;
         Ok(BatchedMessageResult { id })
@@ -502,7 +505,10 @@ impl MessageBatcher {
     ///
     /// Returns immediately with the message ID if successful,
     /// or an error if the channel is full.
-    pub fn try_submit(&self, message: PendingMessage) -> Result<BatchedMessageResult, mpsc::error::TrySendError<PendingMessage>> {
+    pub fn try_submit(
+        &self,
+        message: PendingMessage,
+    ) -> Result<BatchedMessageResult, mpsc::error::TrySendError<PendingMessage>> {
         let id = message.id;
         self.tx.try_send(message)?;
         Ok(BatchedMessageResult { id })
@@ -555,7 +561,8 @@ async fn flush_batch(pool: &PgPool, batch: &mut Vec<PendingMessage>) -> sqlx::Re
     // Execute with all parameters
     let mut q = sqlx::query(&query);
     for msg in batch.iter() {
-        q = q.bind(msg.id)
+        q = q
+            .bind(msg.id)
             .bind(msg.sender_id)
             .bind(msg.recipient_id)
             .bind(&msg.ciphertext)
@@ -607,7 +614,8 @@ pub async fn batch_insert_messages(
 
     let mut q = sqlx::query(&query);
     for msg in messages {
-        q = q.bind(msg.id)
+        q = q
+            .bind(msg.id)
             .bind(msg.sender_id)
             .bind(msg.recipient_id)
             .bind(&msg.ciphertext)

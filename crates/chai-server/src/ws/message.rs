@@ -6,7 +6,9 @@ use crate::ws::connection::OutgoingMessage;
 use crate::ws::presence::broadcast_presence_update;
 use anyhow::Result;
 use chai_common::UserId;
-use chai_protocol::{ClientMessage, MessageType, PrekeyBundleData, ServerMessage, ThreadMessageData, UserStatus};
+use chai_protocol::{
+    ClientMessage, MessageType, PrekeyBundleData, ServerMessage, ThreadMessageData, UserStatus,
+};
 use uuid::Uuid;
 
 /// Handle an incoming WebSocket message.
@@ -350,11 +352,7 @@ async fn handle_subscribe_presence(
     Ok(())
 }
 
-async fn handle_set_status(
-    state: &AppState,
-    user_id: UserId,
-    status: UserStatus,
-) -> Result<()> {
+async fn handle_set_status(state: &AppState, user_id: UserId, status: UserStatus) -> Result<()> {
     let status_changed = {
         let connections = &state.connections;
         connections.set_status(&user_id, status)
@@ -375,10 +373,7 @@ async fn handle_set_status(
     Ok(())
 }
 
-async fn handle_report_activity(
-    state: &AppState,
-    user_id: UserId,
-) -> Result<()> {
+async fn handle_report_activity(state: &AppState, user_id: UserId) -> Result<()> {
     let was_away = {
         let connections = &state.connections;
         connections.touch_activity(&user_id)
@@ -659,7 +654,9 @@ async fn handle_thread_reply(
     }
 
     // Send confirmation to sender
-    let confirmation = ServerMessage::MessageSent { message_id: reply_id };
+    let confirmation = ServerMessage::MessageSent {
+        message_id: reply_id,
+    };
     let confirm_data = chai_protocol::json::encode_server_message(&confirmation)?;
     let confirm_outgoing = OutgoingMessage {
         data: confirm_data.into_bytes().into(),
@@ -689,7 +686,8 @@ async fn handle_get_thread_messages(
     let limit = limit.unwrap_or(50).min(100); // Default 50, max 100
 
     // Fetch thread messages
-    let thread_messages = messages::get_thread_messages(&state.db, thread_uuid, limit, before_uuid).await?;
+    let thread_messages =
+        messages::get_thread_messages(&state.db, thread_uuid, limit, before_uuid).await?;
 
     // Convert to ThreadMessageData
     let messages_data: Vec<ThreadMessageData> = thread_messages

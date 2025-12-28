@@ -1,11 +1,6 @@
 //! Waitlist signup handlers.
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::sync::Arc;
@@ -52,13 +47,12 @@ pub async fn signup(
     }
 
     // Check if already signed up
-    let existing: Option<WaitlistEntry> = sqlx::query_as(
-        "SELECT id FROM waitlist WHERE email = $1"
-    )
-    .bind(&email)
-    .fetch_optional(&state.db)
-    .await
-    .unwrap_or(None);
+    let existing: Option<WaitlistEntry> =
+        sqlx::query_as("SELECT id FROM waitlist WHERE email = $1")
+            .bind(&email)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
 
     if existing.is_some() {
         // Get their position
@@ -78,7 +72,7 @@ pub async fn signup(
         r#"
         INSERT INTO waitlist (email, source, referrer)
         VALUES ($1, $2, $3)
-        "#
+        "#,
     )
     .bind(&email)
     .bind(req.source.as_deref().unwrap_or("website"))
@@ -114,9 +108,7 @@ pub async fn signup(
 }
 
 /// Get waitlist count (for display).
-pub async fn count(
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+pub async fn count(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     #[derive(Serialize)]
     struct CountResponse {
         count: i64,
@@ -136,7 +128,7 @@ async fn get_position(state: &AppState, email: &str) -> Option<i64> {
         r#"
         SELECT COUNT(*) + 1 FROM waitlist
         WHERE created_at < (SELECT created_at FROM waitlist WHERE email = $1)
-        "#
+        "#,
     )
     .bind(email)
     .fetch_optional(&state.db)

@@ -422,7 +422,9 @@ impl App {
             ServerMessage::Error { message, .. } => {
                 self.status = format!("Error: {}", message);
             }
-            ServerMessage::PresenceUpdate { user_id, status, .. } => {
+            ServerMessage::PresenceUpdate {
+                user_id, status, ..
+            } => {
                 // Update user presence
                 use chai_protocol::UserStatus;
                 let user_name = user_id.0.to_string();

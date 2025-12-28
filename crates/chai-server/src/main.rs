@@ -133,8 +133,8 @@ async fn shuttle_main(
         .expect("Failed to run migrations");
 
     // Create config from environment (Shuttle sets these via Secrets.toml)
-    let rp_origin = std::env::var("RP_ORIGIN")
-        .unwrap_or_else(|_| "https://chai-im.vercel.app".into());
+    let rp_origin =
+        std::env::var("RP_ORIGIN").unwrap_or_else(|_| "https://chai-im.vercel.app".into());
 
     let config = Config {
         port: 8000,                  // Shuttle handles the port

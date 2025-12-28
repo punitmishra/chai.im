@@ -38,7 +38,10 @@ pub async fn broadcast_presence_update(
     // Send to all watchers (lock-free)
     let watcher_count = watchers.len();
     for watcher_id in watchers {
-        state.connections.send_to_user(&watcher_id, outgoing.clone()).await;
+        state
+            .connections
+            .send_to_user(&watcher_id, outgoing.clone())
+            .await;
     }
 
     tracing::debug!(

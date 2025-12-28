@@ -134,7 +134,9 @@ mod tests {
         assert!(validate_mnemonic(valid));
 
         // Invalid mnemonic
-        assert!(!validate_mnemonic("invalid words here that are not a real mnemonic"));
+        assert!(!validate_mnemonic(
+            "invalid words here that are not a real mnemonic"
+        ));
 
         // Invalid checksum
         assert!(!validate_mnemonic("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"));
