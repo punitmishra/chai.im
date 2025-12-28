@@ -283,13 +283,15 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl/lib/pkgconfig"
 
 Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
-## Development Session Checkpoint (Dec 27, 2025)
+## Development Session Checkpoint (Dec 28, 2025)
 
 ### Latest Session Summary
 
-All real-time features implemented and merged. Ready for next phase.
+Launch page with waitlist signup and Slack-like features implemented. Ready for production deployment.
 
 ### Merged PRs
+- **Commit 38b8617**: Slack-like features and waitlist signup ✅
+- **PR #18**: Launch date update (February 1, 2026) ✅
 - **PR #12**: Real-time typing indicators, message reactions, read receipts ✅
 - **PR #11**: UX improvements, security hardening, group chat infrastructure ✅
 
@@ -306,6 +308,11 @@ All real-time features implemented and merged. Ready for next phase.
 | Message Reactions | ✅ |
 | Read Receipts | ✅ |
 | Group Chat Backend | ✅ |
+| **Launch Page** | ✅ |
+| **Countdown Timer** | ✅ |
+| **Encryption Demo** | ✅ |
+| **Waitlist Signup** | ✅ |
+| **Security Badges** | ✅ |
 
 ### What's Pending
 | Feature | Priority |
@@ -316,6 +323,14 @@ All real-time features implemented and merged. Ready for next phase.
 | Offline message queue | Low |
 
 ### Recent Implementations
+
+**Launch Page & Waitlist (Dec 28)**
+- Interactive countdown timer to Feb 1, 2026 launch
+- Real-time encryption demo (AES-256-GCM visualization)
+- Email waitlist signup with position tracking
+- Security badges with hover tooltips
+- Waitlist API: POST `/waitlist`, GET `/waitlist/count`
+- Database migration: `004_waitlist.sql`
 
 **Real-time WebSocket Features (PR #12)**
 - Typing indicators with debouncing (5s auto-stop)
@@ -359,11 +374,17 @@ All real-time features implemented and merged. Ready for next phase.
 apps/web/src/
 ├── app/                        # Next.js App Router
 │   ├── (chat)/                 # Chat layout group
-│   └── auth/                   # Login/Register pages
+│   ├── auth/                   # Login/Register pages
+│   └── page.tsx                # Launch page
 ├── components/                 # Shared UI components
 │   ├── ErrorBoundary.tsx
 │   ├── Loading.tsx
-│   └── Toast.tsx
+│   ├── Toast.tsx
+│   └── launch/                 # Launch page components
+│       ├── CountdownTimer.tsx
+│       ├── EncryptionDemo.tsx
+│       ├── EmailSignup.tsx
+│       └── SecurityBadges.tsx
 ├── lib/
 │   ├── api/                    # REST API clients
 │   ├── config.ts               # Centralized configuration
@@ -380,7 +401,8 @@ apps/web/src/
 crates/chai-server/src/
 ├── handlers/
 │   ├── auth.rs                 # WebAuthn handlers
-│   └── password_auth.rs        # Password auth handlers
+│   ├── password_auth.rs        # Password auth handlers
+│   └── waitlist.rs             # Waitlist signup handlers
 ├── ws/                         # WebSocket server
 └── db/                         # PostgreSQL queries
 ```
@@ -405,20 +427,27 @@ pnpm test:run
 ### Next Steps
 See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 
-## Current Sprint (Dec 26, 2025)
+## Current Sprint (Dec 28, 2025)
 
 ### Parallel Implementation Tracks
 
 | Track | Status | Description |
 |-------|--------|-------------|
+| LAUNCH-PAGE | ✅ Complete | Launch page, countdown, waitlist |
+| WEB-REALTIME | ✅ Complete | Typing indicators, read receipts |
+| EMOJI | ✅ Complete | Emoji picker, reactions |
 | CLI-CRYPTO | 🟡 In Progress | E2E encryption integration |
 | CLI-AUTH | 🟡 In Progress | Login/register TUI screens |
-| WEB-REALTIME | 🟡 In Progress | Typing indicators, read receipts |
-| EMOJI | 🟡 In Progress | Emoji picker, custom emojis, reactions |
-| GROUP-CHAT | 🟡 In Progress | Group chat with sender keys |
-| SHORTCUTS | 🟡 In Progress | Keyboard shortcuts (vim-style) |
+| GROUP-CHAT | 🟡 In Progress | Group chat frontend |
 
 ### Feature Checklist
+
+**Launch Page** (✅ Complete):
+- [x] Countdown timer to launch
+- [x] Real-time encryption demo
+- [x] Email waitlist signup
+- [x] Security badges
+- [x] Waitlist API endpoints
 
 **CLI Client**:
 - [ ] E2E encryption with chai-crypto
@@ -428,18 +457,19 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 - [ ] Search conversations and messages
 - [ ] Reply, edit, delete messages
 
-**Web Client**:
-- [ ] Typing indicators
-- [ ] Read receipts (double checkmarks)
-- [ ] Online/offline status
-- [ ] Emoji picker with categories
+**Web Client** (Mostly Complete):
+- [x] Typing indicators
+- [x] Read receipts (double checkmarks)
+- [x] Online/offline status
+- [x] Emoji picker with categories
 - [ ] Custom emoji upload
-- [ ] Message reactions
-- [ ] Keyboard shortcuts (Ctrl+K, Ctrl+/)
+- [x] Message reactions
+- [x] Keyboard shortcuts (Ctrl+K, Ctrl+/)
 - [ ] Command palette
 
 **Shared**:
-- [ ] Group chat creation
+- [x] Group chat backend
+- [ ] Group chat frontend
 - [ ] Sender keys protocol
 - [ ] Member management
 - [ ] Invite links
