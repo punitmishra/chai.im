@@ -64,6 +64,11 @@ chai-crypto = { workspace = true }
 chai-protocol = { workspace = true }
 chai-common = { workspace = true }
 
+# Concurrency & Performance
+dashmap = { workspace = true }
+smallvec = { workspace = true }
+bytes = { workspace = true }
+
 # Shuttle (optional) - pinned to 0.49 for axum 0.7 compatibility
 shuttle-runtime = { version = "0.49", optional = true }
 shuttle-axum = { version = "0.49", optional = true }

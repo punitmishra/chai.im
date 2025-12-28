@@ -66,6 +66,11 @@ zeroize = { version = "1.7", features = ["derive"] }
 subtle = "2.5"
 base64 = "0.22"
 
+# Concurrency & Performance
+dashmap = "5.5"
+smallvec = "1.11"
+bytes = "1.5"
+
 # WASM
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

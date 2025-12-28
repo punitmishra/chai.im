@@ -86,18 +86,24 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/groups/:group_id/invites",
             post(handlers::groups::create_invite),
         )
+        // Waitlist endpoints (public, no auth required)
+        .route("/waitlist", post(handlers::waitlist::signup))
+        .route("/waitlist/count", get(handlers::waitlist::count))
         // WebSocket endpoint
         .route("/ws", get(ws::handler::ws_handler))
         // Middleware
         .layer({
-            // Parse the origin from config
-            let origin = config
-                .rp_origin
-                .parse::<axum::http::HeaderValue>()
-                .expect("Invalid RP_ORIGIN URL");
+            use tower_http::cors::AllowOrigin;
+
+            // Allow multiple origins for development and production
+            let origins: Vec<axum::http::HeaderValue> = config
+                .cors_origins
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
 
             CorsLayer::new()
-                .allow_origin(origin)
+                .allow_origin(AllowOrigin::list(origins))
                 .allow_methods([
                     Method::GET,
                     Method::POST,
@@ -127,12 +133,15 @@ async fn shuttle_main(
         .expect("Failed to run migrations");
 
     // Create config from environment (Shuttle sets these via Secrets.toml)
+    let rp_origin =
+        std::env::var("RP_ORIGIN").unwrap_or_else(|_| "https://chai-im.vercel.app".into());
+
     let config = Config {
         port: 8000,                  // Shuttle handles the port
         database_url: String::new(), // Not needed, we have the pool
         rp_id: std::env::var("RP_ID").unwrap_or_else(|_| "chai-server.shuttleapp.rs".into()),
-        rp_origin: std::env::var("RP_ORIGIN")
-            .unwrap_or_else(|_| "https://chai-im.vercel.app".into()),
+        cors_origins: std::env::var("CORS_ORIGINS").unwrap_or_else(|_| rp_origin.clone()),
+        rp_origin,
         jwt_secret: std::env::var("JWT_SECRET").expect("JWT_SECRET must be set in Secrets.toml"),
     };
 

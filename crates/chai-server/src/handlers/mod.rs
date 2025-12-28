@@ -7,3 +7,4 @@ pub mod identity_auth;
 pub mod password_auth;
 pub mod prekeys;
 pub mod users;
+pub mod waitlist;

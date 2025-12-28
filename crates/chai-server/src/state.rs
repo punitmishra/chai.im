@@ -18,7 +18,8 @@ pub struct AppState {
     /// WebAuthn authenticator.
     pub webauthn: Webauthn,
     /// Active WebSocket connections.
-    pub connections: Arc<RwLock<ConnectionManager>>,
+    /// Uses lock-free DashMap internally for concurrent access.
+    pub connections: Arc<ConnectionManager>,
     /// Configuration.
     pub config: Config,
     /// In-flight registration states (username -> PasskeyRegistration).
@@ -56,7 +57,7 @@ impl AppState {
         Ok(Self {
             db,
             webauthn,
-            connections: Arc::new(RwLock::new(ConnectionManager::new())),
+            connections: Arc::new(ConnectionManager::new()),
             config: config.clone(),
             reg_states: Arc::new(RwLock::new(HashMap::new())),
             auth_states: Arc::new(RwLock::new(HashMap::new())),

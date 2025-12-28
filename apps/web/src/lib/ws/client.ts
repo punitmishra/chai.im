@@ -5,9 +5,10 @@
 import { useConnectionStore } from '@/store/connectionStore';
 import { useChatStore, Message } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
+import { usePresenceStore, UserStatus } from '@/store/presenceStore';
 import { toast } from '@/store/toastStore';
 import { decryptMessage, initSession, saveSessionToStorage, loadSessionFromStorage, hasSession, generateOneTimePrekeys } from '@/lib/crypto/wasm';
-import { WS_URL, RECONNECT_DELAYS, PING_INTERVAL_MS, LOW_PREKEY_THRESHOLD, PREKEY_REPLENISH_COUNT } from '@/lib/config';
+import { WS_URL, RECONNECT_DELAYS, PING_INTERVAL_MS, LOW_PREKEY_THRESHOLD, PREKEY_REPLENISH_COUNT, ACTIVITY_REPORT_INTERVAL_MS } from '@/lib/config';
 import logger from '@/lib/logger';
 
 // Discriminated union types for type-safe message handling
@@ -21,7 +22,10 @@ type ClientMessage =
   | { type: 'TypingStop'; payload: { recipient_id: string; conversation_id: string } }
   | { type: 'AddReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
   | { type: 'RemoveReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
-  | { type: 'MarkRead'; payload: { conversation_id: string; message_ids: string[] } };
+  | { type: 'MarkRead'; payload: { conversation_id: string; message_ids: string[] } }
+  | { type: 'SubscribePresence'; payload: { user_ids: string[] } }
+  | { type: 'SetStatus'; payload: { status: UserStatus } }
+  | { type: 'ReportActivity'; payload: null };
 
 type ServerMessage =
   | { type: 'Pong'; payload: null }
@@ -34,7 +38,13 @@ type ServerMessage =
   | { type: 'ReactionAdded'; payload: ReactionPayload }
   | { type: 'ReactionRemoved'; payload: ReactionPayload }
   | { type: 'MessageRead'; payload: { message_id: string } }
-  | { type: 'PresenceUpdate'; payload: { user_id: string; online: boolean } };
+  | { type: 'PresenceUpdate'; payload: PresenceUpdatePayload };
+
+interface PresenceUpdatePayload {
+  user_id: string;
+  status: UserStatus;
+  last_active: number | null;
+}
 
 interface SendMessagePayload {
   recipient_id: string;
@@ -60,7 +70,7 @@ type MessageHandler = (message: ServerMessage) => void;
 type TypingHandler = (userId: string, conversationId: string, isTyping: boolean) => void;
 type ReactionHandler = (messageId: string, conversationId: string, userId: string, emoji: string, added: boolean) => void;
 type ReadHandler = (messageId: string) => void;
-type PresenceHandler = (userId: string, online: boolean) => void;
+type PresenceHandler = (userId: string, status: UserStatus, lastActive: number | null) => void;
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
@@ -72,7 +82,9 @@ export class WebSocketClient {
   private presenceHandlers: PresenceHandler[] = [];
   private reconnectTimeout: number | null = null;
   private pingInterval: number | null = null;
+  private activityInterval: number | null = null;
   private typingTimeout: Map<string, number> = new Map(); // Debounce typing
+  private lastActivityTime: number = Date.now();
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -121,11 +133,18 @@ export class WebSocketClient {
       this.pingInterval = null;
     }
 
+    if (this.activityInterval) {
+      clearInterval(this.activityInterval);
+      this.activityInterval = null;
+    }
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
 
+    // Clear presence data on disconnect
+    usePresenceStore.getState().clearPresence();
     useConnectionStore.getState().setStatus('disconnected');
   }
 
@@ -264,6 +283,48 @@ export class WebSocketClient {
   }
 
   /**
+   * Subscribe to presence updates for specific users.
+   */
+  subscribePresence(userIds: string[]): void {
+    if (userIds.length === 0) return;
+
+    // Update local subscription state
+    usePresenceStore.getState().subscribe(userIds);
+
+    this.send({
+      type: 'SubscribePresence',
+      payload: { user_ids: userIds },
+    });
+    logger.info(`Subscribed to presence for ${userIds.length} users`);
+  }
+
+  /**
+   * Set own status (for DND mode).
+   */
+  setStatus(status: UserStatus): void {
+    this.send({
+      type: 'SetStatus',
+      payload: { status },
+    });
+    logger.info(`Set status to ${status}`);
+  }
+
+  /**
+   * Report user activity (called when user interacts with the app).
+   */
+  reportActivity(): void {
+    const now = Date.now();
+    // Only report if enough time has passed since last report
+    if (now - this.lastActivityTime > 30000) { // 30 seconds
+      this.lastActivityTime = now;
+      this.send({
+        type: 'ReportActivity',
+        payload: null,
+      });
+    }
+  }
+
+  /**
    * Register a typing handler.
    */
   onTyping(handler: TypingHandler): () => void {
@@ -336,6 +397,9 @@ export class WebSocketClient {
 
       // Restore persisted sessions for existing conversations
       await this.restoreSessions();
+
+      // Subscribe to presence updates for all conversation participants
+      this.subscribeToConversationPresence();
     };
 
     this.ws.onclose = () => {
@@ -399,7 +463,7 @@ export class WebSocketClient {
         this.handleMessageRead(message.payload as { message_id: string });
         break;
       case 'PresenceUpdate':
-        this.handlePresenceUpdate(message.payload as { user_id: string; online: boolean });
+        this.handlePresenceUpdate(message.payload as PresenceUpdatePayload);
         break;
     }
   }
@@ -539,20 +603,35 @@ export class WebSocketClient {
     }
   }
 
-  private handlePresenceUpdate(payload: { user_id: string; online: boolean }): void {
+  private handlePresenceUpdate(payload: PresenceUpdatePayload): void {
+    // Update presence store
+    usePresenceStore.getState().updatePresence(
+      payload.user_id,
+      payload.status,
+      payload.last_active
+    );
+
+    // Notify handlers
     for (const handler of this.presenceHandlers) {
       try {
-        handler(payload.user_id, payload.online);
+        handler(payload.user_id, payload.status, payload.last_active);
       } catch (error) {
         logger.error('Presence handler error', error);
       }
     }
+
+    logger.info(`Presence update: ${payload.user_id} is now ${payload.status}`);
   }
 
   private handleDisconnect(): void {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+    }
+
+    if (this.activityInterval) {
+      clearInterval(this.activityInterval);
+      this.activityInterval = null;
     }
 
     const store = useConnectionStore.getState();
@@ -579,6 +658,41 @@ export class WebSocketClient {
     this.pingInterval = window.setInterval(() => {
       this.send({ type: 'Ping', payload: null });
     }, PING_INTERVAL_MS);
+
+    // Start activity reporting interval
+    this.startActivityInterval();
+  }
+
+  private startActivityInterval(): void {
+    // Clear any existing interval
+    if (this.activityInterval) {
+      clearInterval(this.activityInterval);
+    }
+
+    // Report activity periodically to prevent auto-away
+    const interval = typeof ACTIVITY_REPORT_INTERVAL_MS !== 'undefined'
+      ? ACTIVITY_REPORT_INTERVAL_MS
+      : 60000; // Default to 1 minute
+
+    this.activityInterval = window.setInterval(() => {
+      // Only report if there has been recent user activity
+      if (Date.now() - this.lastActivityTime < interval) {
+        this.send({ type: 'ReportActivity', payload: null });
+      }
+    }, interval);
+  }
+
+  /**
+   * Subscribe to presence for all conversation participants.
+   * Called after connecting to get initial presence state.
+   */
+  private subscribeToConversationPresence(): void {
+    const conversations = useChatStore.getState().conversations;
+    const userIds = conversations.map(c => c.recipientId).filter(Boolean);
+
+    if (userIds.length > 0) {
+      this.subscribePresence(userIds);
+    }
   }
 
   /**

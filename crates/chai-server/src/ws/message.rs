@@ -3,9 +3,12 @@
 use crate::db::{messages, prekeys, users};
 use crate::state::AppState;
 use crate::ws::connection::OutgoingMessage;
+use crate::ws::presence::broadcast_presence_update;
 use anyhow::Result;
 use chai_common::UserId;
-use chai_protocol::{ClientMessage, MessageType, PrekeyBundleData, ServerMessage};
+use chai_protocol::{
+    ClientMessage, MessageType, PrekeyBundleData, ServerMessage, ThreadMessageData, UserStatus,
+};
 use uuid::Uuid;
 
 /// Handle an incoming WebSocket message.
@@ -95,6 +98,39 @@ pub async fn handle_message(state: &AppState, sender_id: UserId, data: &[u8]) ->
         } => {
             handle_mark_read(state, sender_id, conversation_id, message_ids).await?;
         }
+
+        ClientMessage::ThreadReply {
+            thread_id,
+            conversation_id,
+            ciphertext,
+            message_type,
+        } => {
+            handle_thread_reply(
+                state,
+                sender_id,
+                thread_id,
+                conversation_id,
+                ciphertext,
+                message_type,
+            )
+            .await?;
+        }
+
+        ClientMessage::GetThreadMessages {
+            thread_id,
+            limit,
+            before,
+        } => {
+            handle_get_thread_messages(state, sender_id, thread_id, limit, before).await?;
+        }
+
+        ClientMessage::SetStatus { status } => {
+            handle_set_status(state, sender_id, status).await?;
+        }
+
+        ClientMessage::ReportActivity => {
+            handle_report_activity(state, sender_id).await?;
+        }
     }
 
     Ok(())
@@ -134,17 +170,17 @@ async fn handle_send_message(
 
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     connections.send_to_user(&recipient_id, outgoing).await;
 
     // Send confirmation to sender
     let confirmation = ServerMessage::MessageSent { message_id };
     let data = chai_protocol::json::encode_server_message(&confirmation)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
     connections.send_to_user(&sender_id, outgoing).await;
 
@@ -180,9 +216,9 @@ async fn handle_get_prekey_bundle(
                         };
                         let data = chai_protocol::json::encode_server_message(&warning)?;
                         let outgoing = OutgoingMessage {
-                            data: data.into_bytes(),
+                            data: data.into_bytes().into(),
                         };
-                        let connections = state.connections.read().await;
+                        let connections = &state.connections;
                         connections.send_to_user(&user_id, outgoing).await;
                     }
 
@@ -204,10 +240,10 @@ async fn handle_get_prekey_bundle(
     let server_message = ServerMessage::PrekeyBundle { user_id, bundle };
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     connections.send_to_user(&requester_id, outgoing).await;
 
     Ok(())
@@ -270,10 +306,10 @@ async fn handle_ping(state: &AppState, user_id: UserId) -> Result<()> {
     let server_message = ServerMessage::Pong;
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     connections.send_to_user(&user_id, outgoing).await;
 
     Ok(())
@@ -284,20 +320,69 @@ async fn handle_subscribe_presence(
     user_id: UserId,
     target_user_ids: Vec<UserId>,
 ) -> Result<()> {
+    // Register subscriptions first
+    {
+        let connections = &state.connections;
+        connections.subscribe_presence(user_id, target_user_ids.clone());
+    }
+
     // Send current presence status for requested users
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
 
     for target_id in target_user_ids {
-        let online = connections.is_online(&target_id);
+        let status = connections.get_status(&target_id);
+        let last_active = if status == UserStatus::Offline {
+            connections.get_last_active(&target_id)
+        } else {
+            None
+        };
+
         let server_message = ServerMessage::PresenceUpdate {
             user_id: target_id,
-            online,
+            status,
+            last_active,
         };
         let data = chai_protocol::json::encode_server_message(&server_message)?;
         let outgoing = OutgoingMessage {
-            data: data.into_bytes(),
+            data: data.into_bytes().into(),
         };
         connections.send_to_user(&user_id, outgoing).await;
+    }
+
+    Ok(())
+}
+
+async fn handle_set_status(state: &AppState, user_id: UserId, status: UserStatus) -> Result<()> {
+    let status_changed = {
+        let connections = &state.connections;
+        connections.set_status(&user_id, status)
+    };
+
+    // Broadcast to watchers if status changed
+    if status_changed {
+        let last_active = if status == UserStatus::Active {
+            None
+        } else {
+            let connections = &state.connections;
+            connections.get_last_active(&user_id)
+        };
+        broadcast_presence_update(state, user_id, status, last_active).await;
+    }
+
+    tracing::debug!("User {:?} set status to {:?}", user_id, status);
+    Ok(())
+}
+
+async fn handle_report_activity(state: &AppState, user_id: UserId) -> Result<()> {
+    let was_away = {
+        let connections = &state.connections;
+        connections.touch_activity(&user_id)
+    };
+
+    // If user was away and is now active, broadcast the change
+    if was_away {
+        broadcast_presence_update(state, user_id, UserStatus::Active, None).await;
+        tracing::debug!("User {:?} returned from away", user_id);
     }
 
     Ok(())
@@ -316,10 +401,10 @@ async fn handle_typing_start(
     };
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     connections.send_to_user(&recipient_id, outgoing).await;
 
     tracing::debug!("User {:?} started typing to {:?}", sender_id, recipient_id);
@@ -339,10 +424,10 @@ async fn handle_typing_stop(
     };
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     connections.send_to_user(&recipient_id, outgoing).await;
 
     tracing::debug!("User {:?} stopped typing to {:?}", sender_id, recipient_id);
@@ -369,10 +454,10 @@ async fn handle_add_reaction(
     };
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     // Send to recipient
     connections
         .send_to_user(&recipient_id, outgoing.clone())
@@ -406,10 +491,10 @@ async fn handle_remove_reaction(
     };
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
-        data: data.into_bytes(),
+        data: data.into_bytes().into(),
     };
 
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     connections
         .send_to_user(&recipient_id, outgoing.clone())
         .await;
@@ -433,14 +518,14 @@ async fn handle_mark_read(
     let recipient_id = extract_recipient_from_conversation(sender_id, conversation_id);
 
     // Send read receipts for each message
-    let connections = state.connections.read().await;
+    let connections = &state.connections;
     for message_id in &message_ids {
         let server_message = ServerMessage::MessageRead {
             message_id: *message_id,
         };
         let data = chai_protocol::json::encode_server_message(&server_message)?;
         let outgoing = OutgoingMessage {
-            data: data.into_bytes(),
+            data: data.into_bytes().into(),
         };
         connections.send_to_user(&recipient_id, outgoing).await;
     }
@@ -464,4 +549,183 @@ fn extract_recipient_from_conversation(
     // In a real implementation, we'd look up conversation participants from DB
     // For now, return the conversation_id as a user_id (works for simple cases)
     UserId::from(conversation_id.0)
+}
+
+/// Handle a thread reply message.
+async fn handle_thread_reply(
+    state: &AppState,
+    sender_id: UserId,
+    thread_id: chai_common::MessageId,
+    conversation_id: chai_common::ConversationId,
+    ciphertext: Vec<u8>,
+    message_type: MessageType,
+) -> Result<()> {
+    let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
+    let thread_uuid = Uuid::from(thread_id);
+
+    // Get the parent message to find the recipient
+    let parent_message = messages::get_message_by_id(&state.db, thread_uuid)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Thread parent message not found"))?;
+
+    // Determine the recipient (the other party in the conversation)
+    let recipient_id = if parent_message.sender_id == Uuid::from(sender_id) {
+        parent_message.recipient_id
+    } else {
+        parent_message.sender_id
+    };
+
+    // Store the thread reply
+    let stored_reply = messages::create_thread_reply(
+        &state.db,
+        Uuid::from(sender_id),
+        recipient_id,
+        thread_uuid,
+        &ciphertext,
+        message_type as i16,
+    )
+    .await?;
+
+    let reply_id = chai_common::MessageId::from(stored_reply.id);
+
+    // Send thread reply notification to thread participants
+    let participants = messages::get_thread_participants(&state.db, thread_uuid).await?;
+    let connections = &state.connections;
+
+    // Send ThreadReply to all thread participants (except sender)
+    let thread_reply_msg = ServerMessage::ThreadReply {
+        id: reply_id,
+        thread_id,
+        sender_id,
+        conversation_id,
+        ciphertext: ciphertext.clone(),
+        message_type,
+        timestamp,
+    };
+    let reply_data = chai_protocol::json::encode_server_message(&thread_reply_msg)?;
+    let reply_outgoing = OutgoingMessage {
+        data: reply_data.into_bytes().into(),
+    };
+
+    for participant_uuid in &participants {
+        let participant_id = UserId::from(*participant_uuid);
+        if participant_id != sender_id {
+            connections
+                .send_to_user(&participant_id, reply_outgoing.clone())
+                .await;
+        }
+    }
+
+    // Also send to the original message recipient if not already a participant
+    let recipient_user_id = UserId::from(recipient_id);
+    if !participants.contains(&recipient_id) && recipient_user_id != sender_id {
+        connections
+            .send_to_user(&recipient_user_id, reply_outgoing.clone())
+            .await;
+    }
+
+    // Get updated thread stats
+    let stats = messages::get_thread_stats(&state.db, thread_uuid).await?;
+
+    // Send ThreadUpdate to conversation participants
+    if let Some(stats) = stats {
+        let thread_update = ServerMessage::ThreadUpdate {
+            thread_id,
+            conversation_id,
+            reply_count: stats.reply_count as u32,
+            latest_reply_at: stats
+                .latest_reply_at
+                .map(|t| t.unix_timestamp())
+                .unwrap_or(timestamp),
+            preview: Some(ciphertext.clone()),
+        };
+        let update_data = chai_protocol::json::encode_server_message(&thread_update)?;
+        let update_outgoing = OutgoingMessage {
+            data: update_data.into_bytes().into(),
+        };
+
+        // Send to both conversation parties
+        connections
+            .send_to_user(&sender_id, update_outgoing.clone())
+            .await;
+        connections
+            .send_to_user(&recipient_user_id, update_outgoing)
+            .await;
+    }
+
+    // Send confirmation to sender
+    let confirmation = ServerMessage::MessageSent {
+        message_id: reply_id,
+    };
+    let confirm_data = chai_protocol::json::encode_server_message(&confirmation)?;
+    let confirm_outgoing = OutgoingMessage {
+        data: confirm_data.into_bytes().into(),
+    };
+    connections.send_to_user(&sender_id, confirm_outgoing).await;
+
+    tracing::debug!(
+        "User {:?} replied to thread {:?} with message {:?}",
+        sender_id,
+        thread_id,
+        reply_id
+    );
+
+    Ok(())
+}
+
+/// Handle a request to get thread messages.
+async fn handle_get_thread_messages(
+    state: &AppState,
+    requester_id: UserId,
+    thread_id: chai_common::MessageId,
+    limit: Option<u32>,
+    before: Option<chai_common::MessageId>,
+) -> Result<()> {
+    let thread_uuid = Uuid::from(thread_id);
+    let before_uuid = before.map(Uuid::from);
+    let limit = limit.unwrap_or(50).min(100); // Default 50, max 100
+
+    // Fetch thread messages
+    let thread_messages =
+        messages::get_thread_messages(&state.db, thread_uuid, limit, before_uuid).await?;
+
+    // Convert to ThreadMessageData
+    let messages_data: Vec<ThreadMessageData> = thread_messages
+        .into_iter()
+        .map(|msg| ThreadMessageData {
+            id: chai_common::MessageId::from(msg.id),
+            sender_id: UserId::from(msg.sender_id),
+            ciphertext: msg.ciphertext,
+            message_type: match msg.message_type {
+                1 => MessageType::Prekey,
+                2 => MessageType::Normal,
+                3 => MessageType::Receipt,
+                4 => MessageType::KeyUpdate,
+                _ => MessageType::Normal,
+            },
+            timestamp: msg.created_at.unix_timestamp(),
+        })
+        .collect();
+
+    // Send response
+    let server_message = ServerMessage::ThreadMessages {
+        thread_id,
+        messages: messages_data,
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes().into(),
+    };
+
+    let connections = &state.connections;
+    connections.send_to_user(&requester_id, outgoing).await;
+
+    tracing::debug!(
+        "Sent {} thread messages to user {:?} for thread {:?}",
+        limit,
+        requester_id,
+        thread_id
+    );
+
+    Ok(())
 }

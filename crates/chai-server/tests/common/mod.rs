@@ -29,6 +29,7 @@ impl TestServer {
             port: 0, // Random port
             rp_id: "localhost".into(),
             rp_origin: "http://localhost:3000".into(),
+            cors_origins: "http://localhost:3000".into(),
             jwt_secret: "test-secret-key-for-testing-only".into(),
         };
 

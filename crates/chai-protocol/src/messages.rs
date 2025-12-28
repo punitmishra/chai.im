@@ -3,6 +3,20 @@
 use chai_common::{ConversationId, MessageId, UserId};
 use serde::{Deserialize, Serialize};
 
+/// User presence status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UserStatus {
+    /// User is actively using the app.
+    Active,
+    /// User is idle/away (no activity for 5+ minutes).
+    Away,
+    /// User has enabled do not disturb mode.
+    DoNotDisturb,
+    /// User is offline.
+    Offline,
+}
+
 /// Client-to-server message types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload")]
@@ -32,6 +46,12 @@ pub enum ClientMessage {
 
     /// Subscribe to presence updates.
     SubscribePresence { user_ids: Vec<UserId> },
+
+    /// Update own status (for DND mode).
+    SetStatus { status: UserStatus },
+
+    /// Report user activity (resets away timer).
+    ReportActivity,
 
     /// Typing indicator start.
     TypingStart {
@@ -63,6 +83,21 @@ pub enum ClientMessage {
     MarkRead {
         conversation_id: ConversationId,
         message_ids: Vec<MessageId>,
+    },
+
+    /// Send a reply to a thread.
+    ThreadReply {
+        thread_id: MessageId,
+        conversation_id: ConversationId,
+        ciphertext: Vec<u8>,
+        message_type: MessageType,
+    },
+
+    /// Get messages in a thread with pagination.
+    GetThreadMessages {
+        thread_id: MessageId,
+        limit: Option<u32>,
+        before: Option<MessageId>,
     },
 }
 
@@ -98,8 +133,13 @@ pub enum ServerMessage {
     /// Pong response.
     Pong,
 
-    /// User presence update.
-    PresenceUpdate { user_id: UserId, online: bool },
+    /// User presence update (enhanced with status and last_active).
+    PresenceUpdate {
+        user_id: UserId,
+        status: UserStatus,
+        /// Unix timestamp in milliseconds of last activity (None if currently active).
+        last_active: Option<i64>,
+    },
 
     /// Typing indicator from another user.
     TypingIndicator {
@@ -129,6 +169,43 @@ pub enum ServerMessage {
 
     /// Low prekey warning.
     LowPrekeys { remaining: u32 },
+
+    /// Thread update notification (sent when a new reply is added to a thread).
+    ThreadUpdate {
+        thread_id: MessageId,
+        conversation_id: ConversationId,
+        reply_count: u32,
+        latest_reply_at: i64,
+        /// Preview of the latest reply (encrypted ciphertext).
+        preview: Option<Vec<u8>>,
+    },
+
+    /// Thread messages response.
+    ThreadMessages {
+        thread_id: MessageId,
+        messages: Vec<ThreadMessageData>,
+    },
+
+    /// Thread reply notification (sent to thread participants).
+    ThreadReply {
+        id: MessageId,
+        thread_id: MessageId,
+        sender_id: UserId,
+        conversation_id: ConversationId,
+        ciphertext: Vec<u8>,
+        message_type: MessageType,
+        timestamp: i64,
+    },
+}
+
+/// Data for a message within a thread.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThreadMessageData {
+    pub id: MessageId,
+    pub sender_id: UserId,
+    pub ciphertext: Vec<u8>,
+    pub message_type: MessageType,
+    pub timestamp: i64,
 }
 
 /// Message content type.

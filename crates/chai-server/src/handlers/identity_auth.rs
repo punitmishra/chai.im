@@ -117,9 +117,11 @@ pub async fn identity_register(
     }
 
     // Verify the identity key is a valid Ed25519 public key
-    let key_bytes: [u8; 32] = req.identity_key.clone().try_into().map_err(|_| {
-        AppError::InvalidRequest("Invalid identity key format".into())
-    })?;
+    let key_bytes: [u8; 32] = req
+        .identity_key
+        .clone()
+        .try_into()
+        .map_err(|_| AppError::InvalidRequest("Invalid identity key format".into()))?;
 
     VerifyingKey::from_bytes(&key_bytes)
         .map_err(|_| AppError::InvalidRequest("Invalid Ed25519 public key".into()))?;
@@ -188,8 +190,8 @@ pub async fn request_challenge(
 #[derive(Debug, Deserialize)]
 pub struct VerifySignatureRequest {
     pub username: String,
-    pub challenge: Vec<u8>,  // Original challenge
-    pub signature: Vec<u8>,  // Ed25519 signature (64 bytes)
+    pub challenge: Vec<u8>, // Original challenge
+    pub signature: Vec<u8>, // Ed25519 signature (64 bytes)
 }
 
 #[derive(Debug, Serialize)]
