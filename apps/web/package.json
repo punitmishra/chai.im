@@ -2,6 +2,9 @@
   "name": "@chai/web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -24,7 +27,6 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@chai/typescript-config": "workspace:*",
     "@eslint/eslintrc": "^3.3.3",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
