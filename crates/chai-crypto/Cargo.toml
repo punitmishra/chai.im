@@ -37,6 +37,9 @@ zeroize = { workspace = true }
 subtle = { workspace = true }
 thiserror = { workspace = true }
 
+# BIP39 mnemonic generation
+bip39 = { version = "2.0", default-features = false, features = ["rand", "std"] }
+
 # WASM (optional)
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }

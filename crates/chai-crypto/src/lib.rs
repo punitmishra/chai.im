@@ -4,10 +4,12 @@
 //! - X3DH (Extended Triple Diffie-Hellman) for key agreement
 //! - Double Ratchet for forward-secure messaging
 //! - AES-256-GCM for authenticated encryption
+//! - BIP39 mnemonic-based key derivation
 
 pub mod cipher;
 pub mod error;
 pub mod keys;
+pub mod mnemonic;
 pub mod ratchet;
 pub mod session;
 pub mod x3dh;
