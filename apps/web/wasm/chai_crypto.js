@@ -212,11 +212,11 @@ export class CryptoManager {
     }
     /**
      * Import a session from storage.
-     * @param {string} peer_id
+     * @param {string} _peer_id
      * @param {Uint8Array} data
      */
-    importSession(peer_id, data) {
-        const ptr0 = passStringToWasm0(peer_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    importSession(_peer_id, data) {
+        const ptr0 = passStringToWasm0(_peer_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
         const len1 = WASM_VECTOR_LEN;
@@ -334,10 +334,86 @@ export class CryptoManager {
 if (Symbol.dispose) CryptoManager.prototype[Symbol.dispose] = CryptoManager.prototype.free;
 
 /**
+ * Create a CryptoManager from a mnemonic phrase.
+ * @param {string} words
+ * @param {string} passphrase
+ * @returns {CryptoManager}
+ */
+export function cryptoFromMnemonic(words, passphrase) {
+    const ptr0 = passStringToWasm0(words, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(passphrase, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.cryptoFromMnemonic(ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return CryptoManager.__wrap(ret[0]);
+}
+
+/**
+ * Generate a new BIP39 mnemonic phrase.
+ * word_count: 12 or 24
+ * @param {number} word_count
+ * @returns {string}
+ */
+export function generateMnemonic(word_count) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.generateMnemonic(word_count);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Initialize console logging for WASM debugging.
  */
 export function init() {
     wasm.init();
+}
+
+/**
+ * Sign a challenge with an identity key (for authentication).
+ * Returns the Ed25519 signature.
+ * @param {Uint8Array} identity_bytes
+ * @param {Uint8Array} challenge
+ * @returns {Uint8Array}
+ */
+export function signChallenge(identity_bytes, challenge) {
+    const ptr0 = passArray8ToWasm0(identity_bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(challenge, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.signChallenge(ptr0, len0, ptr1, len1);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+
+/**
+ * Validate a BIP39 mnemonic phrase.
+ * @param {string} words
+ * @returns {boolean}
+ */
+export function validateMnemonic(words) {
+    const ptr0 = passStringToWasm0(words, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.validateMnemonic(ptr0, len0);
+    return ret !== 0;
 }
 
 const EXPECTED_RESPONSE_TYPES = new Set(['basic', 'cors', 'default']);

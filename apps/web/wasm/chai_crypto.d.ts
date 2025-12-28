@@ -24,7 +24,7 @@ export class CryptoManager {
   /**
    * Import a session from storage.
    */
-  importSession(peer_id: string, data: Uint8Array): void;
+  importSession(_peer_id: string, data: Uint8Array): void;
   /**
    * Export the identity key bytes for storage.
    */
@@ -62,15 +62,38 @@ export class CryptoManager {
 }
 
 /**
+ * Create a CryptoManager from a mnemonic phrase.
+ */
+export function cryptoFromMnemonic(words: string, passphrase: string): CryptoManager;
+
+/**
+ * Generate a new BIP39 mnemonic phrase.
+ * word_count: 12 or 24
+ */
+export function generateMnemonic(word_count: number): string;
+
+/**
  * Initialize console logging for WASM debugging.
  */
 export function init(): void;
+
+/**
+ * Sign a challenge with an identity key (for authentication).
+ * Returns the Ed25519 signature.
+ */
+export function signChallenge(identity_bytes: Uint8Array, challenge: Uint8Array): Uint8Array;
+
+/**
+ * Validate a BIP39 mnemonic phrase.
+ */
+export function validateMnemonic(words: string): boolean;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_cryptomanager_free: (a: number, b: number) => void;
+  readonly cryptoFromMnemonic: (a: number, b: number, c: number, d: number) => [number, number, number];
   readonly cryptomanager_decrypt: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
   readonly cryptomanager_encrypt: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
   readonly cryptomanager_exportIdentity: (a: number) => [number, number];
@@ -84,7 +107,10 @@ export interface InitOutput {
   readonly cryptomanager_new: () => number;
   readonly cryptomanager_publicIdentity: (a: number) => [number, number];
   readonly cryptomanager_receiveSession: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+  readonly generateMnemonic: (a: number) => [number, number, number, number];
   readonly init: () => void;
+  readonly signChallenge: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+  readonly validateMnemonic: (a: number, b: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;

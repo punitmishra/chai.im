@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_cryptomanager_free: (a: number, b: number) => void;
+export const cryptoFromMnemonic: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const cryptomanager_decrypt: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const cryptomanager_encrypt: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const cryptomanager_exportIdentity: (a: number) => [number, number];
@@ -15,7 +16,10 @@ export const cryptomanager_initSession: (a: number, b: number, c: number, d: num
 export const cryptomanager_new: () => number;
 export const cryptomanager_publicIdentity: (a: number) => [number, number];
 export const cryptomanager_receiveSession: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const generateMnemonic: (a: number) => [number, number, number, number];
 export const init: () => void;
+export const signChallenge: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+export const validateMnemonic: (a: number, b: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;
 export const __externref_table_alloc: () => number;
 export const __wbindgen_externrefs: WebAssembly.Table;

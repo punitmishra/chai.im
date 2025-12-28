@@ -47,5 +47,9 @@ js-sys = { workspace = true, optional = true }
 web-sys = { version = "0.3", optional = true, features = ["console"] }
 console_error_panic_hook = { version = "0.1", optional = true }
 
+# Force getrandom to use js feature for WASM (via bip39)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
 [dev-dependencies]
 hex = "0.4"
