@@ -15,6 +15,8 @@ export interface Message {
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read';
   reactions?: Reaction[];
+  parentMessageId?: string; // For thread replies
+  threadReplyCount?: number; // Count of replies to this message
 }
 
 export interface Conversation {
@@ -33,6 +35,11 @@ interface ChatState {
   messages: Message[];
   activeConversationId: string | null;
 
+  // Thread state
+  threads: Record<string, Message[]>; // Map of parentMessageId -> thread replies
+  activeThreadId: string | null; // Currently open thread's parent message ID
+  selectedMessageId: string | null; // Currently selected message for keyboard navigation
+
   // Actions
   setActiveConversation: (id: string | null) => void;
   addConversation: (conversation: Conversation) => void;
@@ -43,6 +50,17 @@ interface ChatState {
   setSessionEstablished: (conversationId: string) => void;
   addReaction: (messageId: string, userId: string, emoji: string) => void;
   removeReaction: (messageId: string, userId: string, emoji: string) => void;
+
+  // Thread actions
+  openThread: (parentMessageId: string) => void;
+  closeThread: () => void;
+  addThreadReply: (parentMessageId: string, reply: Message) => void;
+  getThreadReplies: (parentMessageId: string) => Message[];
+
+  // Message selection actions
+  selectMessage: (messageId: string | null) => void;
+  selectNextMessage: () => void;
+  selectPreviousMessage: () => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -51,6 +69,11 @@ export const useChatStore = create<ChatState>()(
       conversations: [],
       messages: [],
       activeConversationId: null,
+
+      // Thread state
+      threads: {},
+      activeThreadId: null,
+      selectedMessageId: null,
 
       setActiveConversation: (id) => {
     set({ activeConversationId: id });
@@ -152,12 +175,92 @@ export const useChatStore = create<ChatState>()(
       }),
     }));
   },
+
+  // Thread actions
+  openThread: (parentMessageId) => {
+    set({ activeThreadId: parentMessageId });
+  },
+
+  closeThread: () => {
+    set({ activeThreadId: null });
+  },
+
+  addThreadReply: (parentMessageId, reply) => {
+    set((state) => {
+      // Add reply to threads map
+      const existingReplies = state.threads[parentMessageId] || [];
+      const threads = {
+        ...state.threads,
+        [parentMessageId]: [...existingReplies, { ...reply, parentMessageId }],
+      };
+
+      // Update parent message's reply count
+      const messages = state.messages.map((m) => {
+        if (m.id === parentMessageId) {
+          return {
+            ...m,
+            threadReplyCount: (m.threadReplyCount || 0) + 1,
+          };
+        }
+        return m;
+      });
+
+      return { threads, messages };
+    });
+  },
+
+  getThreadReplies: (parentMessageId) => {
+    const state = get();
+    return state.threads[parentMessageId] || [];
+  },
+
+  // Message selection actions
+  selectMessage: (messageId) => {
+    set({ selectedMessageId: messageId });
+  },
+
+  selectNextMessage: () => {
+    const state = get();
+    if (!state.activeConversationId) return;
+
+    const conversationMessages = state.messages.filter(
+      (m) => m.conversationId === state.activeConversationId && !m.parentMessageId
+    );
+
+    if (conversationMessages.length === 0) return;
+
+    const currentIndex = state.selectedMessageId
+      ? conversationMessages.findIndex((m) => m.id === state.selectedMessageId)
+      : -1;
+
+    const nextIndex = currentIndex < conversationMessages.length - 1 ? currentIndex + 1 : 0;
+    set({ selectedMessageId: conversationMessages[nextIndex].id });
+  },
+
+  selectPreviousMessage: () => {
+    const state = get();
+    if (!state.activeConversationId) return;
+
+    const conversationMessages = state.messages.filter(
+      (m) => m.conversationId === state.activeConversationId && !m.parentMessageId
+    );
+
+    if (conversationMessages.length === 0) return;
+
+    const currentIndex = state.selectedMessageId
+      ? conversationMessages.findIndex((m) => m.id === state.selectedMessageId)
+      : 0;
+
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : conversationMessages.length - 1;
+    set({ selectedMessageId: conversationMessages[prevIndex].id });
+  },
     }),
     {
       name: 'chai-chat',
       partialize: (state) => ({
         conversations: state.conversations,
         messages: state.messages.slice(-PERSISTED_MESSAGE_LIMIT),
+        threads: state.threads,
       }),
     }
   )

@@ -34,21 +34,29 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
     setIsSubmitting(true);
 
     try {
-      // Store in localStorage for now (can be replaced with API call)
-      const waitlist = JSON.parse(localStorage.getItem('chai-waitlist') || '[]');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const response = await fetch(`${apiUrl}/waitlist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          source: 'website',
+          referrer: typeof window !== 'undefined' ? document.referrer : null,
+        }),
+      });
 
-      if (waitlist.includes(email.toLowerCase())) {
-        addToast('You\'re already on the waitlist!', 'info');
+      const data = await response.json();
+
+      if (data.success) {
         setIsSubmitted(true);
-        return;
+        const positionMsg = data.position ? ` You're #${data.position} on the list.` : '';
+        addToast(data.message + positionMsg, 'success');
+        onSuccess?.();
+      } else {
+        addToast(data.message || 'Something went wrong. Please try again.', 'error');
       }
-
-      waitlist.push(email.toLowerCase());
-      localStorage.setItem('chai-waitlist', JSON.stringify(waitlist));
-
-      setIsSubmitted(true);
-      addToast('You\'re on the list! We\'ll notify you at launch.', 'success');
-      onSuccess?.();
     } catch {
       addToast('Something went wrong. Please try again.', 'error');
     } finally {

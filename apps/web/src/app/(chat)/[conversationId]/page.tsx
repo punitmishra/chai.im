@@ -8,9 +8,10 @@ import { useConnectionStore } from '@/store/connectionStore';
 import { getWebSocketClient, connectIfAuthenticated } from '@/lib/ws/client';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { TypingIndicator } from '@/components/TypingIndicator';
-import { MessageReactionPicker } from '@/components/ReactionPicker';
+import { MessageBubble, ThreadPanel } from '@/components/chat';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
+import { useMessageShortcuts } from '@/hooks/useMessageShortcuts';
 
 // Self-chat conversation ID prefix
 const SELF_CHAT_PREFIX = 'self_';
@@ -24,6 +25,7 @@ export default function ConversationPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+  const [showReactionPickerForMessage, setShowReactionPickerForMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,6 +36,13 @@ export default function ConversationPage() {
   const allMessages = useChatStore((state) => state.messages);
   const conversations = useChatStore((state) => state.conversations);
   const addMessage = useChatStore((state) => state.addMessage);
+  const activeThreadId = useChatStore((state) => state.activeThreadId);
+  const openThread = useChatStore((state) => state.openThread);
+  const closeThread = useChatStore((state) => state.closeThread);
+  const addThreadReply = useChatStore((state) => state.addThreadReply);
+  const getThreadReplies = useChatStore((state) => state.getThreadReplies);
+  const selectedMessageId = useChatStore((state) => state.selectedMessageId);
+  const selectMessage = useChatStore((state) => state.selectMessage);
 
   // Emoji autocomplete hook
   const emojiAutocomplete = useEmojiAutocomplete();
@@ -41,18 +50,43 @@ export default function ConversationPage() {
   // Keyboard shortcuts
   const { registerShortcut, unregisterShortcut } = useKeyboardShortcuts();
 
+  // Message keyboard shortcuts
+  const messageShortcuts = useMessageShortcuts({
+    enabled: true,
+    onOpenThread: (messageId) => openThread(messageId),
+    onEditMessage: (messageId) => {
+      // TODO: Implement edit mode
+      console.log('Edit message:', messageId);
+    },
+    onAddReaction: (messageId) => {
+      setShowReactionPickerForMessage(messageId);
+    },
+  });
+
   // Check if this is a self-chat
   const isSelfChat = conversationId.startsWith(SELF_CHAT_PREFIX);
 
   // Filter messages with useMemo to avoid infinite loop
+  // Only show top-level messages (not thread replies)
   const messages = useMemo(
-    () => allMessages.filter((m) => m.conversationId === conversationId),
+    () => allMessages.filter((m) => m.conversationId === conversationId && !m.parentMessageId),
     [allMessages, conversationId]
   );
 
   const conversation = useMemo(
     () => conversations.find((c) => c.id === conversationId),
     [conversations, conversationId]
+  );
+
+  // Get parent message and thread replies for thread panel
+  const parentMessage = useMemo(
+    () => (activeThreadId ? allMessages.find((m) => m.id === activeThreadId) : null),
+    [activeThreadId, allMessages]
+  );
+
+  const threadReplies = useMemo(
+    () => (activeThreadId ? getThreadReplies(activeThreadId) : []),
+    [activeThreadId, getThreadReplies]
   );
 
   // Connect to WebSocket on mount (only for non-self chats)
@@ -210,6 +244,33 @@ export default function ConversationPage() {
     }
   };
 
+  // Handle sending thread reply
+  const handleSendThreadReply = useCallback(
+    async (content: string, parentMessageId: string) => {
+      if (!conversation) return;
+
+      const replyMessage: Message = {
+        id: `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        conversationId,
+        senderId: user?.id || '',
+        content,
+        timestamp: Date.now(),
+        status: isSelfChat ? 'delivered' : 'sending',
+        parentMessageId,
+      };
+
+      // Add to thread replies
+      addThreadReply(parentMessageId, replyMessage);
+
+      // TODO: Send through WebSocket for non-self chats
+      if (!isSelfChat) {
+        // In a real implementation, you'd send this through the WebSocket
+        console.log('Sending thread reply via WebSocket:', replyMessage);
+      }
+    },
+    [conversation, conversationId, user?.id, isSelfChat, addThreadReply]
+  );
+
   const recipientName = conversation?.name || 'Chat';
   const isOnline = isSelfChat || connectionStatus === 'connected';
 
@@ -251,6 +312,12 @@ export default function ConversationPage() {
             </svg>
             <span className="text-xs text-green-400 font-medium">Encrypted</span>
           </div>
+          {/* Keyboard shortcuts hint */}
+          <div className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800/50 text-zinc-500 text-xs">
+            <span>J/K to navigate</span>
+            <span className="text-zinc-600">|</span>
+            <span>T for thread</span>
+          </div>
           <button className="p-2.5 rounded-xl hover:bg-zinc-800/50 text-zinc-400 hover:text-white transition-all duration-200">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -289,6 +356,11 @@ export default function ConversationPage() {
               message={message}
               isSelf={message.senderId === user?.id}
               conversationId={conversationId}
+              onOpenThread={(messageId) => openThread(messageId)}
+              showThreadIndicator={true}
+              threadReplyCount={message.threadReplyCount || 0}
+              isSelected={selectedMessageId === message.id}
+              onSelect={(messageId) => selectMessage(messageId)}
             />
           ))
         )}
@@ -379,174 +451,18 @@ export default function ConversationPage() {
           </div>
         </div>
       </form>
-    </div>
-  );
-}
 
-function MessageBubble({
-  message,
-  isSelf,
-  conversationId,
-}: {
-  message: Message;
-  isSelf: boolean;
-  conversationId: string;
-}) {
-  const [showReactions, setShowReactions] = useState(false);
-  const user = useAuthStore((state) => state.user);
-  const addReaction = useChatStore((state) => state.addReaction);
-  const removeReaction = useChatStore((state) => state.removeReaction);
-  const isCode = message.content.includes('```');
-  const timestamp = new Date(message.timestamp);
-
-  const handleReaction = (messageId: string, emoji: string) => {
-    // Check if user already reacted with this emoji
-    const existingReaction = message.reactions?.find(
-      r => r.userId === user?.id && r.emoji === emoji
-    );
-
-    if (existingReaction) {
-      // Remove reaction
-      removeReaction(messageId, user?.id || '', emoji);
-      getWebSocketClient().removeReaction(messageId, conversationId, emoji);
-    } else {
-      // Add reaction
-      addReaction(messageId, user?.id || '', emoji);
-      getWebSocketClient().addReaction(messageId, conversationId, emoji);
-    }
-  };
-
-  // Group reactions by emoji
-  const reactionGroups = useMemo(() => {
-    if (!message.reactions?.length) return [];
-    const groups = new Map<string, string[]>();
-    for (const r of message.reactions) {
-      const existing = groups.get(r.emoji) || [];
-      existing.push(r.userId);
-      groups.set(r.emoji, existing);
-    }
-    return Array.from(groups.entries());
-  }, [message.reactions]);
-
-  return (
-    <div
-      className={`flex ${isSelf ? 'justify-end' : 'justify-start'} group`}
-      onMouseEnter={() => setShowReactions(true)}
-      onMouseLeave={() => setShowReactions(false)}
-    >
-      <div className="relative">
-        <div
-          className={`max-w-[75%] rounded-3xl px-5 py-3 ${
-            isSelf
-              ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/20'
-              : 'bg-zinc-800/70 text-white shadow-lg'
-          }`}
-        >
-          {isCode ? (
-            <CodeContent content={message.content} isSelf={isSelf} />
-          ) : (
-            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            <p
-              className={`text-xs ${isSelf ? 'text-amber-900/70' : 'text-zinc-500'}`}
-            >
-              {timestamp.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-            {isSelf && (
-              <MessageStatus status={message.status} />
-            )}
-          </div>
-        </div>
-
-        {/* Display reactions */}
-        {reactionGroups.length > 0 && (
-          <div className={`flex gap-1 mt-1 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-            {reactionGroups.map(([emoji, userIds]) => (
-              <button
-                key={emoji}
-                onClick={() => handleReaction(message.id, emoji)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
-                  userIds.includes(user?.id || '')
-                    ? 'bg-amber-500/20 border border-amber-500/40'
-                    : 'bg-zinc-800/50 border border-zinc-700/50 hover:bg-zinc-700/50'
-                }`}
-              >
-                <span>{emoji}</span>
-                {userIds.length > 1 && <span className="text-zinc-400">{userIds.length}</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Reaction picker on hover */}
-        {showReactions && (
-          <div className={`absolute top-0 ${isSelf ? 'right-full mr-2' : 'left-full ml-2'}`}>
-            <MessageReactionPicker
-              messageId={message.id}
-              onReact={handleReaction}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MessageStatus({ status }: { status: Message['status'] }) {
-  switch (status) {
-    case 'sending':
-      return (
-        <div className="h-3 w-3 animate-spin rounded-full border border-amber-900/50 border-t-amber-900" />
-      );
-    case 'sent':
-      return (
-        <svg className="h-3.5 w-3.5 text-amber-900/70" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-        </svg>
-      );
-    case 'delivered':
-      return (
-        <svg className="h-3.5 w-3.5 text-amber-900" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-
-function CodeContent({ content, isSelf }: { content: string; isSelf: boolean }) {
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
-  return (
-    <div className="space-y-2">
-      {parts.map((part, i) => {
-        if (part.startsWith('```')) {
-          const match = part.match(/```(\w+)?\n?([\s\S]*?)```/);
-          if (match) {
-            const [, lang, code] = match;
-            return (
-              <div key={i} className="overflow-x-auto rounded-2xl bg-zinc-900/80 p-4">
-                {lang && (
-                  <div className="mb-2 text-xs text-zinc-500 font-mono">{lang}</div>
-                )}
-                <pre className="font-mono text-sm text-green-400">
-                  <code>{code.trim()}</code>
-                </pre>
-              </div>
-            );
-          }
-        }
-        return part ? (
-          <p key={i} className="whitespace-pre-wrap leading-relaxed">
-            {part}
-          </p>
-        ) : null;
-      })}
+      {/* Thread Panel */}
+      {parentMessage && (
+        <ThreadPanel
+          parentMessage={parentMessage}
+          threadReplies={threadReplies}
+          conversationId={conversationId}
+          isOpen={!!activeThreadId}
+          onClose={closeThread}
+          onSendReply={handleSendThreadReply}
+        />
+      )}
     </div>
   );
 }
