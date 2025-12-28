@@ -1,1 +1,3 @@
 tsconfig.tsbuildinfo
+.vercel
+.env*.local

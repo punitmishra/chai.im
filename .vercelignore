@@ -1,0 +1,19 @@
+# Rust build artifacts
+target/
+
+# Node modules (Vercel installs fresh)
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Cache
+.turbo/
+.cache/
+
+# Git
+.git/

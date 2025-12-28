@@ -48,3 +48,5 @@ Secrets.toml
 
 # Misc
 *.pem
+.vercel
+.env*.local

@@ -1,9 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm turbo build --filter=@chai/web",
-  "installCommand": "pnpm install",
   "framework": "nextjs",
-  "outputDirectory": "apps/web/.next",
+  "installCommand": "sed -i 's/\"@chai\\/typescript-config\": \"workspace:\\*\",//' package.json && npm install",
   "headers": [
     {
       "source": "/(.*)",
