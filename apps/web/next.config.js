@@ -5,8 +5,16 @@ const nextConfig = {
   // Use Turbopack (Next.js 16+)
   turbopack: {},
 
+  // Exclude heavy ML packages from server bundling
+  serverExternalPackages: ['@xenova/transformers', 'onnxruntime-node', 'sharp'],
+
   // Enable WebAssembly
   webpack: (config, { isServer }) => {
+    // Exclude @xenova/transformers from server bundle
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('@xenova/transformers');
+    }
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
