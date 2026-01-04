@@ -9,6 +9,8 @@ import { useConnectionStore } from '@/store/connectionStore';
 import { connectIfAuthenticated, getWebSocketClient } from '@/lib/ws/client';
 import { clearCrypto } from '@/lib/crypto/wasm';
 import { CreateGroupModal } from '@/components/CreateGroupModal';
+import { SearchModal } from '@/components/SearchModal';
+import { CommandPalette } from '@/components/CommandPalette';
 
 // Self-chat conversation ID prefix
 const SELF_CHAT_PREFIX = 'self_';
@@ -31,6 +33,8 @@ export default function ChatLayout({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
   const conversations = useChatStore((state) => state.conversations);
@@ -114,6 +118,42 @@ export default function ChatLayout({
       connectIfAuthenticated();
     }
   }, [sessionToken]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if in input/textarea
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      // Ctrl+K or Cmd+K - Command palette (works everywhere)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+        return;
+      }
+
+      // Ctrl+/ or Cmd+/ - Search (works everywhere)
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShowSearch(true);
+        return;
+      }
+
+      // Below shortcuts only work outside inputs
+      if (isInput) return;
+
+      // / - Quick search
+      if (e.key === '/') {
+        e.preventDefault();
+        setShowSearch(true);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Show loading during hydration or if not authenticated
   if (!hasHydrated || !sessionToken) {
@@ -395,6 +435,20 @@ export default function ChatLayout({
         isOpen={showCreateGroup}
         onClose={() => setShowCreateGroup(false)}
         onCreated={handleGroupCreated}
+      />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onOpenSearch={() => setShowSearch(true)}
+        onOpenCreateGroup={() => setShowCreateGroup(true)}
       />
     </div>
   );

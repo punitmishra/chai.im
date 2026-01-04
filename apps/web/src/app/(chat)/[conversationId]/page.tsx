@@ -13,8 +13,9 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
 import { useMessageShortcuts } from '@/hooks/useMessageShortcuts';
 
-// Self-chat conversation ID prefix
+// Conversation ID prefixes
 const SELF_CHAT_PREFIX = 'self_';
+const GROUP_CHAT_PREFIX = 'group_';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -25,6 +26,7 @@ export default function ConversationPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+  const [groupTypingUsers, setGroupTypingUsers] = useState<{ userId: string; username: string }[]>([]);
   const [showReactionPickerForMessage, setShowReactionPickerForMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,8 +65,10 @@ export default function ConversationPage() {
     },
   });
 
-  // Check if this is a self-chat
+  // Check conversation type
   const isSelfChat = conversationId.startsWith(SELF_CHAT_PREFIX);
+  const isGroupChat = conversationId.startsWith(GROUP_CHAT_PREFIX);
+  const groupId = isGroupChat ? conversationId.slice(GROUP_CHAT_PREFIX.length) : null;
 
   // Filter messages with useMemo to avoid infinite loop
   // Only show top-level messages (not thread replies)
@@ -93,8 +97,14 @@ export default function ConversationPage() {
   useEffect(() => {
     if (!isSelfChat) {
       connectIfAuthenticated();
+
+      // Join group if this is a group chat
+      if (isGroupChat && groupId) {
+        const client = getWebSocketClient();
+        client.joinGroup(groupId);
+      }
     }
-  }, [isSelfChat]);
+  }, [isSelfChat, isGroupChat, groupId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -158,14 +168,36 @@ export default function ConversationPage() {
     if (isSelfChat || !conversation) return;
 
     const client = getWebSocketClient();
-    const unsubscribe = client.onTyping((userId, convId, isTyping) => {
-      if (convId === conversationId && userId === conversation.recipientId) {
-        setPeerTyping(isTyping);
-      }
-    });
 
-    return unsubscribe;
-  }, [isSelfChat, conversation, conversationId]);
+    if (isGroupChat && groupId) {
+      // Group typing indicators
+      const unsubscribe = client.onGroupTyping((gId, userId, username, isTyping) => {
+        if (gId === groupId && userId !== user?.id) {
+          setGroupTypingUsers((prev) => {
+            if (isTyping) {
+              // Add user if not already in the list
+              if (!prev.some((u) => u.userId === userId)) {
+                return [...prev, { userId, username }];
+              }
+            } else {
+              // Remove user
+              return prev.filter((u) => u.userId !== userId);
+            }
+            return prev;
+          });
+        }
+      });
+      return unsubscribe;
+    } else {
+      // 1:1 typing indicators
+      const unsubscribe = client.onTyping((userId, convId, isTyping) => {
+        if (convId === conversationId && userId === conversation.recipientId) {
+          setPeerTyping(isTyping);
+        }
+      });
+      return unsubscribe;
+    }
+  }, [isSelfChat, isGroupChat, groupId, conversation, conversationId, user?.id]);
 
   // Handle typing indicator
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,22 +205,30 @@ export default function ConversationPage() {
     emojiAutocomplete.handleInputChange(e);
 
     // Send typing indicator (debounced)
-    if (!isSelfChat && connectionStatus === 'connected' && conversation) {
+    if (!isSelfChat && connectionStatus === 'connected') {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
 
-      // Send typing start via WebSocket
-      getWebSocketClient().sendTypingStart(conversation.recipientId, conversationId);
+      const client = getWebSocketClient();
 
-      typingTimeoutRef.current = setTimeout(() => {
-        // Send typing stop via WebSocket
-        if (conversation) {
-          getWebSocketClient().sendTypingStop(conversation.recipientId, conversationId);
-        }
-      }, 2000);
+      if (isGroupChat && groupId) {
+        // Group typing indicator
+        client.sendGroupTypingStart(groupId);
+        typingTimeoutRef.current = setTimeout(() => {
+          client.sendGroupTypingStop(groupId);
+        }, 2000);
+      } else if (conversation) {
+        // 1:1 typing indicator
+        client.sendTypingStart(conversation.recipientId, conversationId);
+        typingTimeoutRef.current = setTimeout(() => {
+          if (conversation) {
+            client.sendTypingStop(conversation.recipientId, conversationId);
+          }
+        }, 2000);
+      }
     }
-  }, [emojiAutocomplete, isSelfChat, connectionStatus, conversation, conversationId]);
+  }, [emojiAutocomplete, isSelfChat, isGroupChat, groupId, connectionStatus, conversation, conversationId]);
 
   // Handle emoji selection from picker
   const handleEmojiSelect = useCallback((emoji: string) => {
@@ -216,8 +256,22 @@ export default function ConversationPage() {
           timestamp: Date.now(),
           status: 'delivered',
         });
+      } else if (isGroupChat && groupId) {
+        // For group chats, send plaintext through WebSocket
+        const client = getWebSocketClient();
+        client.sendGroupMessage(groupId, content);
+
+        // Add message to local state (will be updated when server echoes back)
+        addMessage({
+          id: `pending-group-${Date.now()}`,
+          conversationId,
+          senderId: user?.id || '',
+          content,
+          timestamp: Date.now(),
+          status: 'sending',
+        });
       } else {
-        // For regular chats, send through WebSocket
+        // For 1:1 chats, send encrypted through WebSocket
         const client = getWebSocketClient();
         await client.sendEncryptedMessage(
           conversation.recipientId,
@@ -273,6 +327,14 @@ export default function ConversationPage() {
 
   const recipientName = conversation?.name || 'Chat';
   const isOnline = isSelfChat || connectionStatus === 'connected';
+  const showGroupTyping = isGroupChat && groupTypingUsers.length > 0;
+  const groupTypingText = showGroupTyping
+    ? groupTypingUsers.length === 1
+      ? `${groupTypingUsers[0].username} is typing...`
+      : groupTypingUsers.length === 2
+        ? `${groupTypingUsers[0].username} and ${groupTypingUsers[1].username} are typing...`
+        : `${groupTypingUsers[0].username} and ${groupTypingUsers.length - 1} others are typing...`
+    : '';
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -285,12 +347,18 @@ export default function ConversationPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
+          ) : isGroupChat ? (
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 font-semibold text-white text-lg shadow-lg shadow-purple-500/20">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 font-semibold text-white text-lg shadow-inner">
               {recipientName.charAt(0).toUpperCase()}
             </div>
           )}
-          {!isSelfChat && (
+          {!isSelfChat && !isGroupChat && (
             <span
               className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-zinc-900 ${
                 isOnline ? 'bg-green-500' : 'bg-zinc-500'
@@ -301,7 +369,13 @@ export default function ConversationPage() {
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-white text-lg truncate">{recipientName}</h1>
           <p className="text-sm text-zinc-500">
-            {isSelfChat ? 'Private notes, stored locally' : isOnline ? 'Online' : 'Connecting...'}
+            {isSelfChat
+              ? 'Private notes, stored locally'
+              : isGroupChat
+                ? 'Group chat'
+                : isOnline
+                  ? 'Online'
+                  : 'Connecting...'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -368,8 +442,13 @@ export default function ConversationPage() {
       </div>
 
       {/* Typing indicator */}
-      {peerTyping && !isSelfChat && (
+      {peerTyping && !isSelfChat && !isGroupChat && (
         <TypingIndicator conversationId={conversationId} userName={recipientName} isTyping={true} />
+      )}
+      {showGroupTyping && (
+        <div className="px-6 py-2 text-sm text-zinc-400 animate-pulse">
+          {groupTypingText}
+        </div>
       )}
 
       {/* Input */}
