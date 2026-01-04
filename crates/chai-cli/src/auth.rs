@@ -225,3 +225,102 @@ pub async fn login_with_stored_identity(config: &mut Config) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_mnemonic_generates_24_words() {
+        let mnemonic = new_mnemonic();
+        let word_count = mnemonic.split_whitespace().count();
+        assert_eq!(word_count, 24, "Mnemonic should have 24 words");
+    }
+
+    #[test]
+    fn test_new_mnemonic_is_valid() {
+        let mnemonic = new_mnemonic();
+        assert!(is_valid_mnemonic(&mnemonic), "Generated mnemonic should be valid");
+    }
+
+    #[test]
+    fn test_valid_mnemonic_accepted() {
+        // Standard BIP39 test vector
+        let valid = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        assert!(is_valid_mnemonic(valid), "Valid mnemonic should be accepted");
+    }
+
+    #[test]
+    fn test_invalid_mnemonic_rejected() {
+        let invalid = "not a valid mnemonic phrase at all";
+        assert!(!is_valid_mnemonic(invalid), "Invalid mnemonic should be rejected");
+    }
+
+    #[test]
+    fn test_identity_from_mnemonic_works() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let identity = identity_from_mnemonic(mnemonic);
+        assert!(identity.is_ok(), "Should derive identity from valid mnemonic");
+    }
+
+    #[test]
+    fn test_identity_from_invalid_mnemonic_fails() {
+        let invalid = "not a valid mnemonic";
+        let identity = identity_from_mnemonic(invalid);
+        assert!(identity.is_err(), "Should fail for invalid mnemonic");
+    }
+
+    #[test]
+    fn test_deterministic_identity_derivation() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+        let identity1 = identity_from_mnemonic(mnemonic).unwrap();
+        let identity2 = identity_from_mnemonic(mnemonic).unwrap();
+
+        assert_eq!(
+            identity1.public_key().to_bytes(),
+            identity2.public_key().to_bytes(),
+            "Same mnemonic should produce same identity"
+        );
+    }
+
+    #[test]
+    fn test_different_mnemonics_produce_different_identities() {
+        let mnemonic1 = new_mnemonic();
+        let mnemonic2 = new_mnemonic();
+
+        let identity1 = identity_from_mnemonic(&mnemonic1).unwrap();
+        let identity2 = identity_from_mnemonic(&mnemonic2).unwrap();
+
+        assert_ne!(
+            identity1.public_key().to_bytes(),
+            identity2.public_key().to_bytes(),
+            "Different mnemonics should produce different identities"
+        );
+    }
+
+    #[test]
+    fn test_identity_can_sign_and_verify() {
+        let mnemonic = new_mnemonic();
+        let identity = identity_from_mnemonic(&mnemonic).unwrap();
+
+        let message = b"test message for signing";
+        let signature = identity.sign(message);
+
+        // Signature should be 64 bytes (Ed25519)
+        assert_eq!(signature.len(), 64, "Ed25519 signature should be 64 bytes");
+
+        // Should be able to verify with public key
+        let public_key = identity.public_key();
+        assert!(
+            public_key.verify(message, &signature).is_ok(),
+            "Signature should verify with correct message"
+        );
+    }
+
+    #[test]
+    fn test_auth_client_creation() {
+        let client = AuthClient::new("http://localhost:8080");
+        assert_eq!(client.base_url, "http://localhost:8080");
+    }
+}
