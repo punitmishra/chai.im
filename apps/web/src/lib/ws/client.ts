@@ -15,30 +15,41 @@ import logger from '@/lib/logger';
 type ClientMessage =
   | { type: 'Ping'; payload: null }
   | { type: 'SendMessage'; payload: SendMessagePayload }
+  | { type: 'SendGroupMessage'; payload: GroupMessagePayload }
   | { type: 'GetPrekeyBundle'; payload: { user_id: string } }
   | { type: 'AckMessages'; payload: { message_ids: string[] } }
   | { type: 'UploadPrekeys'; payload: { prekeys: number[][] } }
   | { type: 'TypingStart'; payload: { recipient_id: string; conversation_id: string } }
   | { type: 'TypingStop'; payload: { recipient_id: string; conversation_id: string } }
+  | { type: 'GroupTypingStart'; payload: { group_id: string } }
+  | { type: 'GroupTypingStop'; payload: { group_id: string } }
   | { type: 'AddReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
   | { type: 'RemoveReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
   | { type: 'MarkRead'; payload: { conversation_id: string; message_ids: string[] } }
   | { type: 'SubscribePresence'; payload: { user_ids: string[] } }
   | { type: 'SetStatus'; payload: { status: UserStatus } }
-  | { type: 'ReportActivity'; payload: null };
+  | { type: 'ReportActivity'; payload: null }
+  | { type: 'JoinGroup'; payload: { group_id: string } }
+  | { type: 'LeaveGroup'; payload: { group_id: string } };
 
 type ServerMessage =
   | { type: 'Pong'; payload: null }
   | { type: 'Message'; payload: IncomingMessage }
+  | { type: 'GroupMessage'; payload: IncomingGroupMessage }
   | { type: 'MessageSent'; payload: { message_id: string } }
   | { type: 'PrekeyBundle'; payload: PrekeyBundleResponse }
   | { type: 'LowPrekeys'; payload: { remaining: number } }
   | { type: 'Error'; payload: { code: string; message: string } }
   | { type: 'TypingIndicator'; payload: TypingIndicatorPayload }
+  | { type: 'GroupTypingIndicator'; payload: GroupTypingIndicatorPayload }
   | { type: 'ReactionAdded'; payload: ReactionPayload }
   | { type: 'ReactionRemoved'; payload: ReactionPayload }
   | { type: 'MessageRead'; payload: { message_id: string } }
-  | { type: 'PresenceUpdate'; payload: PresenceUpdatePayload };
+  | { type: 'PresenceUpdate'; payload: PresenceUpdatePayload }
+  | { type: 'GroupJoined'; payload: { group_id: string } }
+  | { type: 'GroupLeft'; payload: { group_id: string } }
+  | { type: 'GroupMemberJoined'; payload: { group_id: string; user_id: string; username: string } }
+  | { type: 'GroupMemberLeft'; payload: { group_id: string; user_id: string } };
 
 interface PresenceUpdatePayload {
   user_id: string;
@@ -51,6 +62,27 @@ interface SendMessagePayload {
   conversation_id: string;
   ciphertext: number[];
   message_type: number;
+}
+
+interface GroupMessagePayload {
+  group_id: string;
+  content: string;
+}
+
+interface IncomingGroupMessage {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  sender_username: string;
+  content: string;
+  timestamp: number;
+}
+
+interface GroupTypingIndicatorPayload {
+  group_id: string;
+  user_id: string;
+  username: string;
+  is_typing: boolean;
 }
 
 interface TypingIndicatorPayload {
@@ -68,18 +100,22 @@ interface ReactionPayload {
 
 type MessageHandler = (message: ServerMessage) => void;
 type TypingHandler = (userId: string, conversationId: string, isTyping: boolean) => void;
+type GroupTypingHandler = (groupId: string, userId: string, username: string, isTyping: boolean) => void;
 type ReactionHandler = (messageId: string, conversationId: string, userId: string, emoji: string, added: boolean) => void;
 type ReadHandler = (messageId: string) => void;
 type PresenceHandler = (userId: string, status: UserStatus, lastActive: number | null) => void;
+type GroupMessageHandler = (message: IncomingGroupMessage) => void;
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private baseUrl: string;
   private handlers: Map<string, MessageHandler[]> = new Map();
   private typingHandlers: TypingHandler[] = [];
+  private groupTypingHandlers: GroupTypingHandler[] = [];
   private reactionHandlers: ReactionHandler[] = [];
   private readHandlers: ReadHandler[] = [];
   private presenceHandlers: PresenceHandler[] = [];
+  private groupMessageHandlers: GroupMessageHandler[] = [];
   private reconnectTimeout: number | null = null;
   private pingInterval: number | null = null;
   private activityInterval: number | null = null;
@@ -188,6 +224,100 @@ export class WebSocketClient {
       logger.crypto.encryptionFailed(error);
       throw error;
     }
+  }
+
+  /**
+   * Send a group message (plaintext for now, Sender Keys encryption planned).
+   */
+  sendGroupMessage(groupId: string, content: string): void {
+    this.send({
+      type: 'SendGroupMessage',
+      payload: {
+        group_id: groupId,
+        content,
+      },
+    });
+  }
+
+  /**
+   * Join a group (subscribe to messages).
+   */
+  joinGroup(groupId: string): void {
+    this.send({
+      type: 'JoinGroup',
+      payload: { group_id: groupId },
+    });
+  }
+
+  /**
+   * Leave a group.
+   */
+  leaveGroup(groupId: string): void {
+    this.send({
+      type: 'LeaveGroup',
+      payload: { group_id: groupId },
+    });
+  }
+
+  /**
+   * Send typing indicator for group.
+   */
+  sendGroupTypingStart(groupId: string): void {
+    const key = `group:${groupId}`;
+    const existingTimeout = this.typingTimeout.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    this.send({
+      type: 'GroupTypingStart',
+      payload: { group_id: groupId },
+    });
+
+    const timeout = window.setTimeout(() => {
+      this.sendGroupTypingStop(groupId);
+      this.typingTimeout.delete(key);
+    }, 5000);
+    this.typingTimeout.set(key, timeout);
+  }
+
+  /**
+   * Stop typing indicator for group.
+   */
+  sendGroupTypingStop(groupId: string): void {
+    const key = `group:${groupId}`;
+    const existingTimeout = this.typingTimeout.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      this.typingTimeout.delete(key);
+    }
+
+    this.send({
+      type: 'GroupTypingStop',
+      payload: { group_id: groupId },
+    });
+  }
+
+  /**
+   * Register a group message handler.
+   */
+  onGroupMessage(handler: GroupMessageHandler): () => void {
+    this.groupMessageHandlers.push(handler);
+    return () => {
+      const index = this.groupMessageHandlers.indexOf(handler);
+      if (index !== -1) this.groupMessageHandlers.splice(index, 1);
+    };
+  }
+
+  /**
+   * Register a group typing handler.
+   */
+  onGroupTyping(handler: GroupTypingHandler): () => void {
+    this.groupTypingHandlers.push(handler);
+    return () => {
+      const index = this.groupTypingHandlers.indexOf(handler);
+      if (index !== -1) this.groupTypingHandlers.splice(index, 1);
+    };
   }
 
   /**
@@ -465,6 +595,46 @@ export class WebSocketClient {
       case 'PresenceUpdate':
         this.handlePresenceUpdate(message.payload as PresenceUpdatePayload);
         break;
+      case 'GroupMessage':
+        this.handleGroupMessage(message.payload as IncomingGroupMessage);
+        break;
+      case 'GroupTypingIndicator':
+        this.handleGroupTypingIndicator(message.payload as GroupTypingIndicatorPayload);
+        break;
+    }
+  }
+
+  private handleGroupMessage(payload: IncomingGroupMessage): void {
+    const conversationId = `group_${payload.group_id}`;
+
+    const message: Message = {
+      id: payload.id,
+      conversationId,
+      senderId: payload.sender_id,
+      content: payload.content,
+      timestamp: payload.timestamp,
+      status: 'delivered',
+    };
+
+    useChatStore.getState().addMessage(message);
+
+    // Notify handlers
+    for (const handler of this.groupMessageHandlers) {
+      try {
+        handler(payload);
+      } catch (error) {
+        logger.error('Group message handler error', error);
+      }
+    }
+  }
+
+  private handleGroupTypingIndicator(payload: GroupTypingIndicatorPayload): void {
+    for (const handler of this.groupTypingHandlers) {
+      try {
+        handler(payload.group_id, payload.user_id, payload.username, payload.is_typing);
+      } catch (error) {
+        logger.error('Group typing handler error', error);
+      }
     }
   }
 
