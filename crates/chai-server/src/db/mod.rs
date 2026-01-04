@@ -1,5 +1,6 @@
 //! Database layer.
 
+pub mod contacts;
 pub mod credentials;
 pub mod groups;
 pub mod messages;

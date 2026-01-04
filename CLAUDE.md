@@ -309,7 +309,7 @@ Launch page with waitlist signup deployed to production. Backend on Fly.io, fron
 ### What's Working
 | Feature | Status |
 |---------|--------|
-| User Registration (WebAuthn + Password) | ✅ |
+| User Registration (WebAuthn + Identity Key) | ✅ |
 | E2E Encryption (Signal Protocol) | ✅ |
 | 1:1 Messaging | ✅ |
 | Self-Chat (Notes to Self) | ✅ |
@@ -380,10 +380,11 @@ Launch page with waitlist signup deployed to production. Backend on Fly.io, fron
 
 ### Previous Session Completed Features
 
-**1. Password-Based Authentication (Full Stack)**
-- Server: `/auth/password/register` and `/auth/password/login` with argon2
-- Client: `keyLocker.ts` with PBKDF2 (100k iterations) + AES-256-GCM
-- Identity keys encrypted with password, stored in IndexedDB
+**1. Identity Key Authentication (Passwordless)**
+- Server: `/auth/identity/register`, `/auth/identity/challenge`, `/auth/identity/verify`
+- Client: Ed25519 identity keys derived from BIP39 mnemonic
+- Challenge-response authentication with cryptographic signatures
+- Identity keys stored in IndexedDB (device trust model)
 
 **2. Centralized Configuration & Logging**
 - `lib/config.ts`: API_URL, WS_URL, app constants
@@ -434,7 +435,8 @@ apps/web/src/
 crates/chai-server/src/
 ├── handlers/
 │   ├── auth.rs                 # WebAuthn handlers
-│   ├── password_auth.rs        # Password auth handlers
+│   ├── identity_auth.rs        # Mnemonic/signature auth handlers
+│   ├── contacts.rs             # Peer identity exchange handlers
 │   └── waitlist.rs             # Waitlist signup handlers
 ├── ws/                         # WebSocket server
 └── db/                         # PostgreSQL queries
@@ -518,6 +520,69 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 - [ ] Invite links
 - [ ] Message editing (5 min window)
 - [ ] Message deletion
+
+## Authentication Strategy
+
+Chai.im uses a **passwordless, identity-key based authentication** model:
+
+### Supported Auth Methods
+| Method | Description | Status |
+|--------|-------------|--------|
+| **WebAuthn/Passkeys** | FIDO2 hardware tokens, biometrics | ✅ Primary |
+| **Identity Key** | Ed25519 keys from BIP39 mnemonic | ✅ Primary |
+| **Password** | ~~Argon2 password hashing~~ | ❌ Removed |
+
+### Why No Passwords?
+1. **Security**: Passwords are the weakest link in most systems
+2. **Phishing-proof**: Passkeys and identity keys can't be phished
+3. **Privacy**: No password = no password to leak in a breach
+4. **User experience**: No forgotten passwords, no password managers needed
+
+### Identity Key Authentication Flow
+```
+1. Generate 24-word BIP39 mnemonic (client-side)
+2. Derive Ed25519 identity keypair from mnemonic
+3. Register: Submit public key to server
+4. Login: Sign server-provided challenge with private key
+5. Server verifies signature → issues session token
+```
+
+## Peer Identity Exchange
+
+For adding contacts without centralized lookup:
+
+### Exchange Methods
+| Method | Use Case |
+|--------|----------|
+| **Identity Link** | Share via secure channel (Signal, email) |
+| **QR Code** | In-person scanning (coming soon) |
+| **Safety Numbers** | Verify peer identity out-of-band |
+
+### API Endpoints
+```
+POST /contacts                 # Add by user ID
+POST /contacts/by-key          # Add by identity key
+GET  /contacts                 # List all contacts
+POST /contacts/:id/verify      # Mark as verified
+DELETE /contacts/:id           # Remove contact
+```
+
+### Identity Card Format
+```typescript
+interface IdentityCard {
+  version: 1;
+  username: string;
+  userId: string;
+  identityKey: string;  // Base64 Ed25519 public key
+  timestamp: number;
+}
+```
+
+### Safety Numbers
+Computed from both identity keys using SHA-256:
+- 60-digit numeric code (12 groups of 5)
+- Short 8-character fingerprint
+- Same on both devices if keys match
 
 ## Future Roadmap
 
