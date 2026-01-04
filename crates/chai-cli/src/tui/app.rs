@@ -1,12 +1,18 @@
-//! Application state.
+//! Application state with typing indicators and read receipts.
 
 use crate::config::Config;
 use crate::network::client::Client;
 use anyhow::Result;
-use chai_common::{uuid, ConversationId, UserId};
+use chai_common::{uuid, ConversationId, MessageId, UserId};
 use chai_protocol::{ClientMessage, MessageType, ServerMessage};
 use crossterm::event::{KeyCode, KeyEvent};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
+
+/// Typing indicator timeout (5 seconds).
+const TYPING_TIMEOUT: Duration = Duration::from_secs(5);
+/// Debounce interval for sending typing indicators.
+const TYPING_DEBOUNCE: Duration = Duration::from_secs(3);
 
 /// Input mode for the application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,13 +25,35 @@ pub enum InputMode {
     Command,
 }
 
+/// Message delivery status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageStatus {
+    Sending,
+    Sent,
+    Delivered,
+    Read,
+}
+
+impl MessageStatus {
+    pub fn icon(&self) -> &'static str {
+        match self {
+            MessageStatus::Sending => "○",
+            MessageStatus::Sent => "✓",
+            MessageStatus::Delivered => "✓✓",
+            MessageStatus::Read => "✓✓",
+        }
+    }
+}
+
 /// A chat message.
 #[derive(Debug, Clone)]
 pub struct Message {
+    pub id: Option<String>,
     pub sender: String,
     pub content: String,
     pub timestamp: String,
     pub is_self: bool,
+    pub status: MessageStatus,
 }
 
 /// A conversation in the sidebar.
@@ -36,6 +64,13 @@ pub struct Conversation {
     pub last_message: Option<String>,
     pub unread_count: u32,
     pub online: bool,
+    pub typing: bool,
+}
+
+/// Typing state for a user.
+struct TypingState {
+    user_id: String,
+    started_at: Instant,
 }
 
 /// Application state.
@@ -64,15 +99,21 @@ pub struct App {
     client: Option<Client>,
     /// Current user ID.
     pub user_id: Option<String>,
+    /// Users currently typing in each conversation.
+    typing_states: HashMap<String, Vec<TypingState>>,
+    /// When we last sent a typing indicator.
+    last_typing_sent: Option<Instant>,
+    /// Whether we're currently in "typing" state.
+    is_typing: bool,
 }
 
 impl App {
     pub fn new(config: Config) -> Self {
         let user_id = config.user_id.clone();
         let status = if config.session_token.is_some() {
-            "Ready to connect".into()
+            "Ready to connect. Press ':c' to connect".into()
         } else {
-            "Not logged in".into()
+            "Not logged in. Use ':login' to sign in".into()
         };
 
         Self {
@@ -88,6 +129,9 @@ impl App {
             connected: false,
             client: None,
             user_id,
+            typing_states: HashMap::new(),
+            last_typing_sent: None,
+            is_typing: false,
         }
     }
 
@@ -101,12 +145,27 @@ impl App {
         &[]
     }
 
+    /// Get typing users for the current conversation.
+    pub fn typing_users(&self) -> Vec<&str> {
+        if let Some(conv) = self.conversations.get(self.selected_conversation) {
+            if let Some(states) = self.typing_states.get(&conv.id) {
+                return states.iter().map(|s| s.user_id.as_str()).collect();
+            }
+        }
+        Vec::new()
+    }
+
+    /// Check if anyone is typing in the current conversation.
+    pub fn is_someone_typing(&self) -> bool {
+        !self.typing_users().is_empty()
+    }
+
     /// Connect to the server.
     pub async fn connect(&mut self) -> Result<()> {
         let token = match &self.config.session_token {
             Some(t) => t.clone(),
             None => {
-                self.status = "No session token - please login first".into();
+                self.status = "No session token - use ':login' first".into();
                 return Ok(());
             }
         };
@@ -120,7 +179,7 @@ impl App {
             Ok(client) => {
                 self.client = Some(client);
                 self.connected = true;
-                self.status = "Connected".into();
+                self.status = "Connected ●".into();
             }
             Err(e) => {
                 self.status = format!("Connection failed: {}", e);
@@ -132,6 +191,10 @@ impl App {
 
     /// Disconnect from the server.
     pub fn disconnect(&mut self) {
+        // Send typing stop if we were typing
+        if self.is_typing {
+            self.send_typing_stop();
+        }
         self.client = None;
         self.connected = false;
         self.status = "Disconnected".into();
@@ -159,20 +222,26 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => {
                 if self.selected_conversation < self.conversations.len().saturating_sub(1) {
                     self.selected_conversation += 1;
+                    self.mark_conversation_read();
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
                 if self.selected_conversation > 0 {
                     self.selected_conversation -= 1;
+                    self.mark_conversation_read();
                 }
             }
             KeyCode::Char('g') => {
-                // Go to top
                 self.selected_conversation = 0;
+                self.mark_conversation_read();
             }
             KeyCode::Char('G') => {
-                // Go to bottom
                 self.selected_conversation = self.conversations.len().saturating_sub(1);
+                self.mark_conversation_read();
+            }
+            KeyCode::Enter => {
+                // Mark current conversation as read on enter
+                self.mark_conversation_read();
             }
             _ => {}
         }
@@ -182,20 +251,34 @@ impl App {
         match key.code {
             KeyCode::Esc => {
                 self.input_mode = InputMode::Normal;
+                // Send typing stop when exiting edit mode
+                if self.is_typing {
+                    self.send_typing_stop();
+                }
             }
             KeyCode::Enter => {
                 if !self.input.is_empty() {
+                    // Send typing stop before sending message
+                    if self.is_typing {
+                        self.send_typing_stop();
+                    }
                     self.send_message();
                 }
             }
             KeyCode::Char(c) => {
                 self.input.insert(self.cursor_position, c);
                 self.cursor_position += 1;
+                // Send typing indicator
+                self.maybe_send_typing_start();
             }
             KeyCode::Backspace => {
                 if self.cursor_position > 0 {
                     self.cursor_position -= 1;
                     self.input.remove(self.cursor_position);
+                }
+                // If input is now empty, send typing stop
+                if self.input.is_empty() && self.is_typing {
+                    self.send_typing_stop();
                 }
             }
             KeyCode::Delete => {
@@ -248,6 +331,116 @@ impl App {
         }
     }
 
+    /// Maybe send typing start indicator (debounced).
+    fn maybe_send_typing_start(&mut self) {
+        let should_send = match self.last_typing_sent {
+            None => true,
+            Some(last) => last.elapsed() >= TYPING_DEBOUNCE,
+        };
+
+        if should_send && self.connected {
+            self.send_typing_start();
+        }
+    }
+
+    /// Send typing start indicator.
+    fn send_typing_start(&mut self) {
+        if let Some(conv) = self.conversations.get(self.selected_conversation) {
+            let recipient_uuid = conv
+                .id
+                .strip_prefix("conv_")
+                .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                .unwrap_or_else(uuid::Uuid::nil);
+
+            let msg = ClientMessage::TypingStart {
+                recipient_id: UserId(recipient_uuid),
+                conversation_id: ConversationId(recipient_uuid),
+            };
+
+            if let Some(client) = &self.client {
+                let client = client.clone();
+                tokio::spawn(async move {
+                    let _ = client.send(msg).await;
+                });
+            }
+
+            self.last_typing_sent = Some(Instant::now());
+            self.is_typing = true;
+        }
+    }
+
+    /// Send typing stop indicator.
+    fn send_typing_stop(&mut self) {
+        if let Some(conv) = self.conversations.get(self.selected_conversation) {
+            let recipient_uuid = conv
+                .id
+                .strip_prefix("conv_")
+                .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                .unwrap_or_else(uuid::Uuid::nil);
+
+            let msg = ClientMessage::TypingStop {
+                recipient_id: UserId(recipient_uuid),
+                conversation_id: ConversationId(recipient_uuid),
+            };
+
+            if let Some(client) = &self.client {
+                let client = client.clone();
+                tokio::spawn(async move {
+                    let _ = client.send(msg).await;
+                });
+            }
+
+            self.is_typing = false;
+            self.last_typing_sent = None;
+        }
+    }
+
+    /// Mark current conversation as read.
+    fn mark_conversation_read(&mut self) {
+        if let Some(conv) = self.conversations.get_mut(self.selected_conversation) {
+            if conv.unread_count > 0 {
+                conv.unread_count = 0;
+
+                // Send read receipts
+                let recipient_uuid = conv
+                    .id
+                    .strip_prefix("conv_")
+                    .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                    .unwrap_or_else(uuid::Uuid::nil);
+
+                // Get unread message IDs
+                let message_ids: Vec<MessageId> = self
+                    .conversation_messages
+                    .get(&conv.id)
+                    .map(|msgs| {
+                        msgs.iter()
+                            .filter(|m| !m.is_self)
+                            .filter_map(|m| {
+                                m.id.as_ref()
+                                    .and_then(|id| uuid::Uuid::parse_str(id).ok())
+                                    .map(MessageId)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                if !message_ids.is_empty() {
+                    let msg = ClientMessage::MarkRead {
+                        conversation_id: ConversationId(recipient_uuid),
+                        message_ids,
+                    };
+
+                    if let Some(client) = &self.client {
+                        let client = client.clone();
+                        tokio::spawn(async move {
+                            let _ = client.send(msg).await;
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     fn send_message(&mut self) {
         let content = std::mem::take(&mut self.input);
         self.cursor_position = 0;
@@ -265,21 +458,25 @@ impl App {
             }
         };
 
+        // Generate message ID
+        let msg_id = uuid::Uuid::new_v4().to_string();
+
         // Add message to local list
         let messages = self
             .conversation_messages
             .entry(conv.id.clone())
             .or_default();
         messages.push(Message {
+            id: Some(msg_id.clone()),
             sender: "You".into(),
             content: content.clone(),
             timestamp: chrono_lite_timestamp(),
             is_self: true,
+            status: MessageStatus::Sending,
         });
 
         // Send via WebSocket if connected
         if let Some(client) = &self.client {
-            // Parse recipient as UUID (conversation ID is conv_{user_id})
             let recipient_uuid = conv
                 .id
                 .strip_prefix("conv_")
@@ -308,51 +505,53 @@ impl App {
                 // Will be handled by main loop
             }
             "connect" | "c" => {
-                // Connection will be handled in tick()
-                self.status = "Use :connect command, then wait...".into();
+                self.status = "Connecting...".into();
             }
             "disconnect" | "dc" => {
                 self.disconnect();
             }
+            "help" | "h" => {
+                self.status = ":c connect | :dc disconnect | :chat <user> | :q quit".into();
+            }
             _ if cmd.starts_with("chat ") => {
-                // Start a new conversation: :chat username
                 let username = cmd.strip_prefix("chat ").unwrap().trim();
                 if !username.is_empty() {
                     self.start_conversation(username.to_string());
                 }
             }
             _ => {
-                self.status = format!("Unknown command: {}", cmd);
+                self.status = format!("Unknown: {} (try :help)", cmd);
             }
         }
     }
 
     /// Start a new conversation with a user.
     fn start_conversation(&mut self, username: String) {
-        // Check if conversation already exists
         if let Some(idx) = self.conversations.iter().position(|c| c.name == username) {
             self.selected_conversation = idx;
             return;
         }
 
-        // Create new conversation
         let conv = Conversation {
             id: format!("conv_{}", username),
             name: username.clone(),
             last_message: None,
             unread_count: 0,
             online: false,
+            typing: false,
         };
 
         self.conversations.push(conv);
         self.selected_conversation = self.conversations.len() - 1;
-        self.status = format!("Started conversation with {}", username);
+        self.status = format!("Chat with {}", username);
     }
 
     /// Process network events.
     pub async fn tick(&mut self) -> Result<()> {
+        // Clean up expired typing indicators
+        self.cleanup_typing_indicators();
+
         // Process incoming messages from WebSocket
-        // Collect messages first to avoid borrow issues
         let messages: Vec<_> = if let Some(client) = &self.client {
             let mut msgs = Vec::new();
             while let Some(msg) = client.try_recv() {
@@ -369,20 +568,41 @@ impl App {
         Ok(())
     }
 
+    /// Clean up expired typing indicators.
+    fn cleanup_typing_indicators(&mut self) {
+        for (_conv_id, states) in self.typing_states.iter_mut() {
+            states.retain(|s| s.started_at.elapsed() < TYPING_TIMEOUT);
+        }
+
+        // Update conversation typing status
+        for conv in &mut self.conversations {
+            conv.typing = self
+                .typing_states
+                .get(&conv.id)
+                .map(|s| !s.is_empty())
+                .unwrap_or(false);
+        }
+    }
+
     /// Handle incoming server message.
     fn handle_server_message(&mut self, msg: ServerMessage) {
         match msg {
             ServerMessage::Message {
+                id,
                 sender_id,
                 conversation_id,
                 ciphertext,
                 timestamp,
                 ..
             } => {
-                // Decode message content (plaintext for now - TODO: decrypt)
                 let content = String::from_utf8_lossy(&ciphertext).to_string();
                 let conv_id = format!("conv_{}", conversation_id.0);
                 let sender_name = sender_id.0.to_string();
+
+                // Clear typing indicator for this sender
+                if let Some(states) = self.typing_states.get_mut(&conv_id) {
+                    states.retain(|s| s.user_id != sender_name);
+                }
 
                 // Find or create conversation
                 let conv_exists = self.conversations.iter().any(|c| c.id == conv_id);
@@ -393,13 +613,14 @@ impl App {
                         last_message: Some(content.clone()),
                         unread_count: 1,
                         online: true,
+                        typing: false,
                     });
                 } else {
-                    // Update existing conversation
                     for conv in &mut self.conversations {
                         if conv.id == conv_id {
                             conv.last_message = Some(content.clone());
                             conv.unread_count += 1;
+                            conv.typing = false;
                         }
                     }
                 }
@@ -407,17 +628,64 @@ impl App {
                 // Add message
                 let messages = self.conversation_messages.entry(conv_id).or_default();
                 messages.push(Message {
+                    id: Some(id.0.to_string()),
                     sender: sender_name,
                     content,
                     timestamp: format_timestamp(timestamp),
                     is_self: false,
+                    status: MessageStatus::Delivered,
                 });
             }
-            ServerMessage::MessageSent { .. } => {
-                // Message was delivered to server
+            ServerMessage::MessageSent { message_id, .. } => {
+                // Update message status to Sent
+                self.update_message_status(&message_id.0.to_string(), MessageStatus::Sent);
             }
-            ServerMessage::MessageDelivered { .. } => {
-                // Message was delivered to recipient
+            ServerMessage::MessageDelivered { message_id, .. } => {
+                self.update_message_status(&message_id.0.to_string(), MessageStatus::Delivered);
+            }
+            ServerMessage::MessageRead { message_id, .. } => {
+                self.update_message_status(&message_id.0.to_string(), MessageStatus::Read);
+            }
+            ServerMessage::TypingIndicator {
+                user_id,
+                conversation_id,
+                is_typing,
+            } => {
+                let conv_id = format!("conv_{}", conversation_id.0);
+                let user_name = user_id.0.to_string();
+
+                if is_typing {
+                    // Add/refresh typing state
+                    let states = self.typing_states.entry(conv_id.clone()).or_default();
+                    states.retain(|s| s.user_id != user_name);
+                    states.push(TypingState {
+                        user_id: user_name,
+                        started_at: Instant::now(),
+                    });
+
+                    // Update conversation
+                    for conv in &mut self.conversations {
+                        if conv.id == conv_id {
+                            conv.typing = true;
+                        }
+                    }
+                } else {
+                    // Remove typing state
+                    if let Some(states) = self.typing_states.get_mut(&conv_id) {
+                        states.retain(|s| s.user_id != user_name);
+                    }
+
+                    // Update conversation
+                    for conv in &mut self.conversations {
+                        if conv.id == conv_id {
+                            conv.typing = self
+                                .typing_states
+                                .get(&conv_id)
+                                .map(|s| !s.is_empty())
+                                .unwrap_or(false);
+                        }
+                    }
+                }
             }
             ServerMessage::Error { message, .. } => {
                 self.status = format!("Error: {}", message);
@@ -425,7 +693,6 @@ impl App {
             ServerMessage::PresenceUpdate {
                 user_id, status, ..
             } => {
-                // Update user presence
                 use chai_protocol::UserStatus;
                 let user_name = user_id.0.to_string();
                 let online = matches!(status, UserStatus::Active | UserStatus::Away);
@@ -436,6 +703,18 @@ impl App {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Update a message's delivery status.
+    fn update_message_status(&mut self, msg_id: &str, status: MessageStatus) {
+        for messages in self.conversation_messages.values_mut() {
+            for msg in messages.iter_mut() {
+                if msg.id.as_deref() == Some(msg_id) {
+                    msg.status = status;
+                    return;
+                }
+            }
         }
     }
 }
