@@ -156,7 +156,7 @@ pub async fn get_group(
 
     let group = groups::get_group(&state.db, group_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound("Group not found".into()))?;
 
     // Must be a member or the group must be public
     if member.is_none() && !group.is_public {
@@ -262,7 +262,7 @@ pub async fn delete_group(
     // Must be owner
     let group = groups::get_group(&state.db, group_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound("Group not found".into()))?;
 
     if group.owner_id != auth_user.user_id {
         return Err(AppError::Forbidden);
@@ -330,7 +330,7 @@ pub async fn add_member(
     // Check member limit
     let group = groups::get_group(&state.db, group_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound("Group not found".into()))?;
 
     let count = groups::count_members(&state.db, group_id).await?;
     if count >= group.max_members as i64 {
@@ -374,7 +374,7 @@ pub async fn remove_member(
     // Can't remove the owner
     let group = groups::get_group(&state.db, group_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound("Group not found".into()))?;
 
     if group.owner_id == user_id {
         return Err(AppError::InvalidRequest("Cannot remove group owner".into()));
@@ -450,7 +450,7 @@ pub async fn join_by_code(
     // Check member limit
     let group = groups::get_group(&state.db, invite.group_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound("Group not found".into()))?;
 
     let count = groups::count_members(&state.db, invite.group_id).await?;
     if count >= group.max_members as i64 {
