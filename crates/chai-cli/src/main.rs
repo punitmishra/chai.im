@@ -1,6 +1,7 @@
 //! Chai.im terminal client.
 #![allow(dead_code)]
 
+mod auth;
 mod config;
 mod error;
 mod network;

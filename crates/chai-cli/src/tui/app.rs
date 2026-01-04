@@ -1,5 +1,6 @@
-//! Application state with typing indicators and read receipts.
+//! Application state with typing indicators, read receipts, and auth.
 
+use crate::auth;
 use crate::config::Config;
 use crate::network::client::Client;
 use anyhow::Result;
@@ -13,6 +14,23 @@ use std::time::{Duration, Instant};
 const TYPING_TIMEOUT: Duration = Duration::from_secs(5);
 /// Debounce interval for sending typing indicators.
 const TYPING_DEBOUNCE: Duration = Duration::from_secs(3);
+
+/// Application screen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Screen {
+    /// Main chat screen.
+    Chat,
+    /// Welcome/login screen.
+    Welcome,
+    /// Register screen - entering username.
+    Register,
+    /// Mnemonic display screen (after registration).
+    MnemonicDisplay(String),
+    /// Login screen - entering username.
+    Login,
+    /// Mnemonic input screen (for login).
+    MnemonicInput,
+}
 
 /// Input mode for the application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +95,8 @@ struct TypingState {
 pub struct App {
     /// Configuration.
     pub config: Config,
+    /// Current screen.
+    pub screen: Screen,
     /// Current input mode.
     pub input_mode: InputMode,
     /// Current input buffer.
@@ -105,19 +125,30 @@ pub struct App {
     last_typing_sent: Option<Instant>,
     /// Whether we're currently in "typing" state.
     is_typing: bool,
+    /// Username being entered for auth.
+    pub auth_username: String,
+    /// Mnemonic being entered for login.
+    pub auth_mnemonic: String,
+    /// Auth error message.
+    pub auth_error: Option<String>,
+    /// Auth is in progress.
+    pub auth_loading: bool,
 }
 
 impl App {
     pub fn new(config: Config) -> Self {
         let user_id = config.user_id.clone();
-        let status = if config.session_token.is_some() {
-            "Ready to connect. Press ':c' to connect".into()
+        let is_authenticated = config.is_authenticated();
+
+        let (screen, status) = if is_authenticated {
+            (Screen::Chat, "Ready to connect. Press ':c' to connect".into())
         } else {
-            "Not logged in. Use ':login' to sign in".into()
+            (Screen::Welcome, "Welcome to Chai! Press 'r' to register or 'l' to login".into())
         };
 
         Self {
             config,
+            screen,
             input_mode: InputMode::Normal,
             input: String::new(),
             cursor_position: 0,
@@ -132,6 +163,10 @@ impl App {
             typing_states: HashMap::new(),
             last_typing_sent: None,
             is_typing: false,
+            auth_username: String::new(),
+            auth_mnemonic: String::new(),
+            auth_error: None,
+            auth_loading: false,
         }
     }
 
@@ -202,10 +237,150 @@ impl App {
 
     /// Handle a key event.
     pub fn handle_key(&mut self, key: KeyEvent) {
-        match self.input_mode {
-            InputMode::Normal => self.handle_normal_mode(key),
-            InputMode::Editing => self.handle_editing_mode(key),
-            InputMode::Command => self.handle_command_mode(key),
+        // Route based on current screen
+        match &self.screen {
+            Screen::Welcome => self.handle_welcome_key(key),
+            Screen::Register => self.handle_register_key(key),
+            Screen::Login => self.handle_login_key(key),
+            Screen::MnemonicDisplay(_) => self.handle_mnemonic_display_key(key),
+            Screen::MnemonicInput => self.handle_mnemonic_input_key(key),
+            Screen::Chat => {
+                match self.input_mode {
+                    InputMode::Normal => self.handle_normal_mode(key),
+                    InputMode::Editing => self.handle_editing_mode(key),
+                    InputMode::Command => self.handle_command_mode(key),
+                }
+            }
+        }
+    }
+
+    /// Handle key events on welcome screen.
+    fn handle_welcome_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                self.screen = Screen::Register;
+                self.auth_username.clear();
+                self.auth_error = None;
+                self.status = "Enter a username".into();
+            }
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                self.screen = Screen::Login;
+                self.auth_username.clear();
+                self.auth_error = None;
+                self.status = "Enter your username".into();
+            }
+            _ => {}
+        }
+    }
+
+    /// Handle key events on register screen.
+    fn handle_register_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.screen = Screen::Welcome;
+                self.auth_username.clear();
+                self.auth_error = None;
+            }
+            KeyCode::Enter => {
+                if !self.auth_username.is_empty() {
+                    // Generate mnemonic and proceed
+                    let mnemonic = auth::new_mnemonic();
+                    self.screen = Screen::MnemonicDisplay(mnemonic);
+                    self.status = "Write down your recovery phrase! Press Enter when ready.".into();
+                }
+            }
+            KeyCode::Char(c) => {
+                if c.is_ascii_alphanumeric() || c == '_' {
+                    self.auth_username.push(c);
+                    self.auth_error = None;
+                }
+            }
+            KeyCode::Backspace => {
+                self.auth_username.pop();
+            }
+            _ => {}
+        }
+    }
+
+    /// Handle key events on login screen.
+    fn handle_login_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.screen = Screen::Welcome;
+                self.auth_username.clear();
+                self.auth_error = None;
+            }
+            KeyCode::Enter => {
+                if !self.auth_username.is_empty() {
+                    self.screen = Screen::MnemonicInput;
+                    self.auth_mnemonic.clear();
+                    self.status = "Enter your 24-word recovery phrase".into();
+                }
+            }
+            KeyCode::Char(c) => {
+                if c.is_ascii_alphanumeric() || c == '_' {
+                    self.auth_username.push(c);
+                    self.auth_error = None;
+                }
+            }
+            KeyCode::Backspace => {
+                self.auth_username.pop();
+            }
+            _ => {}
+        }
+    }
+
+    /// Handle key events on mnemonic display screen.
+    fn handle_mnemonic_display_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.screen = Screen::Register;
+                self.status = "Enter a username".into();
+            }
+            KeyCode::Enter => {
+                // User confirmed they saved the mnemonic
+                if let Screen::MnemonicDisplay(mnemonic) = self.screen.clone() {
+                    self.auth_mnemonic = mnemonic;
+                    self.auth_loading = true;
+                    self.status = "Registering...".into();
+                    // Auth will be performed in tick()
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Handle key events on mnemonic input screen.
+    fn handle_mnemonic_input_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Esc => {
+                self.screen = Screen::Login;
+                self.auth_mnemonic.clear();
+                self.auth_error = None;
+                self.status = "Enter your username".into();
+            }
+            KeyCode::Enter => {
+                if !self.auth_mnemonic.is_empty() {
+                    // Validate mnemonic
+                    if auth::is_valid_mnemonic(&self.auth_mnemonic) {
+                        self.auth_loading = true;
+                        self.status = "Logging in...".into();
+                        // Auth will be performed in tick()
+                    } else {
+                        self.auth_error = Some("Invalid recovery phrase".into());
+                    }
+                }
+            }
+            KeyCode::Char(c) => {
+                if c.is_ascii_alphabetic() || c == ' ' {
+                    self.auth_mnemonic.push(c.to_ascii_lowercase());
+                    self.auth_error = None;
+                }
+            }
+            KeyCode::Backspace => {
+                self.auth_mnemonic.pop();
+            }
+            _ => {}
         }
     }
 
@@ -505,13 +680,25 @@ impl App {
                 // Will be handled by main loop
             }
             "connect" | "c" => {
-                self.status = "Connecting...".into();
+                if self.config.is_authenticated() {
+                    self.status = "Connecting...".into();
+                } else {
+                    self.status = "Not logged in. Use :logout to switch accounts".into();
+                }
             }
             "disconnect" | "dc" => {
                 self.disconnect();
             }
+            "logout" => {
+                self.disconnect();
+                self.config.logout();
+                let _ = self.config.save();
+                self.screen = Screen::Welcome;
+                self.status = "Logged out. Press 'r' to register or 'l' to login".into();
+            }
             "help" | "h" => {
-                self.status = ":c connect | :dc disconnect | :chat <user> | :q quit".into();
+                self.status =
+                    ":c connect | :dc disconnect | :chat <user> | :logout | :q quit".into();
             }
             _ if cmd.starts_with("chat ") => {
                 let username = cmd.strip_prefix("chat ").unwrap().trim();
@@ -546,8 +733,14 @@ impl App {
         self.status = format!("Chat with {}", username);
     }
 
-    /// Process network events.
+    /// Process network events and auth.
     pub async fn tick(&mut self) -> Result<()> {
+        // Handle auth if loading
+        if self.auth_loading {
+            self.perform_auth().await;
+            return Ok(());
+        }
+
         // Clean up expired typing indicators
         self.cleanup_typing_indicators();
 
@@ -566,6 +759,55 @@ impl App {
             self.handle_server_message(msg);
         }
         Ok(())
+    }
+
+    /// Perform auth operation.
+    async fn perform_auth(&mut self) {
+        let is_register = matches!(self.screen, Screen::MnemonicDisplay(_));
+
+        let result = if is_register {
+            auth::register_flow(
+                &mut self.config,
+                &self.auth_username,
+                &self.auth_mnemonic,
+            )
+            .await
+        } else {
+            auth::login_flow(
+                &mut self.config,
+                &self.auth_username,
+                &self.auth_mnemonic,
+            )
+            .await
+        };
+
+        self.auth_loading = false;
+
+        match result {
+            Ok(()) => {
+                // Auth succeeded
+                self.user_id = self.config.user_id.clone();
+                self.screen = Screen::Chat;
+                self.auth_username.clear();
+                self.auth_mnemonic.clear();
+                self.auth_error = None;
+                self.status = format!(
+                    "Welcome, {}! Press ':c' to connect",
+                    self.config.username.as_deref().unwrap_or("user")
+                );
+            }
+            Err(e) => {
+                // Auth failed
+                self.auth_error = Some(e.to_string());
+                self.status = "Authentication failed".into();
+                // Go back to appropriate screen
+                if is_register {
+                    self.screen = Screen::Register;
+                } else {
+                    self.screen = Screen::MnemonicInput;
+                }
+            }
+        }
     }
 
     /// Clean up expired typing indicators.
