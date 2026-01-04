@@ -27,15 +27,6 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/auth/login/start", post(handlers::auth::login_start))
         .route("/auth/login/complete", post(handlers::auth::login_complete))
-        // Password auth endpoints (legacy)
-        .route(
-            "/auth/password/register",
-            post(handlers::password_auth::password_register),
-        )
-        .route(
-            "/auth/password/login",
-            post(handlers::password_auth::password_login),
-        )
         // Identity key auth endpoints (mnemonic-based)
         .route(
             "/auth/identity/register",
@@ -85,6 +76,21 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/groups/:group_id/invites",
             post(handlers::groups::create_invite),
+        )
+        // Contact endpoints (peer identity exchange)
+        .route("/contacts", get(handlers::contacts::list_contacts))
+        .route("/contacts", post(handlers::contacts::add_by_user_id))
+        .route(
+            "/contacts/by-key",
+            post(handlers::contacts::add_by_identity_key),
+        )
+        .route(
+            "/contacts/:contact_user_id/verify",
+            post(handlers::contacts::verify_contact),
+        )
+        .route(
+            "/contacts/:contact_user_id",
+            delete(handlers::contacts::remove_contact),
         )
         // Waitlist endpoints (public, no auth required)
         .route("/waitlist", post(handlers::waitlist::signup))

@@ -19,8 +19,8 @@ pub enum AppError {
     #[error("Forbidden")]
     Forbidden,
 
-    #[error("Not found")]
-    NotFound,
+    #[error("Not found: {0}")]
+    NotFound(String),
 
     #[error("User not found")]
     UserNotFound,
@@ -44,7 +44,7 @@ impl IntoResponse for AppError {
             AppError::AuthenticationFailed(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".into()),
             AppError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden".into()),
-            AppError::NotFound => (StatusCode::NOT_FOUND, "Not found".into()),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::UserNotFound => (StatusCode::NOT_FOUND, "User not found".into()),
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists".into()),
             AppError::InvalidRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
