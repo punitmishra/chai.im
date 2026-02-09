@@ -231,7 +231,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let msg_text = json::encode_client_message(&ClientMessage::UploadPrekeyBundle { bundle })
         .map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    sink.send(Message::Text(msg_text.into())).await?;
+    sink.send(Message::Text(msg_text)).await?;
 
     // Upload all one-time prekeys
     let otks: Vec<OneTimePrekey> = one_time_prekeys
@@ -244,7 +244,7 @@ async fn main() -> anyhow::Result<()> {
     let msg_text =
         json::encode_client_message(&ClientMessage::UploadOneTimePrekeys { prekeys: otks })
             .map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    sink.send(Message::Text(msg_text.into())).await?;
+    sink.send(Message::Text(msg_text)).await?;
     println!("[bot] Keys uploaded!");
 
     let mut state = BotState {
@@ -303,7 +303,7 @@ async fn main() -> anyhow::Result<()> {
                             };
                             let msg_text = json::encode_client_message(&reply)
                                 .map_err(|e| anyhow::anyhow!("{:?}", e))?;
-                            sink.send(Message::Text(msg_text.into())).await?;
+                            sink.send(Message::Text(msg_text)).await?;
                             println!("[bot] Sent encrypted echo: \"{}\"", echo);
                         } else {
                             println!("[bot] Failed to encrypt echo");
@@ -335,7 +335,7 @@ async fn main() -> anyhow::Result<()> {
                     prekeys: otks,
                 })
                 .map_err(|e| anyhow::anyhow!("{:?}", e))?;
-                sink.send(Message::Text(msg_text.into())).await?;
+                sink.send(Message::Text(msg_text)).await?;
                 println!("[bot] Uploaded more prekeys");
             }
             ServerMessage::Error { message, .. } => {
