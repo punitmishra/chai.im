@@ -69,7 +69,7 @@ base64 = "0.22"
 # Concurrency & Performance
 dashmap = "5.5"
 smallvec = "1.11"
-bytes = "1.5"
+bytes = "1.11"
 
 # WASM
 wasm-bindgen = "0.2"
