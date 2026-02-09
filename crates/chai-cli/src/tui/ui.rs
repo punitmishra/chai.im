@@ -270,10 +270,7 @@ fn draw_mnemonic_display(f: &mut Frame, app: &App, mnemonic: &str) {
             let idx = row + col * 6;
             if idx < words.len() {
                 let word_text = format!("{:>2}. {:<12}", idx + 1, words[idx]);
-                line_spans.push(Span::styled(
-                    word_text,
-                    Style::default().fg(Color::Green),
-                ));
+                line_spans.push(Span::styled(word_text, Style::default().fg(Color::Green)));
             }
         }
         mnemonic_lines.push(Line::from(line_spans));

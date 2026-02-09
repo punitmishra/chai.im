@@ -76,12 +76,10 @@ pub async fn store_one_time_prekeys(
     // Remove old unused OTKs — the client is uploading a fresh batch,
     // so any unconsumed keys from previous sessions are now invalid
     // (the client no longer holds the corresponding private keys).
-    sqlx::query(
-        r#"DELETE FROM one_time_prekeys WHERE user_id = $1 AND used = false"#,
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+    sqlx::query(r#"DELETE FROM one_time_prekeys WHERE user_id = $1 AND used = false"#)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
     let mut count = 0;
 

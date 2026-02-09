@@ -102,4 +102,3 @@ pub async fn search_by_username(
     .fetch_all(pool)
     .await
 }
-

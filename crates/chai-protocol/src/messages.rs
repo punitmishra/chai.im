@@ -101,10 +101,7 @@ pub enum ClientMessage {
     },
 
     /// Send a message to a group.
-    SendGroupMessage {
-        group_id: String,
-        content: String,
-    },
+    SendGroupMessage { group_id: String, content: String },
 
     /// Subscribe to real-time updates for a group.
     JoinGroup { group_id: String },
@@ -239,10 +236,7 @@ pub enum ServerMessage {
     },
 
     /// A member left the group.
-    GroupMemberLeft {
-        group_id: String,
-        user_id: UserId,
-    },
+    GroupMemberLeft { group_id: String, user_id: UserId },
 
     /// Group typing indicator from another user.
     GroupTypingIndicator {

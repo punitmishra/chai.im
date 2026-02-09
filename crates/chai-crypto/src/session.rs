@@ -289,11 +289,7 @@ impl SessionManager {
     /// Receive a prekey message: establish session and decrypt.
     /// Parses PrekeyMessagePayload (bincode format), establishes the session,
     /// and returns the decrypted plaintext.
-    pub fn receive_and_decrypt(
-        &mut self,
-        peer_id: String,
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>> {
+    pub fn receive_and_decrypt(&mut self, peer_id: String, ciphertext: &[u8]) -> Result<Vec<u8>> {
         let payload = PrekeyMessagePayload::from_bytes(ciphertext)?;
 
         let session = Session::receive(
@@ -379,11 +375,7 @@ mod tests {
         let bob_spk = SignedPreKey::generate(1, &bob_identity);
         let mut bob_otps = vec![OneTimePreKey::generate(1), OneTimePreKey::generate(2)];
 
-        let bob_bundle = crate::keys::PreKeyBundle::new(
-            &bob_identity,
-            &bob_spk,
-            bob_otps.first(),
-        );
+        let bob_bundle = crate::keys::PreKeyBundle::new(&bob_identity, &bob_spk, bob_otps.first());
 
         // Alice initiates
         let alice_identity = IdentityKeyPair::generate();

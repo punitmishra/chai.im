@@ -91,7 +91,8 @@ impl Config {
                 let mut config: Config = toml::from_str(&content)?;
 
                 // Migrate: if server_url looks like a ws:// URL, fix it
-                if config.server_url.starts_with("ws://") || config.server_url.starts_with("wss://") {
+                if config.server_url.starts_with("ws://") || config.server_url.starts_with("wss://")
+                {
                     config.ws_url = config.server_url.clone();
                     config.server_url = config
                         .ws_url

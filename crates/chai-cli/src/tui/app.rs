@@ -164,9 +164,15 @@ impl App {
         let is_authenticated = config.is_authenticated();
 
         let (screen, status) = if is_authenticated {
-            (Screen::Chat, "Ready to connect. Press ':c' to connect".into())
+            (
+                Screen::Chat,
+                "Ready to connect. Press ':c' to connect".into(),
+            )
         } else {
-            (Screen::Welcome, "Welcome to Chai! Press 'r' to register or 'l' to login".into())
+            (
+                Screen::Welcome,
+                "Welcome to Chai! Press 'r' to register or 'l' to login".into(),
+            )
         };
 
         // Initialize crypto from stored identity
@@ -288,7 +294,10 @@ impl App {
             signed_prekey: spk.public_key().to_bytes().to_vec(),
             signed_prekey_signature: spk.signature.clone(),
             signed_prekey_id: spk.id,
-            one_time_prekey: self.one_time_prekeys.first().map(|k| k.public_key().to_bytes().to_vec()),
+            one_time_prekey: self
+                .one_time_prekeys
+                .first()
+                .map(|k| k.public_key().to_bytes().to_vec()),
             one_time_prekey_id: self.one_time_prekeys.first().map(|k| k.id),
         };
 
@@ -337,13 +346,11 @@ impl App {
             Screen::Login => self.handle_login_key(key),
             Screen::MnemonicDisplay(_) => self.handle_mnemonic_display_key(key),
             Screen::MnemonicInput => self.handle_mnemonic_input_key(key),
-            Screen::Chat => {
-                match self.input_mode {
-                    InputMode::Normal => self.handle_normal_mode(key),
-                    InputMode::Editing => self.handle_editing_mode(key),
-                    InputMode::Command => self.handle_command_mode(key),
-                }
-            }
+            Screen::Chat => match self.input_mode {
+                InputMode::Normal => self.handle_normal_mode(key),
+                InputMode::Editing => self.handle_editing_mode(key),
+                InputMode::Command => self.handle_command_mode(key),
+            },
         }
     }
 
@@ -783,26 +790,24 @@ impl App {
             if let Some(session) = self.sessions.get_mut(&peer_id) {
                 // Encrypt with existing session
                 match session.encrypt(content.as_bytes()) {
-                    Ok(encrypted) => {
-                        match encrypted.to_bytes() {
-                            Ok(ciphertext) => {
-                                let msg = ClientMessage::SendMessage {
-                                    recipient_id: UserId(recipient_uuid),
-                                    conversation_id: ConversationId(recipient_uuid),
-                                    ciphertext,
-                                    message_type: MessageType::Normal,
-                                };
-                                let client = client.clone();
-                                tokio::spawn(async move {
-                                    let _ = client.send(msg).await;
-                                });
-                                self.status = "Secure message sent".into();
-                            }
-                            Err(e) => {
-                                self.status = format!("Serialization failed: {:?}", e);
-                            }
+                    Ok(encrypted) => match encrypted.to_bytes() {
+                        Ok(ciphertext) => {
+                            let msg = ClientMessage::SendMessage {
+                                recipient_id: UserId(recipient_uuid),
+                                conversation_id: ConversationId(recipient_uuid),
+                                ciphertext,
+                                message_type: MessageType::Normal,
+                            };
+                            let client = client.clone();
+                            tokio::spawn(async move {
+                                let _ = client.send(msg).await;
+                            });
+                            self.status = "Secure message sent".into();
                         }
-                    }
+                        Err(e) => {
+                            self.status = format!("Serialization failed: {:?}", e);
+                        }
+                    },
                     Err(e) => {
                         self.status = format!("Encryption failed: {:?}", e);
                     }
@@ -1002,7 +1007,10 @@ impl App {
             return;
         };
 
-        let url = format!("{}/users/search?q={}&limit=1", self.config.server_url, username);
+        let url = format!(
+            "{}/users/search?q={}&limit=1",
+            self.config.server_url, username
+        );
         let client = reqwest::Client::new();
         match client
             .get(&url)
@@ -1030,10 +1038,7 @@ impl App {
                             .find(|u| u.username == username)
                             .or_else(|| result.users.first())
                         {
-                            self.start_conversation_with_id(
-                                user.id.clone(),
-                                user.username.clone(),
-                            );
+                            self.start_conversation_with_id(user.id.clone(), user.username.clone());
                         } else {
                             self.status = format!("User '{}' not found", username);
                         }
@@ -1057,19 +1062,9 @@ impl App {
         let is_register = matches!(self.screen, Screen::MnemonicDisplay(_));
 
         let result = if is_register {
-            auth::register_flow(
-                &mut self.config,
-                &self.auth_username,
-                &self.auth_mnemonic,
-            )
-            .await
+            auth::register_flow(&mut self.config, &self.auth_username, &self.auth_mnemonic).await
         } else {
-            auth::login_flow(
-                &mut self.config,
-                &self.auth_username,
-                &self.auth_mnemonic,
-            )
-            .await
+            auth::login_flow(&mut self.config, &self.auth_username, &self.auth_mnemonic).await
         };
 
         self.auth_loading = false;
@@ -1293,19 +1288,16 @@ impl App {
                         peer_id.to_string(),
                         &payload.initial_message,
                     ) {
-                        Ok(mut session) => {
-                            match session.decrypt(&payload.encrypted_message) {
-                                Ok(plaintext) => {
-                                    self.sessions.insert(peer_id.to_string(), session);
-                                    self.status = "Secure session established".into();
-                                    return String::from_utf8_lossy(&plaintext).to_string();
-                                }
-                                Err(e) => {
-                                    self.status =
-                                        format!("Decrypt failed (prekey): {:?}", e);
-                                }
+                        Ok(mut session) => match session.decrypt(&payload.encrypted_message) {
+                            Ok(plaintext) => {
+                                self.sessions.insert(peer_id.to_string(), session);
+                                self.status = "Secure session established".into();
+                                return String::from_utf8_lossy(&plaintext).to_string();
                             }
-                        }
+                            Err(e) => {
+                                self.status = format!("Decrypt failed (prekey): {:?}", e);
+                            }
+                        },
                         Err(e) => {
                             self.status = format!("Session receive failed: {:?}", e);
                         }
@@ -1358,8 +1350,8 @@ impl App {
 
                         // Send any pending message
                         if let Some(content) = self.pending_prekey_requests.remove(&peer_id) {
-                            let recipient_uuid =
-                                uuid::Uuid::parse_str(&peer_id).unwrap_or_else(|_| uuid::Uuid::nil());
+                            let recipient_uuid = uuid::Uuid::parse_str(&peer_id)
+                                .unwrap_or_else(|_| uuid::Uuid::nil());
                             self.send_initial_message(&peer_id, &content, recipient_uuid);
                         }
                     }

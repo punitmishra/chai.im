@@ -55,10 +55,7 @@ pub async fn upload(
             continue;
         }
 
-        let filename = field
-            .file_name()
-            .unwrap_or("unnamed")
-            .to_string();
+        let filename = field.file_name().unwrap_or("unnamed").to_string();
         let content_type = field
             .content_type()
             .unwrap_or("application/octet-stream")
@@ -122,9 +119,7 @@ pub async fn upload(
         ));
     }
 
-    Err(AppError::InvalidRequest(
-        "No file field in upload".into(),
-    ))
+    Err(AppError::InvalidRequest("No file field in upload".into()))
 }
 
 /// Download a file attachment by ID.
@@ -135,8 +130,8 @@ pub async fn download(
 ) -> Result<impl IntoResponse> {
     let _auth_user = authenticate_request(&state, &headers).await?;
 
-    let file_id =
-        Uuid::parse_str(&file_id).map_err(|_| AppError::InvalidRequest("Invalid file ID".into()))?;
+    let file_id = Uuid::parse_str(&file_id)
+        .map_err(|_| AppError::InvalidRequest("Invalid file ID".into()))?;
 
     let attachment = files::get_attachment(&state.db, file_id)
         .await?

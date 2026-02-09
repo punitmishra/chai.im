@@ -761,8 +761,7 @@ async fn handle_send_group_message(
     group_id: String,
     content: String,
 ) -> Result<()> {
-    let group_uuid = Uuid::parse_str(&group_id)
-        .map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+    let group_uuid = Uuid::parse_str(&group_id).map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
 
     // Verify sender is a member
     groups::get_member(&state.db, group_uuid, Uuid::from(sender_id))
@@ -782,8 +781,8 @@ async fn handle_send_group_message(
         group_uuid,
         Uuid::from(sender_id),
         content.as_bytes(),
-        0, // sender_key_id (no encryption yet)
-        2, // message_type: Normal
+        0,    // sender_key_id (no encryption yet)
+        2,    // message_type: Normal
         None, // reply_to_id
     )
     .await?;
@@ -837,13 +836,8 @@ async fn handle_send_group_message(
 }
 
 /// Handle JoinGroup: verify membership and send confirmation.
-async fn handle_join_group(
-    state: &AppState,
-    user_id: UserId,
-    group_id: String,
-) -> Result<()> {
-    let group_uuid = Uuid::parse_str(&group_id)
-        .map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+async fn handle_join_group(state: &AppState, user_id: UserId, group_id: String) -> Result<()> {
+    let group_uuid = Uuid::parse_str(&group_id).map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
 
     // Verify membership
     let _member = groups::get_member(&state.db, group_uuid, Uuid::from(user_id))
@@ -851,9 +845,7 @@ async fn handle_join_group(
         .ok_or_else(|| anyhow::anyhow!("Not a member of this group"))?;
 
     // Send confirmation
-    let server_message = ServerMessage::GroupJoined {
-        group_id,
-    };
+    let server_message = ServerMessage::GroupJoined { group_id };
     let data = chai_protocol::json::encode_server_message(&server_message)?;
     let outgoing = OutgoingMessage {
         data: data.into_bytes().into(),
@@ -867,11 +859,7 @@ async fn handle_join_group(
 }
 
 /// Handle LeaveGroup: send confirmation (does not remove from DB).
-async fn handle_leave_group(
-    state: &AppState,
-    user_id: UserId,
-    group_id: String,
-) -> Result<()> {
+async fn handle_leave_group(state: &AppState, user_id: UserId, group_id: String) -> Result<()> {
     // Send confirmation
     let server_message = ServerMessage::GroupLeft {
         group_id: group_id.clone(),
@@ -895,8 +883,7 @@ async fn handle_group_typing(
     group_id: String,
     is_typing: bool,
 ) -> Result<()> {
-    let group_uuid = Uuid::parse_str(&group_id)
-        .map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+    let group_uuid = Uuid::parse_str(&group_id).map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
 
     // Verify membership
     let _member = groups::get_member(&state.db, group_uuid, Uuid::from(sender_id))

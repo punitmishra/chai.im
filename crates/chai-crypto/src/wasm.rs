@@ -204,11 +204,7 @@ impl CryptoManager {
     /// Receive a Prekey message: establish session and decrypt.
     /// Parses PrekeyMessagePayload (bincode), establishes session, returns plaintext.
     #[wasm_bindgen(js_name = decryptPrekey)]
-    pub fn decrypt_prekey(
-        &mut self,
-        peer_id: &str,
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>, JsValue> {
+    pub fn decrypt_prekey(&mut self, peer_id: &str, ciphertext: &[u8]) -> Result<Vec<u8>, JsValue> {
         self.inner
             .receive_and_decrypt(peer_id.to_string(), ciphertext)
             .map_err(|e| JsValue::from_str(&format!("receive_and_decrypt failed: {}", e)))

@@ -6,7 +6,9 @@ use crate::config::Config;
 use anyhow::{anyhow, Result};
 use chai_crypto::{
     keys::IdentityKeyPair,
-    mnemonic::{derive_identity_from_words, generate_mnemonic, validate_mnemonic, MnemonicStrength},
+    mnemonic::{
+        derive_identity_from_words, generate_mnemonic, validate_mnemonic, MnemonicStrength,
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -161,16 +163,11 @@ pub fn is_valid_mnemonic(words: &str) -> bool {
 
 /// Derive identity from mnemonic.
 pub fn identity_from_mnemonic(words: &str) -> Result<IdentityKeyPair> {
-    derive_identity_from_words(words, "")
-        .map_err(|e| anyhow!("Invalid mnemonic: {:?}", e))
+    derive_identity_from_words(words, "").map_err(|e| anyhow!("Invalid mnemonic: {:?}", e))
 }
 
 /// Perform registration flow.
-pub async fn register_flow(
-    config: &mut Config,
-    username: &str,
-    mnemonic: &str,
-) -> Result<()> {
+pub async fn register_flow(config: &mut Config, username: &str, mnemonic: &str) -> Result<()> {
     // Derive identity from mnemonic
     let identity = identity_from_mnemonic(mnemonic)?;
 
@@ -189,11 +186,7 @@ pub async fn register_flow(
 }
 
 /// Perform login flow with existing mnemonic.
-pub async fn login_flow(
-    config: &mut Config,
-    username: &str,
-    mnemonic: &str,
-) -> Result<()> {
+pub async fn login_flow(config: &mut Config, username: &str, mnemonic: &str) -> Result<()> {
     // Derive identity from mnemonic
     let identity = identity_from_mnemonic(mnemonic)?;
 
@@ -213,8 +206,13 @@ pub async fn login_flow(
 
 /// Login with stored identity key (skip mnemonic entry).
 pub async fn login_with_stored_identity(config: &mut Config) -> Result<()> {
-    let username = config.username.as_ref().ok_or_else(|| anyhow!("No username stored"))?;
-    let identity = config.get_identity().ok_or_else(|| anyhow!("No identity key stored"))?;
+    let username = config
+        .username
+        .as_ref()
+        .ok_or_else(|| anyhow!("No username stored"))?;
+    let identity = config
+        .get_identity()
+        .ok_or_else(|| anyhow!("No identity key stored"))?;
 
     let client = AuthClient::new(&config.server_url);
     let (user_id, session_token) = client.login(username, &identity).await?;
