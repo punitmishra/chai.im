@@ -5,6 +5,7 @@ use crate::{CryptoError, Result};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha512};
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 use zeroize::ZeroizeOnDrop;
 
@@ -51,6 +52,20 @@ impl IdentityKeyPair {
         let ed_public = self.signing_key.verifying_key();
         let montgomery = ed_public.to_montgomery();
         X25519PublicKey::from(montgomery.to_bytes())
+    }
+
+    /// Get the X25519 secret key derived from this Ed25519 signing key.
+    /// Used for DH operations in X3DH (identity DH).
+    /// Follows the standard Ed25519→X25519 conversion: SHA-512(seed)[0..32] clamped.
+    pub fn dh_secret(&self) -> StaticSecret {
+        let hash = Sha512::digest(self.signing_key.to_bytes());
+        let mut scalar = [0u8; 32];
+        scalar.copy_from_slice(&hash[..32]);
+        // Clamp to valid X25519 scalar
+        scalar[0] &= 248;
+        scalar[31] &= 127;
+        scalar[31] |= 64;
+        StaticSecret::from(scalar)
     }
 }
 
@@ -278,6 +293,21 @@ mod tests {
         let bob_shared = bob.diffie_hellman(&alice.public_key());
 
         assert_eq!(alice_shared, bob_shared);
+    }
+
+    #[test]
+    fn test_identity_dh_key_consistency() {
+        // Verify that dh_secret() and dh_public_key() produce matching X25519 key pairs
+        for _ in 0..10 {
+            let identity = IdentityKeyPair::generate();
+            let pub_from_secret = X25519PublicKey::from(&identity.dh_secret());
+            let pub_from_ed25519 = identity.dh_public_key();
+            assert_eq!(
+                pub_from_secret.to_bytes(),
+                pub_from_ed25519.to_bytes(),
+                "Ed25519→X25519 conversion inconsistency between private and public paths"
+            );
+        }
     }
 
     #[test]

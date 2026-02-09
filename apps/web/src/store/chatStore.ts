@@ -7,6 +7,13 @@ export interface Reaction {
   emoji: string;
 }
 
+export interface Attachment {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -15,6 +22,7 @@ export interface Message {
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read';
   reactions?: Reaction[];
+  attachments?: Attachment[];
   parentMessageId?: string; // For thread replies
   threadReplyCount?: number; // Count of replies to this message
 }

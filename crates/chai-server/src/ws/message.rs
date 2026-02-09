@@ -1,6 +1,6 @@
 //! WebSocket message handling.
 
-use crate::db::{messages, prekeys, users};
+use crate::db::{groups, messages, prekeys, users};
 use crate::state::AppState;
 use crate::ws::connection::OutgoingMessage;
 use crate::ws::presence::broadcast_presence_update;
@@ -130,6 +130,26 @@ pub async fn handle_message(state: &AppState, sender_id: UserId, data: &[u8]) ->
 
         ClientMessage::ReportActivity => {
             handle_report_activity(state, sender_id).await?;
+        }
+
+        ClientMessage::SendGroupMessage { group_id, content } => {
+            handle_send_group_message(state, sender_id, group_id, content).await?;
+        }
+
+        ClientMessage::JoinGroup { group_id } => {
+            handle_join_group(state, sender_id, group_id).await?;
+        }
+
+        ClientMessage::LeaveGroup { group_id } => {
+            handle_leave_group(state, sender_id, group_id).await?;
+        }
+
+        ClientMessage::GroupTypingStart { group_id } => {
+            handle_group_typing(state, sender_id, group_id, true).await?;
+        }
+
+        ClientMessage::GroupTypingStop { group_id } => {
+            handle_group_typing(state, sender_id, group_id, false).await?;
         }
     }
 
@@ -725,6 +745,198 @@ async fn handle_get_thread_messages(
         limit,
         requester_id,
         thread_id
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// Group message handlers
+// ============================================================================
+
+/// Handle a group message: verify membership, store, fan-out to online members.
+async fn handle_send_group_message(
+    state: &AppState,
+    sender_id: UserId,
+    group_id: String,
+    content: String,
+) -> Result<()> {
+    let group_uuid = Uuid::parse_str(&group_id)
+        .map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+
+    // Verify sender is a member
+    groups::get_member(&state.db, group_uuid, Uuid::from(sender_id))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Not a member of this group"))?;
+
+    // Get sender's username
+    let sender_user = users::get_by_id(&state.db, Uuid::from(sender_id))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Sender not found"))?;
+
+    let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
+
+    // Store message in group_messages table (plaintext for now, sender_key_id=0)
+    let stored_msg = groups::store_message(
+        &state.db,
+        group_uuid,
+        Uuid::from(sender_id),
+        content.as_bytes(),
+        0, // sender_key_id (no encryption yet)
+        2, // message_type: Normal
+        None, // reply_to_id
+    )
+    .await?;
+
+    // Build outgoing message
+    let server_message = ServerMessage::GroupMessage {
+        id: stored_msg.id.to_string(),
+        group_id: group_id.clone(),
+        sender_id,
+        sender_username: sender_user.username.clone(),
+        content,
+        timestamp,
+    };
+
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes().into(),
+    };
+
+    // Fan out to all online group members (except sender)
+    let members = groups::list_members(&state.db, group_uuid).await?;
+    let connections = &state.connections;
+
+    for m in &members {
+        let member_user_id = UserId::from(m.user_id);
+        if member_user_id != sender_id {
+            connections
+                .send_to_user(&member_user_id, outgoing.clone())
+                .await;
+        }
+    }
+
+    // Send confirmation to sender
+    let confirmation = ServerMessage::MessageSent {
+        message_id: chai_common::MessageId::from(stored_msg.id),
+    };
+    let confirm_data = chai_protocol::json::encode_server_message(&confirmation)?;
+    let confirm_outgoing = OutgoingMessage {
+        data: confirm_data.into_bytes().into(),
+    };
+    connections.send_to_user(&sender_id, confirm_outgoing).await;
+
+    tracing::debug!(
+        "User {:?} sent group message to group {} ({} members)",
+        sender_id,
+        group_id,
+        members.len()
+    );
+
+    Ok(())
+}
+
+/// Handle JoinGroup: verify membership and send confirmation.
+async fn handle_join_group(
+    state: &AppState,
+    user_id: UserId,
+    group_id: String,
+) -> Result<()> {
+    let group_uuid = Uuid::parse_str(&group_id)
+        .map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+
+    // Verify membership
+    let _member = groups::get_member(&state.db, group_uuid, Uuid::from(user_id))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Not a member of this group"))?;
+
+    // Send confirmation
+    let server_message = ServerMessage::GroupJoined {
+        group_id,
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes().into(),
+    };
+
+    let connections = &state.connections;
+    connections.send_to_user(&user_id, outgoing).await;
+
+    tracing::debug!("User {:?} joined group {}", user_id, group_uuid);
+    Ok(())
+}
+
+/// Handle LeaveGroup: send confirmation (does not remove from DB).
+async fn handle_leave_group(
+    state: &AppState,
+    user_id: UserId,
+    group_id: String,
+) -> Result<()> {
+    // Send confirmation
+    let server_message = ServerMessage::GroupLeft {
+        group_id: group_id.clone(),
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes().into(),
+    };
+
+    let connections = &state.connections;
+    connections.send_to_user(&user_id, outgoing).await;
+
+    tracing::debug!("User {:?} left group view {}", user_id, group_id);
+    Ok(())
+}
+
+/// Handle group typing indicator: fan out to online group members.
+async fn handle_group_typing(
+    state: &AppState,
+    sender_id: UserId,
+    group_id: String,
+    is_typing: bool,
+) -> Result<()> {
+    let group_uuid = Uuid::parse_str(&group_id)
+        .map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+
+    // Verify membership
+    let _member = groups::get_member(&state.db, group_uuid, Uuid::from(sender_id))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Not a member of this group"))?;
+
+    // Get sender's username
+    let sender_user = users::get_by_id(&state.db, Uuid::from(sender_id))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Sender not found"))?;
+
+    let server_message = ServerMessage::GroupTypingIndicator {
+        group_id: group_id.clone(),
+        user_id: sender_id,
+        username: sender_user.username,
+        is_typing,
+    };
+    let data = chai_protocol::json::encode_server_message(&server_message)?;
+    let outgoing = OutgoingMessage {
+        data: data.into_bytes().into(),
+    };
+
+    // Fan out to all online group members (except sender)
+    let members = groups::list_members(&state.db, group_uuid).await?;
+    let connections = &state.connections;
+
+    for m in &members {
+        let member_user_id = UserId::from(m.user_id);
+        if member_user_id != sender_id {
+            connections
+                .send_to_user(&member_user_id, outgoing.clone())
+                .await;
+        }
+    }
+
+    tracing::debug!(
+        "User {:?} {} typing in group {}",
+        sender_id,
+        if is_typing { "started" } else { "stopped" },
+        group_id
     );
 
     Ok(())

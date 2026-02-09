@@ -99,6 +99,24 @@ pub enum ClientMessage {
         limit: Option<u32>,
         before: Option<MessageId>,
     },
+
+    /// Send a message to a group.
+    SendGroupMessage {
+        group_id: String,
+        content: String,
+    },
+
+    /// Subscribe to real-time updates for a group.
+    JoinGroup { group_id: String },
+
+    /// Unsubscribe from real-time updates for a group.
+    LeaveGroup { group_id: String },
+
+    /// Group typing indicator start.
+    GroupTypingStart { group_id: String },
+
+    /// Group typing indicator stop.
+    GroupTypingStop { group_id: String },
 }
 
 /// Server-to-client message types.
@@ -195,6 +213,43 @@ pub enum ServerMessage {
         ciphertext: Vec<u8>,
         message_type: MessageType,
         timestamp: i64,
+    },
+
+    /// Incoming group message.
+    GroupMessage {
+        id: String,
+        group_id: String,
+        sender_id: UserId,
+        sender_username: String,
+        content: String,
+        timestamp: i64,
+    },
+
+    /// Confirmation that user is subscribed to group updates.
+    GroupJoined { group_id: String },
+
+    /// Confirmation that user unsubscribed from group updates.
+    GroupLeft { group_id: String },
+
+    /// A member joined the group.
+    GroupMemberJoined {
+        group_id: String,
+        user_id: UserId,
+        username: String,
+    },
+
+    /// A member left the group.
+    GroupMemberLeft {
+        group_id: String,
+        user_id: UserId,
+    },
+
+    /// Group typing indicator from another user.
+    GroupTypingIndicator {
+        group_id: String,
+        user_id: UserId,
+        username: String,
+        is_typing: bool,
     },
 }
 

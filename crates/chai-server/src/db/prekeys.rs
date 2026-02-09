@@ -66,11 +66,23 @@ pub async fn get_prekey_bundle(pool: &PgPool, user_id: Uuid) -> sqlx::Result<Opt
 }
 
 /// Store one-time prekeys.
+/// Deletes all existing unused OTKs for the user first, so that freshly
+/// generated keys replace stale ones from previous connections.
 pub async fn store_one_time_prekeys(
     pool: &PgPool,
     user_id: Uuid,
     prekeys: &[(i32, Vec<u8>)],
 ) -> sqlx::Result<usize> {
+    // Remove old unused OTKs — the client is uploading a fresh batch,
+    // so any unconsumed keys from previous sessions are now invalid
+    // (the client no longer holds the corresponding private keys).
+    sqlx::query(
+        r#"DELETE FROM one_time_prekeys WHERE user_id = $1 AND used = false"#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
     let mut count = 0;
 
     for (prekey_id, prekey) in prekeys {
@@ -78,7 +90,6 @@ pub async fn store_one_time_prekeys(
             r#"
             INSERT INTO one_time_prekeys (user_id, prekey, prekey_id)
             VALUES ($1, $2, $3)
-            ON CONFLICT DO NOTHING
             "#,
         )
         .bind(user_id)

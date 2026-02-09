@@ -17,6 +17,9 @@ export const PREKEY_REPLENISH_COUNT = 20;
 export const ACTIVITY_REPORT_INTERVAL_MS = 60000; // 1 minute
 export const TYPING_TIMEOUT_MS = 5000; // Auto-clear typing after 5 seconds
 
+// File upload limits
+export const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
 // Reconnection delays in milliseconds
 export const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000] as const;
 

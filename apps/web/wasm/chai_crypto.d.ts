@@ -9,6 +9,16 @@ export class CryptoManager {
    */
   static fromBytes(data: Uint8Array): CryptoManager;
   /**
+   * Initiate a session and encrypt the first message (Prekey message).
+   * Returns PrekeyMessagePayload as bincode bytes, compatible with CLI.
+   */
+  initSessionAndEncrypt(peer_id: string, bundle_data: Uint8Array, plaintext: Uint8Array): Uint8Array;
+  /**
+   * Receive a Prekey message: establish session and decrypt.
+   * Parses PrekeyMessagePayload (bincode), establishes session, returns plaintext.
+   */
+  decryptPrekey(peer_id: string, ciphertext: Uint8Array): Uint8Array;
+  /**
    * Check if a session exists with a peer.
    */
   hasSession(peer_id: string): boolean;

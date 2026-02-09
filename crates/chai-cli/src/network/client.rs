@@ -30,7 +30,7 @@ impl Client {
         tokio::spawn(async move {
             while let Some(msg) = outgoing_rx.recv().await {
                 let data = chai_protocol::json::encode_client_message(&msg).unwrap();
-                if write.send(Message::Text(data)).await.is_err() {
+                if write.send(Message::Text(data.into())).await.is_err() {
                     break;
                 }
             }
@@ -39,7 +39,13 @@ impl Client {
         // Spawn task to receive messages
         tokio::spawn(async move {
             while let Some(Ok(msg)) = read.next().await {
-                if let Message::Text(text) = msg {
+                // Server sends JSON in both text and binary frames
+                let text = match msg {
+                    Message::Text(t) => Some(t),
+                    Message::Binary(b) => String::from_utf8(b.to_vec()).ok(),
+                    _ => None,
+                };
+                if let Some(text) = text {
                     if let Ok(server_msg) = chai_protocol::json::decode_server_message(&text) {
                         if incoming_tx.send(server_msg).await.is_err() {
                             break;

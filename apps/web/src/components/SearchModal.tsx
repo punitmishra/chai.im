@@ -4,13 +4,12 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useChatStore, Message, Conversation } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
-import { LocalAI } from '@/lib/ai/local-ai';
 
 interface SearchResult {
   message: Message;
   conversation: Conversation | undefined;
   score: number;
-  matchType: 'exact' | 'fuzzy' | 'semantic';
+  matchType: 'exact' | 'fuzzy';
 }
 
 interface SearchModalProps {
@@ -23,8 +22,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [searchMode, setSearchMode] = useState<'all' | 'semantic'>('all');
-  const [aiAvailable, setAiAvailable] = useState(false);
+  const [filterConversationId, setFilterConversationId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -32,21 +30,13 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const conversations = useChatStore((state) => state.conversations);
   const user = useAuthStore((state) => state.user);
 
-  // Check AI availability on mount
-  useEffect(() => {
-    const ai = LocalAI.getInstance();
-    ai.initialize().then(() => {
-      const caps = ai.getCapabilities();
-      setAiAvailable(caps.semanticSearch);
-    });
-  }, []);
-
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setResults([]);
       setSelectedIndex(0);
+      setFilterConversationId(null);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
@@ -90,78 +80,79 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
 
     setIsSearching(true);
-    const query = searchQuery.toLowerCase();
+    const lowerQuery = searchQuery.toLowerCase();
     const searchResults: SearchResult[] = [];
 
-    // Exact and fuzzy text search
-    for (const message of messages) {
+    // Filter messages by conversation if a filter is active
+    const messagesToSearch = filterConversationId
+      ? messages.filter((m) => m.conversationId === filterConversationId)
+      : messages;
+
+    // Text search: exact substring + fuzzy word matching
+    for (const message of messagesToSearch) {
+      // Skip encrypted placeholder messages
+      if (message.content === '[Encrypted]' || message.content === '[Failed to decrypt]') {
+        continue;
+      }
+
       const content = message.content.toLowerCase();
       const conversation = conversations.find((c) => c.id === message.conversationId);
 
-      // Exact match
-      if (content.includes(query)) {
+      // Exact substring match
+      if (content.includes(lowerQuery)) {
         searchResults.push({
           message,
           conversation,
-          score: content === query ? 1.0 : 0.8,
+          score: content === lowerQuery ? 1.0 : 0.8,
           matchType: 'exact',
         });
         continue;
       }
 
-      // Fuzzy match (words)
-      const queryWords = query.split(/\s+/);
+      // Fuzzy match (individual words)
+      const queryWords = lowerQuery.split(/\s+/).filter(Boolean);
       const matchedWords = queryWords.filter((word) => content.includes(word));
       if (matchedWords.length > 0) {
         searchResults.push({
           message,
           conversation,
-          score: matchedWords.length / queryWords.length * 0.6,
+          score: (matchedWords.length / queryWords.length) * 0.6,
           matchType: 'fuzzy',
         });
       }
     }
 
-    // Semantic search if enabled and available
-    if (searchMode === 'semantic' && aiAvailable) {
-      try {
-        const ai = LocalAI.getInstance();
-        const messagesForAI = messages.map((m) => ({
-          id: m.id,
-          content: m.content,
-          sender: m.senderId === user?.id ? 'You' : 'Other',
-          timestamp: new Date(m.timestamp),
-          isOwn: m.senderId === user?.id,
-        }));
-
-        const semanticResults = await ai.semanticSearch(searchQuery, messagesForAI, 10);
-
-        for (const result of semanticResults) {
-          const message = messages.find((m) => m.id === result.messageId);
-          if (message) {
-            const conversation = conversations.find((c) => c.id === message.conversationId);
-            // Only add if not already in results
-            if (!searchResults.some((r) => r.message.id === message.id)) {
-              searchResults.push({
-                message,
-                conversation,
-                score: result.score * 0.7, // Weight semantic slightly lower
-                matchType: 'semantic',
-              });
-            }
-          }
+    // Also search conversation names for navigation
+    if (!filterConversationId) {
+      for (const conv of conversations) {
+        if (conv.name.toLowerCase().includes(lowerQuery)) {
+          // Add a virtual result that navigates to the conversation
+          searchResults.push({
+            message: {
+              id: `conv-${conv.id}`,
+              conversationId: conv.id,
+              senderId: '',
+              content: conv.lastMessage || 'Open conversation',
+              timestamp: conv.lastMessageTime || Date.now(),
+              status: 'delivered',
+            },
+            conversation: conv,
+            score: 0.9,
+            matchType: 'exact',
+          });
         }
-      } catch (error) {
-        console.error('Semantic search failed:', error);
       }
     }
 
-    // Sort by score and limit results
-    searchResults.sort((a, b) => b.score - a.score);
-    setResults(searchResults.slice(0, 20));
+    // Sort by score (descending), then by timestamp (most recent first)
+    searchResults.sort((a, b) => {
+      if (Math.abs(a.score - b.score) > 0.1) return b.score - a.score;
+      return b.message.timestamp - a.message.timestamp;
+    });
+    setResults(searchResults.slice(0, 30));
     setSelectedIndex(0);
     setIsSearching(false);
-  }, [messages, conversations, searchMode, aiAvailable, user?.id]);
+  }, [messages, conversations, filterConversationId]);
 
   // Debounced search
   useEffect(() => {
@@ -241,30 +232,34 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </kbd>
         </div>
 
-        {/* Search mode toggle */}
-        {aiAvailable && (
-          <div className="flex items-center gap-2 px-5 py-2 border-b border-zinc-800/50 bg-zinc-900/50">
-            <span className="text-xs text-zinc-500">Mode:</span>
+        {/* Conversation filter */}
+        {conversations.length > 1 && (
+          <div className="flex items-center gap-2 px-5 py-2 border-b border-zinc-800/50 bg-zinc-900/50 overflow-x-auto">
+            <span className="text-xs text-zinc-500 flex-shrink-0">In:</span>
             <button
-              onClick={() => setSearchMode('all')}
-              className={`px-2 py-1 text-xs rounded-lg transition-colors ${
-                searchMode === 'all'
+              onClick={() => setFilterConversationId(null)}
+              className={`px-2 py-1 text-xs rounded-lg transition-colors flex-shrink-0 ${
+                !filterConversationId
                   ? 'bg-amber-500/20 text-amber-400'
                   : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              Text
+              All
             </button>
-            <button
-              onClick={() => setSearchMode('semantic')}
-              className={`px-2 py-1 text-xs rounded-lg transition-colors ${
-                searchMode === 'semantic'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              Semantic (AI)
-            </button>
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => setFilterConversationId(conv.id)}
+                className={`px-2 py-1 text-xs rounded-lg transition-colors flex-shrink-0 truncate max-w-[120px] ${
+                  filterConversationId === conv.id
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title={conv.name}
+              >
+                {conv.name}
+              </button>
+            ))}
           </div>
         )}
 
@@ -290,19 +285,24 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-4 mb-1">
-                    <span className="font-medium text-white truncate">
-                      {result.conversation?.name || 'Unknown'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {result.matchType === 'semantic' && (
-                        <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/20 text-purple-400 rounded">
-                          AI
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium text-white truncate">
+                        {result.conversation?.name || 'Unknown'}
+                      </span>
+                      {result.message.senderId && result.message.senderId !== user?.id && (
+                        <span className="text-xs text-zinc-500 flex-shrink-0">
+                          from {result.message.senderId === result.conversation?.recipientId
+                            ? result.conversation?.name
+                            : 'them'}
                         </span>
                       )}
-                      <span className="text-xs text-zinc-500">
-                        {formatTimestamp(result.message.timestamp)}
-                      </span>
+                      {result.message.senderId === user?.id && (
+                        <span className="text-xs text-zinc-500 flex-shrink-0">you</span>
+                      )}
                     </div>
+                    <span className="text-xs text-zinc-500 flex-shrink-0">
+                      {formatTimestamp(result.message.timestamp)}
+                    </span>
                   </div>
                   <p className="text-sm text-zinc-400 truncate">
                     {highlightMatch(result.message.content, query)}

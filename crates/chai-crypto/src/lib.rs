@@ -21,7 +21,7 @@ pub use cipher::{decrypt, encrypt};
 pub use error::CryptoError;
 pub use keys::{IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
 pub use ratchet::DoubleRatchet;
-pub use session::{Session, SessionManager};
+pub use session::{PrekeyMessagePayload, Session, SessionManager};
 pub use x3dh::{X3DHReceiver, X3DHSender};
 
 /// Result type for cryptographic operations.

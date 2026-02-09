@@ -2,6 +2,7 @@
 
 pub mod auth;
 pub mod contacts;
+pub mod files;
 pub mod groups;
 pub mod health;
 pub mod identity_auth;

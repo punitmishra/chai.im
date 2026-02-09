@@ -60,6 +60,11 @@ async fn run_app<B: ratatui::backend::Backend>(
     loop {
         terminal.draw(|f| tui::ui::draw(f, app))?;
 
+        // Check quit flag
+        if app.should_quit {
+            return Ok(());
+        }
+
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {

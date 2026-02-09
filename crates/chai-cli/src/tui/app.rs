@@ -1,11 +1,14 @@
-//! Application state with typing indicators, read receipts, and auth.
+//! Application state with typing indicators, read receipts, auth, and E2E encryption.
 
 use crate::auth;
 use crate::config::Config;
 use crate::network::client::Client;
 use anyhow::Result;
 use chai_common::{uuid, ConversationId, MessageId, UserId};
-use chai_protocol::{ClientMessage, MessageType, ServerMessage};
+use chai_crypto::session::{EncryptedMessage, PrekeyMessagePayload, Session};
+use chai_crypto::x3dh::X3DHInitialMessage;
+use chai_crypto::{IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
+use chai_protocol::{ClientMessage, MessageType, PrekeyBundleData, ServerMessage};
 use crossterm::event::{KeyCode, KeyEvent};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -133,6 +136,26 @@ pub struct App {
     pub auth_error: Option<String>,
     /// Auth is in progress.
     pub auth_loading: bool,
+    /// Our identity keypair for crypto.
+    identity: Option<IdentityKeyPair>,
+    /// Our signed prekey for receiving sessions.
+    signed_prekey: Option<SignedPreKey>,
+    /// Our one-time prekeys.
+    one_time_prekeys: Vec<OneTimePreKey>,
+    /// Active encrypted sessions per peer (keyed by user_id string).
+    sessions: HashMap<String, Session>,
+    /// Pending prekey requests (peer_id -> message to send after bundle received).
+    pending_prekey_requests: HashMap<String, String>,
+    /// Pending X3DH initial messages (peer_id -> initial_message, stored until first send).
+    pending_initial_messages: HashMap<String, X3DHInitialMessage>,
+    /// Next one-time prekey ID.
+    next_prekey_id: u32,
+    /// Flag: user requested connect (handled in async tick).
+    wants_connect: bool,
+    /// Flag: user requested a chat with a username (needs async lookup).
+    pending_chat_lookup: Option<String>,
+    /// Flag: user requested quit.
+    pub should_quit: bool,
 }
 
 impl App {
@@ -144,6 +167,19 @@ impl App {
             (Screen::Chat, "Ready to connect. Press ':c' to connect".into())
         } else {
             (Screen::Welcome, "Welcome to Chai! Press 'r' to register or 'l' to login".into())
+        };
+
+        // Initialize crypto from stored identity
+        let identity = config.get_identity();
+        let (signed_prekey, one_time_prekeys) = if let Some(ref id) = identity {
+            let spk = SignedPreKey::generate(1, id);
+            let mut otks = Vec::new();
+            for i in 1..=10 {
+                otks.push(OneTimePreKey::generate(i));
+            }
+            (Some(spk), otks)
+        } else {
+            (None, Vec::new())
         };
 
         Self {
@@ -167,6 +203,16 @@ impl App {
             auth_mnemonic: String::new(),
             auth_error: None,
             auth_loading: false,
+            identity,
+            signed_prekey,
+            one_time_prekeys,
+            sessions: HashMap::new(),
+            pending_prekey_requests: HashMap::new(),
+            pending_initial_messages: HashMap::new(),
+            next_prekey_id: 11, // Start after initial 10
+            wants_connect: false,
+            pending_chat_lookup: None,
+            should_quit: false,
         }
     }
 
@@ -208,13 +254,16 @@ impl App {
         self.status = "Connecting...".into();
 
         // Build WebSocket URL with token
-        let ws_url = format!("{}?token={}", self.config.server_url, token);
+        let ws_url = format!("{}?token={}", self.config.ws_url, token);
 
         match Client::connect(&ws_url).await {
             Ok(client) => {
-                self.client = Some(client);
+                self.client = Some(client.clone());
                 self.connected = true;
                 self.status = "Connected ●".into();
+
+                // Upload prekey bundle after connecting
+                self.upload_prekeys(&client).await;
             }
             Err(e) => {
                 self.status = format!("Connection failed: {}", e);
@@ -222,6 +271,46 @@ impl App {
         }
 
         Ok(())
+    }
+
+    /// Upload prekey bundle to the server.
+    async fn upload_prekeys(&mut self, client: &Client) {
+        let Some(ref identity) = self.identity else {
+            return;
+        };
+        let Some(ref spk) = self.signed_prekey else {
+            return;
+        };
+
+        // Create prekey bundle data for protocol
+        let bundle = PrekeyBundleData {
+            identity_key: identity.public_key().to_bytes().to_vec(),
+            signed_prekey: spk.public_key().to_bytes().to_vec(),
+            signed_prekey_signature: spk.signature.clone(),
+            signed_prekey_id: spk.id,
+            one_time_prekey: self.one_time_prekeys.first().map(|k| k.public_key().to_bytes().to_vec()),
+            one_time_prekey_id: self.one_time_prekeys.first().map(|k| k.id),
+        };
+
+        let msg = ClientMessage::UploadPrekeyBundle { bundle };
+        let _ = client.send(msg).await;
+
+        // Also upload batch of one-time prekeys
+        let otks: Vec<chai_protocol::OneTimePrekey> = self
+            .one_time_prekeys
+            .iter()
+            .map(|k| chai_protocol::OneTimePrekey {
+                id: k.id,
+                key: k.public_key().to_bytes().to_vec(),
+            })
+            .collect();
+
+        if !otks.is_empty() {
+            let msg = ClientMessage::UploadOneTimePrekeys { prekeys: otks };
+            let _ = client.send(msg).await;
+        }
+
+        self.status = "Connected ● (keys uploaded)".into();
     }
 
     /// Disconnect from the server.
@@ -232,6 +321,10 @@ impl App {
         }
         self.client = None;
         self.connected = false;
+        // Clear crypto sessions — they're tied to the old connection's keys
+        self.sessions.clear();
+        self.pending_prekey_requests.clear();
+        self.pending_initial_messages.clear();
         self.status = "Disconnected".into();
     }
 
@@ -426,6 +519,7 @@ impl App {
         match key.code {
             KeyCode::Esc => {
                 self.input_mode = InputMode::Normal;
+                self.cursor_position = self.input.len();
                 // Send typing stop when exiting edit mode
                 if self.is_typing {
                     self.send_typing_stop();
@@ -441,15 +535,23 @@ impl App {
                 }
             }
             KeyCode::Char(c) => {
-                self.input.insert(self.cursor_position, c);
-                self.cursor_position += 1;
+                // Clamp cursor to valid position
+                let pos = self.cursor_position.min(self.input.len());
+                self.input.insert(pos, c);
+                self.cursor_position = pos + c.len_utf8();
                 // Send typing indicator
                 self.maybe_send_typing_start();
             }
             KeyCode::Backspace => {
                 if self.cursor_position > 0 {
-                    self.cursor_position -= 1;
-                    self.input.remove(self.cursor_position);
+                    // Find previous char boundary
+                    let prev = self.input[..self.cursor_position]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
+                    self.input.remove(prev);
+                    self.cursor_position = prev;
                 }
                 // If input is now empty, send typing stop
                 if self.input.is_empty() && self.is_typing {
@@ -463,12 +565,22 @@ impl App {
             }
             KeyCode::Left => {
                 if self.cursor_position > 0 {
-                    self.cursor_position -= 1;
+                    // Move to previous char boundary
+                    self.cursor_position = self.input[..self.cursor_position]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
                 }
             }
             KeyCode::Right => {
                 if self.cursor_position < self.input.len() {
-                    self.cursor_position += 1;
+                    // Move to next char boundary
+                    self.cursor_position = self.input[self.cursor_position..]
+                        .char_indices()
+                        .nth(1)
+                        .map(|(i, _)| self.cursor_position + i)
+                        .unwrap_or(self.input.len());
                 }
             }
             KeyCode::Home => {
@@ -486,20 +598,28 @@ impl App {
             KeyCode::Esc => {
                 self.input_mode = InputMode::Normal;
                 self.input.clear();
+                self.cursor_position = 0;
             }
             KeyCode::Enter => {
                 self.execute_command();
                 self.input_mode = InputMode::Normal;
                 self.input.clear();
+                self.cursor_position = 0;
             }
             KeyCode::Char(c) => {
-                self.input.insert(self.cursor_position, c);
-                self.cursor_position += 1;
+                let pos = self.cursor_position.min(self.input.len());
+                self.input.insert(pos, c);
+                self.cursor_position = pos + c.len_utf8();
             }
             KeyCode::Backspace => {
                 if self.cursor_position > 0 {
-                    self.cursor_position -= 1;
-                    self.input.remove(self.cursor_position);
+                    let prev = self.input[..self.cursor_position]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
+                    self.input.remove(prev);
+                    self.cursor_position = prev;
                 }
             }
             _ => {}
@@ -657,19 +777,99 @@ impl App {
                 .strip_prefix("conv_")
                 .and_then(|s| uuid::Uuid::parse_str(s).ok())
                 .unwrap_or_else(uuid::Uuid::nil);
+            let peer_id = recipient_uuid.to_string();
 
-            // For now, send as plaintext - TODO: encrypt with Signal Protocol
-            let msg = ClientMessage::SendMessage {
-                recipient_id: UserId(recipient_uuid),
-                conversation_id: ConversationId(recipient_uuid),
-                ciphertext: content.into_bytes(),
-                message_type: MessageType::Normal,
-            };
+            // Check if we have a session with this peer
+            if let Some(session) = self.sessions.get_mut(&peer_id) {
+                // Encrypt with existing session
+                match session.encrypt(content.as_bytes()) {
+                    Ok(encrypted) => {
+                        match encrypted.to_bytes() {
+                            Ok(ciphertext) => {
+                                let msg = ClientMessage::SendMessage {
+                                    recipient_id: UserId(recipient_uuid),
+                                    conversation_id: ConversationId(recipient_uuid),
+                                    ciphertext,
+                                    message_type: MessageType::Normal,
+                                };
+                                let client = client.clone();
+                                tokio::spawn(async move {
+                                    let _ = client.send(msg).await;
+                                });
+                                self.status = "Secure message sent".into();
+                            }
+                            Err(e) => {
+                                self.status = format!("Serialization failed: {:?}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        self.status = format!("Encryption failed: {:?}", e);
+                    }
+                }
+            } else {
+                // No session - request prekey bundle and queue message
+                self.pending_prekey_requests
+                    .insert(peer_id.clone(), content);
+                self.status = "Requesting keys...".into();
 
-            let client = client.clone();
-            tokio::spawn(async move {
-                let _ = client.send(msg).await;
-            });
+                let msg = ClientMessage::GetPrekeyBundle {
+                    user_id: UserId(recipient_uuid),
+                };
+                let client = client.clone();
+                tokio::spawn(async move {
+                    let _ = client.send(msg).await;
+                });
+            }
+        } else {
+            self.status = "Not connected".into();
+        }
+    }
+
+    /// Send a message using an initial X3DH handshake.
+    fn send_initial_message(&mut self, peer_id: &str, content: &str, recipient_uuid: uuid::Uuid) {
+        let Some(session) = self.sessions.get_mut(peer_id) else {
+            self.status = "Session not found".into();
+            return;
+        };
+
+        // Get the stored X3DH initial message
+        let Some(initial_message) = self.pending_initial_messages.remove(peer_id) else {
+            self.status = "No X3DH initial message stored".into();
+            return;
+        };
+
+        match session.encrypt(content.as_bytes()) {
+            Ok(encrypted_message) => {
+                // Bundle the X3DH handshake + encrypted message together
+                let payload = PrekeyMessagePayload {
+                    initial_message,
+                    encrypted_message,
+                };
+                match payload.to_bytes() {
+                    Ok(ciphertext) => {
+                        let msg = ClientMessage::SendMessage {
+                            recipient_id: UserId(recipient_uuid),
+                            conversation_id: ConversationId(recipient_uuid),
+                            ciphertext,
+                            message_type: MessageType::Prekey,
+                        };
+                        if let Some(client) = &self.client {
+                            let client = client.clone();
+                            tokio::spawn(async move {
+                                let _ = client.send(msg).await;
+                            });
+                        }
+                        self.status = "Secure message sent".into();
+                    }
+                    Err(e) => {
+                        self.status = format!("Serialization failed: {:?}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                self.status = format!("Encryption failed: {:?}", e);
+            }
         }
     }
 
@@ -677,10 +877,11 @@ impl App {
         let cmd = self.input.trim().to_string();
         match cmd.as_str() {
             "q" | "quit" => {
-                // Will be handled by main loop
+                self.should_quit = true;
             }
             "connect" | "c" => {
                 if self.config.is_authenticated() {
+                    self.wants_connect = true;
                     self.status = "Connecting...".into();
                 } else {
                     self.status = "Not logged in. Use :logout to switch accounts".into();
@@ -701,9 +902,16 @@ impl App {
                     ":c connect | :dc disconnect | :chat <user> | :logout | :q quit".into();
             }
             _ if cmd.starts_with("chat ") => {
-                let username = cmd.strip_prefix("chat ").unwrap().trim();
-                if !username.is_empty() {
-                    self.start_conversation(username.to_string());
+                let target = cmd.strip_prefix("chat ").unwrap().trim();
+                if !target.is_empty() {
+                    // If it looks like a UUID, use it directly
+                    if uuid::Uuid::parse_str(target).is_ok() {
+                        self.start_conversation_with_id(target.to_string(), target.to_string());
+                    } else {
+                        // Need to resolve username to user_id
+                        self.pending_chat_lookup = Some(target.to_string());
+                        self.status = format!("Looking up user '{}'...", target);
+                    }
                 }
             }
             _ => {
@@ -712,16 +920,18 @@ impl App {
         }
     }
 
-    /// Start a new conversation with a user.
-    fn start_conversation(&mut self, username: String) {
-        if let Some(idx) = self.conversations.iter().position(|c| c.name == username) {
+    /// Start a new conversation with a user by user_id.
+    fn start_conversation_with_id(&mut self, user_id: String, display_name: String) {
+        // Check if conversation already exists for this user_id
+        let conv_id = format!("conv_{}", user_id);
+        if let Some(idx) = self.conversations.iter().position(|c| c.id == conv_id) {
             self.selected_conversation = idx;
             return;
         }
 
         let conv = Conversation {
-            id: format!("conv_{}", username),
-            name: username.clone(),
+            id: conv_id,
+            name: display_name.clone(),
             last_message: None,
             unread_count: 0,
             online: false,
@@ -730,7 +940,20 @@ impl App {
 
         self.conversations.push(conv);
         self.selected_conversation = self.conversations.len() - 1;
-        self.status = format!("Chat with {}", username);
+        self.status = format!("Chat with {}", display_name);
+
+        // Subscribe to presence for this user
+        if let Ok(user_uuid) = uuid::Uuid::parse_str(&user_id) {
+            if let Some(client) = &self.client {
+                let msg = ClientMessage::SubscribePresence {
+                    user_ids: vec![UserId(user_uuid)],
+                };
+                let client = client.clone();
+                tokio::spawn(async move {
+                    let _ = client.send(msg).await;
+                });
+            }
+        }
     }
 
     /// Process network events and auth.
@@ -739,6 +962,17 @@ impl App {
         if self.auth_loading {
             self.perform_auth().await;
             return Ok(());
+        }
+
+        // Handle connect request
+        if self.wants_connect {
+            self.wants_connect = false;
+            self.connect().await?;
+        }
+
+        // Handle pending username lookup
+        if let Some(username) = self.pending_chat_lookup.take() {
+            self.lookup_and_start_chat(&username).await;
         }
 
         // Clean up expired typing indicators
@@ -759,6 +993,63 @@ impl App {
             self.handle_server_message(msg);
         }
         Ok(())
+    }
+
+    /// Look up a username via the server API and start a conversation.
+    async fn lookup_and_start_chat(&mut self, username: &str) {
+        let Some(ref token) = self.config.session_token else {
+            self.status = "Not authenticated - connect first".into();
+            return;
+        };
+
+        let url = format!("{}/users/search?q={}&limit=1", self.config.server_url, username);
+        let client = reqwest::Client::new();
+        match client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                #[derive(serde::Deserialize)]
+                struct SearchResult {
+                    users: Vec<UserInfo>,
+                }
+                #[derive(serde::Deserialize)]
+                struct UserInfo {
+                    id: String,
+                    username: String,
+                }
+
+                match resp.json::<SearchResult>().await {
+                    Ok(result) => {
+                        // Find exact match
+                        if let Some(user) = result
+                            .users
+                            .iter()
+                            .find(|u| u.username == username)
+                            .or_else(|| result.users.first())
+                        {
+                            self.start_conversation_with_id(
+                                user.id.clone(),
+                                user.username.clone(),
+                            );
+                        } else {
+                            self.status = format!("User '{}' not found", username);
+                        }
+                    }
+                    Err(e) => {
+                        self.status = format!("Search failed: {}", e);
+                    }
+                }
+            }
+            Ok(resp) => {
+                self.status = format!("Search failed: HTTP {}", resp.status());
+            }
+            Err(e) => {
+                self.status = format!("Search failed: {}", e);
+            }
+        }
     }
 
     /// Perform auth operation.
@@ -785,8 +1076,21 @@ impl App {
 
         match result {
             Ok(()) => {
-                // Auth succeeded
+                // Auth succeeded - reinitialize crypto state
                 self.user_id = self.config.user_id.clone();
+                self.identity = self.config.get_identity();
+                if let Some(ref id) = self.identity {
+                    self.signed_prekey = Some(SignedPreKey::generate(1, id));
+                    self.one_time_prekeys.clear();
+                    for i in 1..=10 {
+                        self.one_time_prekeys.push(OneTimePreKey::generate(i));
+                    }
+                    self.next_prekey_id = 11;
+                }
+                self.sessions.clear();
+                self.pending_prekey_requests.clear();
+                self.pending_initial_messages.clear();
+
                 self.screen = Screen::Chat;
                 self.auth_username.clear();
                 self.auth_mnemonic.clear();
@@ -832,18 +1136,21 @@ impl App {
             ServerMessage::Message {
                 id,
                 sender_id,
-                conversation_id,
+                conversation_id: _,
                 ciphertext,
+                message_type,
                 timestamp,
-                ..
             } => {
-                let content = String::from_utf8_lossy(&ciphertext).to_string();
-                let conv_id = format!("conv_{}", conversation_id.0);
-                let sender_name = sender_id.0.to_string();
+                // Use sender_id as conversation key (1:1 chats)
+                let peer_id = sender_id.0.to_string();
+                let conv_id = format!("conv_{}", peer_id);
+
+                // Try to decrypt the message
+                let content = self.decrypt_message(&peer_id, &ciphertext, message_type);
 
                 // Clear typing indicator for this sender
                 if let Some(states) = self.typing_states.get_mut(&conv_id) {
-                    states.retain(|s| s.user_id != sender_name);
+                    states.retain(|s| s.user_id != peer_id);
                 }
 
                 // Find or create conversation
@@ -851,7 +1158,7 @@ impl App {
                 if !conv_exists {
                     self.conversations.push(Conversation {
                         id: conv_id.clone(),
-                        name: sender_name.clone(),
+                        name: peer_id.clone(), // Will be UUID until we resolve username
                         last_message: Some(content.clone()),
                         unread_count: 1,
                         online: true,
@@ -871,12 +1178,15 @@ impl App {
                 let messages = self.conversation_messages.entry(conv_id).or_default();
                 messages.push(Message {
                     id: Some(id.0.to_string()),
-                    sender: sender_name,
+                    sender: peer_id,
                     content,
                     timestamp: format_timestamp(timestamp),
                     is_self: false,
                     status: MessageStatus::Delivered,
                 });
+            }
+            ServerMessage::PrekeyBundle { user_id, bundle } => {
+                self.handle_prekey_bundle(user_id, bundle);
             }
             ServerMessage::MessageSent { message_id, .. } => {
                 // Update message status to Sent
@@ -890,11 +1200,12 @@ impl App {
             }
             ServerMessage::TypingIndicator {
                 user_id,
-                conversation_id,
+                conversation_id: _,
                 is_typing,
             } => {
-                let conv_id = format!("conv_{}", conversation_id.0);
-                let user_name = user_id.0.to_string();
+                let peer_id = user_id.0.to_string();
+                let conv_id = format!("conv_{}", peer_id);
+                let user_name = peer_id;
 
                 if is_typing {
                     // Add/refresh typing state
@@ -936,10 +1247,11 @@ impl App {
                 user_id, status, ..
             } => {
                 use chai_protocol::UserStatus;
-                let user_name = user_id.0.to_string();
+                let peer_id = user_id.0.to_string();
+                let conv_id = format!("conv_{}", peer_id);
                 let online = matches!(status, UserStatus::Active | UserStatus::Away);
                 for conv in &mut self.conversations {
-                    if conv.name == user_name {
+                    if conv.id == conv_id {
                         conv.online = online;
                     }
                 }
@@ -958,6 +1270,152 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Decrypt an incoming message.
+    fn decrypt_message(
+        &mut self,
+        peer_id: &str,
+        ciphertext: &[u8],
+        message_type: MessageType,
+    ) -> String {
+        // Handle initial prekey message (X3DH handshake)
+        if message_type == MessageType::Prekey {
+            if let Ok(payload) = PrekeyMessagePayload::from_bytes(ciphertext) {
+                // Establish session from the X3DH initial message
+                if let (Some(ref identity), Some(ref spk)) =
+                    (self.identity.clone(), self.signed_prekey.clone())
+                {
+                    match Session::receive(
+                        &identity,
+                        &spk,
+                        &mut self.one_time_prekeys,
+                        peer_id.to_string(),
+                        &payload.initial_message,
+                    ) {
+                        Ok(mut session) => {
+                            match session.decrypt(&payload.encrypted_message) {
+                                Ok(plaintext) => {
+                                    self.sessions.insert(peer_id.to_string(), session);
+                                    self.status = "Secure session established".into();
+                                    return String::from_utf8_lossy(&plaintext).to_string();
+                                }
+                                Err(e) => {
+                                    self.status =
+                                        format!("Decrypt failed (prekey): {:?}", e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            self.status = format!("Session receive failed: {:?}", e);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try to decrypt with existing session (Normal messages)
+        if let Some(session) = self.sessions.get_mut(peer_id) {
+            if let Ok(encrypted) = EncryptedMessage::from_bytes(ciphertext) {
+                if let Ok(plaintext) = session.decrypt(&encrypted) {
+                    return String::from_utf8_lossy(&plaintext).to_string();
+                }
+            }
+        }
+
+        // Fallback: try as valid UTF-8 plaintext, otherwise show placeholder
+        match String::from_utf8(ciphertext.to_vec()) {
+            Ok(s) if s.chars().all(|c| !c.is_control() || c == '\n') => s,
+            _ => "[encrypted message]".to_string(),
+        }
+    }
+
+    /// Handle received prekey bundle and initialize session.
+    fn handle_prekey_bundle(&mut self, user_id: UserId, bundle: Option<PrekeyBundleData>) {
+        let peer_id = user_id.0.to_string();
+
+        let Some(bundle_data) = bundle else {
+            self.status = format!("No prekey bundle available for user");
+            self.pending_prekey_requests.remove(&peer_id);
+            return;
+        };
+
+        let Some(ref identity) = self.identity else {
+            self.status = "No identity key available".into();
+            return;
+        };
+
+        // Convert bundle data to PreKeyBundle
+        match self.create_prekey_bundle(&bundle_data) {
+            Ok(prekey_bundle) => {
+                // Initialize session with X3DH
+                match Session::initiate(identity, peer_id.clone(), &prekey_bundle) {
+                    Ok((session, initial_message)) => {
+                        self.sessions.insert(peer_id.clone(), session);
+                        self.pending_initial_messages
+                            .insert(peer_id.clone(), initial_message);
+                        self.status = "Secure channel established".into();
+
+                        // Send any pending message
+                        if let Some(content) = self.pending_prekey_requests.remove(&peer_id) {
+                            let recipient_uuid =
+                                uuid::Uuid::parse_str(&peer_id).unwrap_or_else(|_| uuid::Uuid::nil());
+                            self.send_initial_message(&peer_id, &content, recipient_uuid);
+                        }
+                    }
+                    Err(e) => {
+                        self.status = format!("Session init failed: {:?}", e);
+                        self.pending_prekey_requests.remove(&peer_id);
+                    }
+                }
+            }
+            Err(e) => {
+                self.status = format!("Invalid prekey bundle: {}", e);
+                self.pending_prekey_requests.remove(&peer_id);
+            }
+        }
+    }
+
+    /// Convert protocol bundle data to crypto PreKeyBundle.
+    fn create_prekey_bundle(&self, data: &PrekeyBundleData) -> Result<PreKeyBundle> {
+        use chai_crypto::keys::IdentityPublicKey;
+
+        // Parse identity key (Ed25519)
+        let identity_bytes: [u8; 32] = data
+            .identity_key
+            .clone()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid identity key length"))?;
+        let identity_key = IdentityPublicKey::from_bytes(&identity_bytes)
+            .map_err(|e| anyhow::anyhow!("Invalid identity key: {:?}", e))?;
+
+        // Parse signed prekey (X25519) - already [u8; 32]
+        let signed_prekey: [u8; 32] = data
+            .signed_prekey
+            .clone()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid signed prekey length"))?;
+
+        // Parse optional one-time prekey
+        let one_time_prekey: Option<[u8; 32]> = if let Some(ref otk_bytes) = data.one_time_prekey {
+            Some(
+                otk_bytes
+                    .clone()
+                    .try_into()
+                    .map_err(|_| anyhow::anyhow!("Invalid one-time prekey length"))?,
+            )
+        } else {
+            None
+        };
+
+        Ok(PreKeyBundle {
+            identity_key,
+            signed_prekey,
+            signed_prekey_signature: data.signed_prekey_signature.clone(),
+            signed_prekey_id: data.signed_prekey_id,
+            one_time_prekey,
+            one_time_prekey_id: data.one_time_prekey_id,
+        })
     }
 }
 

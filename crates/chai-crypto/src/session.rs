@@ -112,6 +112,27 @@ impl EncryptedMessage {
     }
 }
 
+/// Payload for a prekey (initial) message.
+/// Bundles the X3DH handshake data with the first encrypted message so the
+/// receiver can establish the session and decrypt in one step.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrekeyMessagePayload {
+    pub initial_message: X3DHInitialMessage,
+    pub encrypted_message: EncryptedMessage,
+}
+
+impl PrekeyMessagePayload {
+    /// Serialize for transmission.
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        bincode::serialize(self).map_err(|e| CryptoError::SerializationError(e.to_string()))
+    }
+
+    /// Deserialize from bytes.
+    pub fn from_bytes(data: &[u8]) -> Result<Self> {
+        bincode::deserialize(data).map_err(|e| CryptoError::DeserializationError(e.to_string()))
+    }
+}
+
 /// Manages multiple sessions with different peers.
 pub struct SessionManager {
     /// Our identity key pair.
@@ -242,6 +263,53 @@ impl SessionManager {
         session.decrypt(message)
     }
 
+    /// Initiate a session with a peer and encrypt the first message.
+    /// Returns the PrekeyMessagePayload bytes (bincode format) compatible
+    /// with both CLI and web clients.
+    pub fn initiate_and_encrypt(
+        &mut self,
+        peer_id: String,
+        their_bundle: &PreKeyBundle,
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>> {
+        let (mut session, initial_message) =
+            Session::initiate(&self.identity, peer_id.clone(), their_bundle)?;
+
+        let encrypted_message = session.encrypt(plaintext)?;
+        self.sessions.insert(peer_id, session);
+
+        let payload = PrekeyMessagePayload {
+            initial_message,
+            encrypted_message,
+        };
+
+        payload.to_bytes()
+    }
+
+    /// Receive a prekey message: establish session and decrypt.
+    /// Parses PrekeyMessagePayload (bincode format), establishes the session,
+    /// and returns the decrypted plaintext.
+    pub fn receive_and_decrypt(
+        &mut self,
+        peer_id: String,
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>> {
+        let payload = PrekeyMessagePayload::from_bytes(ciphertext)?;
+
+        let session = Session::receive(
+            &self.identity,
+            &self.signed_prekey,
+            &mut self.one_time_prekeys,
+            peer_id.clone(),
+            &payload.initial_message,
+        )?;
+
+        self.sessions.insert(peer_id.clone(), session);
+
+        let session = self.sessions.get_mut(&peer_id).unwrap();
+        session.decrypt(&payload.encrypted_message)
+    }
+
     /// Export identity key bytes.
     pub fn identity_bytes(&self) -> [u8; 32] {
         self.identity.to_bytes()
@@ -264,7 +332,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "X3DH identity_dh_with uses placeholder random keys - needs proper Ed25519→X25519 conversion"]
     fn test_session_manager_flow() {
         // Alice creates a session manager
         let mut alice = SessionManager::new();
@@ -297,6 +364,63 @@ mod tests {
 
         // Alice decrypts
         let decrypted_reply = alice.decrypt("bob", &encrypted_reply).unwrap();
+        assert_eq!(reply.as_slice(), decrypted_reply.as_slice());
+    }
+
+    #[test]
+    fn test_prekey_message_payload_flow() {
+        // This test mimics the real TUI↔Bot flow:
+        // 1. Sender gets receiver's PreKeyBundle
+        // 2. Sender initiates session, encrypts, bundles into PrekeyMessagePayload
+        // 3. Payload is serialized → deserialized (simulating network)
+        // 4. Receiver parses payload, establishes session, decrypts
+
+        let bob_identity = IdentityKeyPair::generate();
+        let bob_spk = SignedPreKey::generate(1, &bob_identity);
+        let mut bob_otps = vec![OneTimePreKey::generate(1), OneTimePreKey::generate(2)];
+
+        let bob_bundle = crate::keys::PreKeyBundle::new(
+            &bob_identity,
+            &bob_spk,
+            bob_otps.first(),
+        );
+
+        // Alice initiates
+        let alice_identity = IdentityKeyPair::generate();
+        let (mut alice_session, initial_message) =
+            Session::initiate(&alice_identity, "bob".into(), &bob_bundle).unwrap();
+
+        // Alice encrypts and bundles
+        let plaintext = b"Hello from Alice!";
+        let encrypted_message = alice_session.encrypt(plaintext).unwrap();
+        let payload = PrekeyMessagePayload {
+            initial_message,
+            encrypted_message,
+        };
+
+        // Serialize → Deserialize (network simulation)
+        let wire_bytes = payload.to_bytes().unwrap();
+        let received = PrekeyMessagePayload::from_bytes(&wire_bytes).unwrap();
+
+        // Bob receives
+        let mut bob_session = Session::receive(
+            &bob_identity,
+            &bob_spk,
+            &mut bob_otps,
+            "alice".into(),
+            &received.initial_message,
+        )
+        .unwrap();
+
+        let decrypted = bob_session.decrypt(&received.encrypted_message).unwrap();
+        assert_eq!(plaintext.as_slice(), decrypted.as_slice());
+
+        // Bob replies (Normal message, no payload wrapper needed)
+        let reply = b"Hello from Bob!";
+        let encrypted_reply = bob_session.encrypt(reply).unwrap();
+        let reply_bytes = encrypted_reply.to_bytes().unwrap();
+        let received_reply = EncryptedMessage::from_bytes(&reply_bytes).unwrap();
+        let decrypted_reply = alice_session.decrypt(&received_reply).unwrap();
         assert_eq!(reply.as_slice(), decrypted_reply.as_slice());
     }
 }
