@@ -30,7 +30,7 @@ impl Client {
         tokio::spawn(async move {
             while let Some(msg) = outgoing_rx.recv().await {
                 let data = chai_protocol::json::encode_client_message(&msg).unwrap();
-                if write.send(Message::Text(data.into())).await.is_err() {
+                if write.send(Message::Text(data)).await.is_err() {
                     break;
                 }
             }

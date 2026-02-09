@@ -1282,8 +1282,8 @@ impl App {
                     (self.identity.clone(), self.signed_prekey.clone())
                 {
                     match Session::receive(
-                        &identity,
-                        &spk,
+                        identity,
+                        spk,
                         &mut self.one_time_prekeys,
                         peer_id.to_string(),
                         &payload.initial_message,
@@ -1327,7 +1327,7 @@ impl App {
         let peer_id = user_id.0.to_string();
 
         let Some(bundle_data) = bundle else {
-            self.status = format!("No prekey bundle available for user");
+            self.status = "No prekey bundle available for user".to_string();
             self.pending_prekey_requests.remove(&peer_id);
             return;
         };

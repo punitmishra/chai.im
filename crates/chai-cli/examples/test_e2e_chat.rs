@@ -98,7 +98,7 @@ async fn ws_send(
     msg: ClientMessage,
 ) -> anyhow::Result<()> {
     let text = json::encode_client_message(&msg).map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    sink.send(Message::Text(text.into())).await?;
+    sink.send(Message::Text(text)).await?;
     Ok(())
 }
 
