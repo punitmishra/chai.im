@@ -46,6 +46,7 @@ struct ChallengeRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ChallengeResponse {
     challenge: Vec<u8>,
     expires_at: i64,
