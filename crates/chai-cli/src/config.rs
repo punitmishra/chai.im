@@ -10,8 +10,10 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Server base URL (for API requests).
+    #[serde(default = "default_server_url")]
     pub server_url: String,
     /// WebSocket URL (for real-time messaging).
+    #[serde(default = "default_ws_url")]
     pub ws_url: String,
     /// Username.
     pub username: Option<String>,
@@ -28,6 +30,14 @@ pub struct Config {
     pub theme: Theme,
 }
 
+fn default_server_url() -> String {
+    "https://chai-server.fly.dev".into()
+}
+
+fn default_ws_url() -> String {
+    "wss://chai-server.fly.dev/ws".into()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Theme {
     /// Primary color.
@@ -41,8 +51,8 @@ pub struct Theme {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            server_url: "http://localhost:8080".into(),
-            ws_url: "ws://localhost:8080/ws".into(),
+            server_url: "https://chai-server.fly.dev".into(),
+            ws_url: "wss://chai-server.fly.dev/ws".into(),
             username: None,
             user_id: None,
             session_token: None,
@@ -78,7 +88,19 @@ impl Config {
         if let Some(path) = Self::config_path() {
             if path.exists() {
                 let content = std::fs::read_to_string(&path)?;
-                let config: Config = toml::from_str(&content)?;
+                let mut config: Config = toml::from_str(&content)?;
+
+                // Migrate: if server_url looks like a ws:// URL, fix it
+                if config.server_url.starts_with("ws://") || config.server_url.starts_with("wss://")
+                {
+                    config.ws_url = config.server_url.clone();
+                    config.server_url = config
+                        .ws_url
+                        .replace("ws://", "http://")
+                        .replace("wss://", "https://")
+                        .replace("/ws", "");
+                }
+
                 return Ok(config);
             }
         }

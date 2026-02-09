@@ -5,6 +5,7 @@ import { Message, useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { getWebSocketClient } from '@/lib/ws/client';
 import { MessageContent } from './MessageContent';
+import { AttachmentDisplay } from './AttachmentDisplay';
 import { ReactionPicker } from '@/components/ReactionPicker';
 
 interface MessageBubbleProps {
@@ -285,6 +286,11 @@ export function MessageBubble({
         >
           {/* Message content with markdown */}
           <MessageContent content={message.content} isSelf={isSelf} />
+
+          {/* File attachments */}
+          {message.attachments && message.attachments.length > 0 && (
+            <AttachmentDisplay attachments={message.attachments} isSelf={isSelf} />
+          )}
 
           {/* Timestamp and status */}
           <div className="mt-2 flex items-center gap-2">

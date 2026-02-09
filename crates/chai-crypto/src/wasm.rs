@@ -185,6 +185,31 @@ impl CryptoManager {
             .map_err(|e| JsValue::from_str(&format!("Decryption failed: {}", e)))
     }
 
+    /// Initiate a session and encrypt the first message (Prekey message).
+    /// Returns PrekeyMessagePayload as bincode bytes, compatible with CLI.
+    #[wasm_bindgen(js_name = initSessionAndEncrypt)]
+    pub fn init_session_and_encrypt(
+        &mut self,
+        peer_id: &str,
+        bundle_data: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, JsValue> {
+        let bundle = parse_prekey_bundle(bundle_data).map_err(|e| JsValue::from_str(&e))?;
+
+        self.inner
+            .initiate_and_encrypt(peer_id.to_string(), &bundle, plaintext)
+            .map_err(|e| JsValue::from_str(&format!("initiate_and_encrypt failed: {}", e)))
+    }
+
+    /// Receive a Prekey message: establish session and decrypt.
+    /// Parses PrekeyMessagePayload (bincode), establishes session, returns plaintext.
+    #[wasm_bindgen(js_name = decryptPrekey)]
+    pub fn decrypt_prekey(&mut self, peer_id: &str, ciphertext: &[u8]) -> Result<Vec<u8>, JsValue> {
+        self.inner
+            .receive_and_decrypt(peer_id.to_string(), ciphertext)
+            .map_err(|e| JsValue::from_str(&format!("receive_and_decrypt failed: {}", e)))
+    }
+
     /// Check if a session exists with a peer.
     #[wasm_bindgen(js_name = hasSession)]
     pub fn has_session(&self, peer_id: &str) -> bool {

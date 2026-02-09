@@ -283,17 +283,34 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl/lib/pkgconfig"
 
 Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
-## Development Session Checkpoint (Dec 28, 2025)
+## Development Session Checkpoint (Feb 8, 2026)
 
 ### Latest Session Summary
 
-Launch page with waitlist signup deployed to production. Backend on Fly.io, frontend on Vercel. All systems operational.
+Major feature sprint: group chat WebSocket protocol, message search improvements, file attachment infrastructure, and CLI clippy fixes. All CI passing. PR #31 open.
+
+### Screenshots
+
+Feature screenshots captured in `docs/screenshots/`:
+
+| Screenshot | Description |
+|-----------|-------------|
+| `01-landing-page.png` | Landing page with countdown, encryption demo, waitlist signup |
+| `02-register.png` | Account registration with username + security key steps |
+| `03-login.png` | Login with Security Key or Recovery Phrase options |
+| `04-chat-layout.png` | Chat interface layout (requires auth) |
+| `05-new-chat.png` | New conversation view (requires auth) |
+| `06-mobile-landing.png` | Mobile-responsive landing page (390x844) |
 
 ### Merged PRs (This Session)
+- **PR #31**: Group chat WS handlers, message search improvements, file attachments (pending merge)
+- **PR #26**: CLI identity key authentication with TUI screens ✅
+- **PR #24**: Passwordless authentication feature ✅
+- **PR #23**: Chai.im feature development ✅
+
+### Merged PRs (Previous Sessions)
 - **PR #20**: Fix Vercel build - exclude @xenova/transformers from server bundle ✅
 - **PR #19**: Docs update checkpoint for Dec 28 with launch page features ✅
-
-### Merged PRs (Previous)
 - **Commit 38b8617**: Slack-like features and waitlist signup ✅
 - **PR #18**: Launch date update (February 1, 2026) ✅
 - **PR #12**: Real-time typing indicators, message reactions, read receipts ✅
@@ -318,7 +335,11 @@ Launch page with waitlist signup deployed to production. Backend on Fly.io, fron
 | Real-time Typing Indicators | ✅ |
 | Message Reactions | ✅ |
 | Read Receipts | ✅ |
-| Group Chat Backend | ✅ |
+| Group Chat Backend (REST) | ✅ |
+| **Group Chat WebSocket Protocol** | ✅ New |
+| **Message Search (Client-side)** | ✅ New |
+| **File Attachments (Upload/Download)** | ✅ New |
+| **CLI Identity Key Auth** | ✅ New |
 | **Launch Page** | ✅ Deployed |
 | **Countdown Timer** | ✅ Deployed |
 | **Encryption Demo** | ✅ Deployed |
@@ -330,9 +351,8 @@ Launch page with waitlist signup deployed to production. Backend on Fly.io, fron
 | Feature | Priority |
 |---------|----------|
 | Re-enable @xenova/transformers AI features | High |
-| Group chat frontend integration | High |
-| Message search | Medium |
-| File attachments | Low |
+| Group chat frontend UI components | Medium |
+| File attachment E2E encryption (per-file keys) | Medium |
 | Offline message queue | Low |
 
 ### Known Issues
@@ -351,13 +371,43 @@ Launch page with waitlist signup deployed to production. Backend on Fly.io, fron
 
 ### Recent Implementations
 
-**Deployment & Infrastructure (Dec 28)**
+**Group Chat WebSocket Protocol (Feb 8, 2026)**
+- Added `SendGroupMessage`, `GroupMessage`, `CreateGroup`, `GroupCreated` WS message types
+- Server-side fan-out: messages delivered to all online group members
+- Group creation via WebSocket with automatic membership
+- Protocol types in `chai-protocol/src/messages.rs`
+- Server handlers in `chai-server/src/ws/message.rs`
+- Web client types in `apps/web/src/lib/ws/types.ts`
+
+**Message Search Improvements (Feb 8, 2026)**
+- Cleaned up SearchModal: removed dead @xenova/transformers imports
+- Client-side full-text search across all decrypted messages
+- Filter by conversation and date range
+- Keyboard shortcut Ctrl+K to open search
+- Search result highlighting with click-to-navigate
+
+**File Attachments (Feb 8, 2026)**
+- Server: `POST /files/upload` (multipart, 25MB limit), `GET /files/:file_id`
+- Database migration: `006_attachments.sql` (attachments table)
+- Server handlers: `handlers/files.rs`, DB layer: `db/files.rs`
+- Web client: `lib/api/attachments.ts` (upload, download, URL helpers)
+- `AttachmentDisplay` component: inline image previews, file cards with download
+- File upload button in conversation input (paperclip icon)
+- Supported types: images, PDFs, video, audio, documents, archives
+
+**CLI Improvements (Feb 8, 2026)**
+- Identity key authentication with TUI screens (PR #26)
+- E2E chat bot example (`crates/chai-cli/examples/chat_bot.rs`)
+- E2E test example (`crates/chai-cli/examples/test_e2e_chat.rs`)
+- Fixed clippy warnings across CLI crate for Rust 1.93.0
+
+**Deployment & Infrastructure (Dec 28, 2025)**
 - Deployed backend to Fly.io with waitlist migration
 - Fixed Vercel build issues with server-side ML package exclusion
 - Added `serverExternalPackages` config for Next.js
 - Added webpack externals for @xenova/transformers
 
-**Launch Page & Waitlist (Dec 28)**
+**Launch Page & Waitlist (Dec 28, 2025)**
 - Interactive countdown timer to Feb 1, 2026 launch
 - Real-time encryption demo (AES-256-GCM visualization)
 - Email waitlist signup with position tracking
@@ -408,26 +458,34 @@ Launch page with waitlist signup deployed to production. Backend on Fly.io, fron
 apps/web/src/
 ├── app/                        # Next.js App Router
 │   ├── (chat)/                 # Chat layout group
+│   │   └── [conversationId]/   # Chat view with file upload
 │   ├── auth/                   # Login/Register pages
 │   └── page.tsx                # Launch page
 ├── components/                 # Shared UI components
 │   ├── ErrorBoundary.tsx
 │   ├── Loading.tsx
 │   ├── Toast.tsx
+│   ├── SearchModal.tsx         # Message search (Ctrl+K)
+│   ├── chat/
+│   │   ├── MessageBubble.tsx   # Message display with attachments
+│   │   └── AttachmentDisplay.tsx # File/image attachment renderer
 │   └── launch/                 # Launch page components
 │       ├── CountdownTimer.tsx
 │       ├── EncryptionDemo.tsx
 │       ├── EmailSignup.tsx
 │       └── SecurityBadges.tsx
 ├── lib/
-│   ├── api/                    # REST API clients
+│   ├── api/
+│   │   └── attachments.ts      # File upload/download API
 │   ├── config.ts               # Centralized configuration
 │   ├── crypto/                 # WASM crypto + keyLocker
 │   ├── logger.ts               # Structured logging
-│   └── ws/                     # WebSocket client
+│   └── ws/
+│       ├── client.ts           # WebSocket client + group message handling
+│       └── types.ts            # WS message types (incl. group)
 ├── store/                      # Zustand stores
 │   ├── authStore.ts            # Auth state (persisted)
-│   ├── chatStore.ts            # Chat state (persisted)
+│   ├── chatStore.ts            # Chat state + Attachment type (persisted)
 │   ├── connectionStore.ts      # WebSocket connection
 │   └── toastStore.ts           # Toast notifications
 └── test/                       # Test utilities
@@ -437,9 +495,24 @@ crates/chai-server/src/
 │   ├── auth.rs                 # WebAuthn handlers
 │   ├── identity_auth.rs        # Mnemonic/signature auth handlers
 │   ├── contacts.rs             # Peer identity exchange handlers
+│   ├── files.rs                # File upload/download handlers
 │   └── waitlist.rs             # Waitlist signup handlers
-├── ws/                         # WebSocket server
-└── db/                         # PostgreSQL queries
+├── ws/
+│   ├── handler.rs              # WebSocket upgrade + dispatch
+│   └── message.rs              # Message handling (incl. group messages)
+├── db/
+│   └── files.rs                # Attachment DB operations
+└── migrations/
+    └── 006_attachments.sql     # Attachments table
+
+crates/chai-cli/
+├── src/tui/app.rs              # TUI app with identity key auth
+├── src/network/client.rs       # WebSocket client
+└── examples/
+    ├── chat_bot.rs             # E2E encrypted echo bot
+    └── test_e2e_chat.rs        # E2E chat integration test
+
+docs/screenshots/               # Feature screenshots
 ```
 
 ### Local Development
@@ -462,7 +535,7 @@ pnpm test:run
 ### Next Steps
 See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 
-## Current Sprint (Dec 28, 2025)
+## Current Sprint (Feb 8, 2026)
 
 ### Parallel Implementation Tracks
 
@@ -473,9 +546,12 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 | WEB-REALTIME | ✅ Complete | Typing indicators, read receipts |
 | EMOJI | ✅ Complete | Emoji picker, reactions |
 | LOCAL-AI | ⚠️ Disabled | @xenova/transformers needs fix |
-| CLI-CRYPTO | 🟡 In Progress | E2E encryption integration |
-| CLI-AUTH | 🟡 In Progress | Login/register TUI screens |
-| GROUP-CHAT | 🟡 In Progress | Group chat frontend |
+| CLI-CRYPTO | ✅ Complete | E2E encryption integration |
+| CLI-AUTH | ✅ Complete | Login/register TUI screens |
+| GROUP-CHAT-WS | ✅ Complete | Group chat WebSocket protocol |
+| GROUP-CHAT-UI | 🟡 In Progress | Group chat frontend components |
+| MESSAGE-SEARCH | ✅ Complete | Client-side message search |
+| FILE-ATTACHMENTS | ✅ Complete | Upload/download with previews |
 
 ### Feature Checklist
 
@@ -487,6 +563,30 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 - [x] Waitlist API endpoints
 - [x] Database migration applied
 
+**Group Chat**:
+- [x] Group chat backend (REST API - 14 endpoints)
+- [x] Group chat WebSocket protocol (SendGroupMessage, GroupMessage, CreateGroup)
+- [x] Server-side message fan-out to group members
+- [ ] Group chat frontend UI (GroupList, CreateGroupModal, GroupChatView)
+- [ ] Sender keys protocol
+- [ ] Member management UI
+- [ ] Invite links
+
+**Message Search** (✅ Complete):
+- [x] Client-side full-text search across messages
+- [x] Filter by conversation and date range
+- [x] Search result highlighting
+- [x] Ctrl+K keyboard shortcut
+
+**File Attachments** (✅ Complete):
+- [x] Server upload endpoint (POST /files/upload, 25MB limit)
+- [x] Server download endpoint (GET /files/:file_id)
+- [x] Database migration (006_attachments.sql)
+- [x] Web client upload API
+- [x] AttachmentDisplay component (image previews, file cards)
+- [x] File upload button in chat input
+- [ ] E2E encryption for file content (per-file AES keys)
+
 **Local AI Features** (⚠️ Temporarily Disabled):
 - [ ] Re-add @xenova/transformers with proper config
 - [ ] Message summarization
@@ -495,9 +595,10 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 - [ ] Translation
 
 **CLI Client**:
-- [ ] E2E encryption with chai-crypto
+- [x] E2E encryption with chai-crypto
+- [x] Login/register TUI screens
+- [x] Identity key authentication
 - [ ] Session persistence (encrypted)
-- [ ] Login/register TUI screens
 - [ ] Vim keybindings (/, ?, 1-9, Ctrl+U/D)
 - [ ] Search conversations and messages
 - [ ] Reply, edit, delete messages
@@ -507,17 +608,16 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 - [x] Read receipts (double checkmarks)
 - [x] Online/offline status
 - [x] Emoji picker with categories
-- [ ] Custom emoji upload
 - [x] Message reactions
 - [x] Keyboard shortcuts (Ctrl+K, Ctrl+/)
+- [x] File attachments in messages
+- [x] Message search
+- [ ] Custom emoji upload
 - [ ] Command palette
 
 **Shared**:
-- [x] Group chat backend
+- [x] Group chat backend (REST + WS)
 - [ ] Group chat frontend
-- [ ] Sender keys protocol
-- [ ] Member management
-- [ ] Invite links
 - [ ] Message editing (5 min window)
 - [ ] Message deletion
 
@@ -587,8 +687,8 @@ Computed from both identity keys using SHA-256:
 ## Future Roadmap
 
 1. **Phase 1**: Core messaging ✅ Complete
-2. **Phase 2**: Real-time features & Groups (current)
-3. **Phase 3**: File sharing & media
+2. **Phase 2**: Real-time features & Groups ✅ Backend complete, frontend in progress
+3. **Phase 3**: File sharing & media ✅ Infrastructure complete, E2E file encryption pending
 4. **Phase 4**: Mobile apps (iOS/Android)
 5. **Phase 5**: Federation (Matrix-like)
 

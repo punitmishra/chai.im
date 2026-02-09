@@ -143,6 +143,34 @@ export async function initSession(
 }
 
 /**
+ * Initiate a session and encrypt the first message (Prekey message).
+ * Returns PrekeyMessagePayload bytes ready to send as ciphertext.
+ */
+export async function initSessionAndEncrypt(
+  recipientId: string,
+  bundle: Uint8Array,
+  plaintext: string
+): Promise<Uint8Array> {
+  const crypto = await initCrypto();
+  const encoder = new TextEncoder();
+  return crypto.initSessionAndEncrypt(recipientId, bundle, encoder.encode(plaintext));
+}
+
+/**
+ * Receive a Prekey message: establish session and decrypt.
+ * Parses PrekeyMessagePayload, establishes session, returns plaintext.
+ */
+export async function decryptPrekeyMessage(
+  senderId: string,
+  ciphertext: Uint8Array
+): Promise<string> {
+  const crypto = await initCrypto();
+  const decrypted = crypto.decryptPrekey(senderId, ciphertext);
+  const decoder = new TextDecoder();
+  return decoder.decode(decrypted);
+}
+
+/**
  * Receive a session from a sender.
  */
 export async function receiveSession(

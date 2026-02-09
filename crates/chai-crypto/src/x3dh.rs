@@ -81,10 +81,8 @@ impl X3DHSender {
 
     /// Perform DH between our identity key and their public key.
     fn identity_dh_with(&self, their_public: &X25519PublicKey) -> [u8; 32] {
-        // Convert our Ed25519 signing key to X25519
-        // This is a simplified approach - in production, store separate DH key
-        let our_dh = DHKeyPair::generate(); // Would use derived key in production
-        our_dh.diffie_hellman(their_public)
+        let secret = self.identity.dh_secret();
+        secret.diffie_hellman(their_public).to_bytes()
     }
 }
 
@@ -124,8 +122,13 @@ impl X3DHReceiver {
                 })
         });
 
-        // Get their keys
-        let their_identity = X25519PublicKey::from(message.identity_key);
+        // Get their keys - identity_key is Ed25519, convert to X25519 for DH
+        let their_identity_pub = crate::keys::IdentityPublicKey::from_bytes(&message.identity_key)
+            .map_err(|_| CryptoError::InvalidKeyLength {
+                expected: 32,
+                actual: message.identity_key.len(),
+            })?;
+        let their_identity = their_identity_pub.dh_public_key();
         let their_ephemeral = X25519PublicKey::from(message.ephemeral_key);
 
         // Perform DH calculations (mirror of sender)
@@ -147,9 +150,8 @@ impl X3DHReceiver {
 
     /// Perform DH between our identity key and their public key.
     fn identity_dh_with(&self, their_public: &X25519PublicKey) -> [u8; 32] {
-        // In production, use proper key conversion
-        let our_dh = DHKeyPair::generate();
-        our_dh.diffie_hellman(their_public)
+        let secret = self.identity.dh_secret();
+        secret.diffie_hellman(their_public).to_bytes()
     }
 }
 
@@ -223,12 +225,6 @@ mod tests {
         let bob_secret = bob_receiver.receive(&initial_message).unwrap();
 
         // Both should derive the same shared secret
-        // Note: This test will fail because identity_dh_with generates random keys
-        // In a real implementation, we'd use proper key derivation
-        // assert_eq!(alice_secret.as_bytes(), bob_secret.as_bytes());
-
-        // For now, just verify the process completes without error
-        assert_eq!(alice_secret.as_bytes().len(), 32);
-        assert_eq!(bob_secret.as_bytes().len(), 32);
+        assert_eq!(alice_secret.as_bytes(), bob_secret.as_bytes());
     }
 }

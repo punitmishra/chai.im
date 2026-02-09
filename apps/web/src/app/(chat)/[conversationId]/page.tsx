@@ -12,6 +12,7 @@ import { MessageBubble, ThreadPanel } from '@/components/chat';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
 import { useMessageShortcuts } from '@/hooks/useMessageShortcuts';
+import { uploadFile, formatFileSize } from '@/lib/api/attachments';
 
 // Conversation ID prefixes
 const SELF_CHAT_PREFIX = 'self_';
@@ -28,8 +29,10 @@ export default function ConversationPage() {
   const [peerTyping, setPeerTyping] = useState(false);
   const [groupTypingUsers, setGroupTypingUsers] = useState<{ userId: string; username: string }[]>([]);
   const [showReactionPickerForMessage, setShowReactionPickerForMessage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get state from stores
@@ -236,6 +239,48 @@ export default function ConversationPage() {
     setShowEmojiPicker(false);
     inputRef.current?.focus();
   }, []);
+
+  // Handle file upload
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversation) return;
+
+    // 25MB limit
+    if (file.size > 25 * 1024 * 1024) {
+      alert('File too large. Maximum size is 25 MB.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const result = await uploadFile(file);
+
+      // Add message with attachment
+      addMessage({
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        conversationId,
+        senderId: user?.id || '',
+        content: '',
+        timestamp: Date.now(),
+        status: isSelfChat ? 'delivered' : 'sent',
+        attachments: [{
+          id: result.id,
+          filename: result.filename,
+          contentType: result.content_type,
+          sizeBytes: result.size_bytes,
+        }],
+      });
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [conversation, conversationId, user?.id, isSelfChat, addMessage]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -487,6 +532,30 @@ export default function ConversationPage() {
           )}
 
           <div className="flex gap-2">
+            {/* File upload button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+              accept="image/*,application/pdf,video/*,audio/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="p-3.5 rounded-2xl bg-zinc-900/50 border border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Attach file"
+            >
+              {isUploading ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              )}
+            </button>
+
             {/* Emoji picker button */}
             <button
               type="button"

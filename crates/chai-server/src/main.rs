@@ -92,6 +92,9 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/contacts/:contact_user_id",
             delete(handlers::contacts::remove_contact),
         )
+        // File attachment endpoints
+        .route("/files/upload", post(handlers::files::upload))
+        .route("/files/:file_id", get(handlers::files::download))
         // Waitlist endpoints (public, no auth required)
         .route("/waitlist", post(handlers::waitlist::signup))
         .route("/waitlist/count", get(handlers::waitlist::count))

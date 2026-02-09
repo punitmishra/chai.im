@@ -69,7 +69,9 @@ pub async fn add_by_identity_key(
 
     // Can't add yourself
     if contact_user.id == auth_user.user_id {
-        return Err(AppError::InvalidRequest("Cannot add yourself as a contact".into()));
+        return Err(AppError::InvalidRequest(
+            "Cannot add yourself as a contact".into(),
+        ));
     }
 
     // Add contact
@@ -105,7 +107,9 @@ pub async fn add_by_user_id(
 
     // Can't add yourself
     if contact_user_id == auth_user.user_id {
-        return Err(AppError::InvalidRequest("Cannot add yourself as a contact".into()));
+        return Err(AppError::InvalidRequest(
+            "Cannot add yourself as a contact".into(),
+        ));
     }
 
     // Verify user exists
@@ -199,10 +203,7 @@ pub async fn remove_contact(
 }
 
 /// Helper to find user by identity key.
-async fn find_user_by_identity_key(
-    state: &AppState,
-    identity_key: &[u8],
-) -> Result<users::User> {
+async fn find_user_by_identity_key(state: &AppState, identity_key: &[u8]) -> Result<users::User> {
     // Query user by identity key
     let user: Option<users::User> = sqlx::query_as::<_, users::User>(
         r#"
