@@ -23,6 +23,7 @@ export interface Message {
   status: 'sending' | 'sent' | 'delivered' | 'read';
   reactions?: Reaction[];
   attachments?: Attachment[];
+  senderName?: string; // Sender username (for group messages)
   parentMessageId?: string; // For thread replies
   threadReplyCount?: number; // Count of replies to this message
 }

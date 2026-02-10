@@ -18,6 +18,8 @@ interface MessageBubbleProps {
   threadReplyCount?: number;
   isSelected?: boolean;
   onSelect?: (messageId: string) => void;
+  senderName?: string;
+  showSenderName?: boolean;
 }
 
 interface MessageAction {
@@ -38,6 +40,8 @@ export function MessageBubble({
   threadReplyCount = 0,
   isSelected = false,
   onSelect,
+  senderName,
+  showSenderName = false,
 }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -187,6 +191,10 @@ export function MessageBubble({
       data-message-id={message.id}
     >
       <div className={`relative max-w-[75%] ${isSelected ? 'ring-2 ring-amber-500/50 rounded-3xl' : ''}`}>
+        {/* Sender name label for group messages */}
+        {showSenderName && !isSelf && senderName && (
+          <p className="text-xs text-purple-400 font-medium mb-1 ml-3">{senderName}</p>
+        )}
         {/* Actions bar - appears on hover */}
         {showActions && (
           <div
