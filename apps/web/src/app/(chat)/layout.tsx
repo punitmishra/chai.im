@@ -11,18 +11,11 @@ import { clearCrypto } from '@/lib/crypto/wasm';
 import { CreateGroupModal } from '@/components/CreateGroupModal';
 import { SearchModal } from '@/components/SearchModal';
 import { CommandPalette } from '@/components/CommandPalette';
+import { useGroupStore } from '@/store/groupStore';
 
 // Self-chat conversation ID prefix
 const SELF_CHAT_PREFIX = 'self_';
 const GROUP_CHAT_PREFIX = 'group_';
-
-interface GroupInfo {
-  id: string;
-  name: string;
-  description: string | null;
-  isPublic: boolean;
-  memberCount?: number;
-}
 
 export default function ChatLayout({
   children,
@@ -35,7 +28,6 @@ export default function ChatLayout({
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
   const conversations = useChatStore((state) => state.conversations);
   const addConversation = useChatStore((state) => state.addConversation);
@@ -43,39 +35,19 @@ export default function ChatLayout({
   const sessionToken = useAuthStore((state) => state.sessionToken);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
   const connectionStatus = useConnectionStore((state) => state.status);
-
-  // Fetch user's groups
-  const fetchGroups = useCallback(async () => {
-    if (!sessionToken) return;
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/groups/me`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setGroups(data.groups || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch groups:', error);
-    }
-  }, [sessionToken]);
+  const groups = useGroupStore((state) => state.groups);
+  const fetchMyGroups = useGroupStore((state) => state.fetchMyGroups);
 
   // Fetch groups when authenticated
   useEffect(() => {
     if (sessionToken) {
-      fetchGroups();
+      fetchMyGroups();
     }
-  }, [sessionToken, fetchGroups]);
+  }, [sessionToken, fetchMyGroups]);
 
   // Handle group creation
-  const handleGroupCreated = useCallback((group: GroupInfo) => {
-    setGroups((prev) => [group, ...prev]);
-    // Add to conversations list
+  const handleGroupCreated = useCallback((group: { id: string; name: string; description?: string | null; isPublic?: boolean }) => {
+    fetchMyGroups(); // Refresh groups from server
     addConversation({
       id: `${GROUP_CHAT_PREFIX}${group.id}`,
       name: group.name,
@@ -84,7 +56,7 @@ export default function ChatLayout({
       unreadCount: 0,
       hasSession: true,
     });
-  }, [addConversation]);
+  }, [addConversation, fetchMyGroups]);
 
   // Redirect to login if not authenticated (only after store has hydrated)
   useEffect(() => {
