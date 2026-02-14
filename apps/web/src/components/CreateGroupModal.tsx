@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuthStore } from '@/store/authStore';
+import { createGroup as createGroupApi } from '@/lib/api/groups';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -23,8 +23,6 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sessionToken = useAuthStore((state) => state.sessionToken);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -42,26 +40,11 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
     setIsLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/groups`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || null,
-          is_public: isPublic,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create group');
-      }
-
-      const group = await response.json();
+      const group = await createGroupApi(
+        name.trim(),
+        description.trim() || undefined,
+        isPublic
+      );
 
       // Reset form
       setName('');

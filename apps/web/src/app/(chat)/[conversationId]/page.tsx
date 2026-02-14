@@ -13,6 +13,8 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
 import { useMessageShortcuts } from '@/hooks/useMessageShortcuts';
 import { uploadFile, formatFileSize } from '@/lib/api/attachments';
+import { useGroupStore } from '@/store/groupStore';
+import { GroupInfoPanel } from '@/components/group/GroupInfoPanel';
 
 // Conversation ID prefixes
 const SELF_CHAT_PREFIX = 'self_';
@@ -30,6 +32,7 @@ export default function ConversationPage() {
   const [groupTypingUsers, setGroupTypingUsers] = useState<{ userId: string; username: string }[]>([]);
   const [showReactionPickerForMessage, setShowReactionPickerForMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +51,12 @@ export default function ConversationPage() {
   const getThreadReplies = useChatStore((state) => state.getThreadReplies);
   const selectedMessageId = useChatStore((state) => state.selectedMessageId);
   const selectMessage = useChatStore((state) => state.selectMessage);
+
+  // Group store
+  const groupDetails = useGroupStore((state) => groupId ? state.getGroup(groupId) : undefined);
+  const groupMembers = useGroupStore((state) => groupId ? state.getMembers(groupId) : []);
+  const fetchGroupDetails = useGroupStore((state) => state.fetchGroupDetails);
+  const fetchGroupMembers = useGroupStore((state) => state.fetchMembers);
 
   // Emoji autocomplete hook
   const emojiAutocomplete = useEmojiAutocomplete();
@@ -105,9 +114,11 @@ export default function ConversationPage() {
       if (isGroupChat && groupId) {
         const client = getWebSocketClient();
         client.joinGroup(groupId);
+        fetchGroupDetails(groupId).catch(() => {});
+        fetchGroupMembers(groupId).catch(() => {});
       }
     }
-  }, [isSelfChat, isGroupChat, groupId]);
+  }, [isSelfChat, isGroupChat, groupId, fetchGroupDetails, fetchGroupMembers]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -411,13 +422,16 @@ export default function ConversationPage() {
             />
           )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div
+          className={`flex-1 min-w-0 ${isGroupChat ? 'cursor-pointer' : ''}`}
+          onClick={isGroupChat ? () => setShowGroupInfo(true) : undefined}
+        >
           <h1 className="font-semibold text-white text-lg truncate">{recipientName}</h1>
           <p className="text-sm text-zinc-500">
             {isSelfChat
               ? 'Private notes, stored locally'
               : isGroupChat
-                ? 'Group chat'
+                ? `${groupMembers.length || groupDetails?.memberCount || 0} members`
                 : isOnline
                   ? 'Online'
                   : 'Connecting...'}
@@ -469,19 +483,28 @@ export default function ConversationPage() {
             </div>
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              isSelf={message.senderId === user?.id}
-              conversationId={conversationId}
-              onOpenThread={(messageId) => openThread(messageId)}
-              showThreadIndicator={true}
-              threadReplyCount={message.threadReplyCount || 0}
-              isSelected={selectedMessageId === message.id}
-              onSelect={(messageId) => selectMessage(messageId)}
-            />
-          ))
+          messages.map((message, index) => {
+            const isSelf = message.senderId === user?.id;
+            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const showSenderName = isGroupChat && !isSelf && (!prevMessage || prevMessage.senderId !== message.senderId);
+            const senderName = message.senderName || groupMembers.find((m) => m.userId === message.senderId)?.username;
+
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isSelf={isSelf}
+                conversationId={conversationId}
+                onOpenThread={(messageId) => openThread(messageId)}
+                showThreadIndicator={true}
+                threadReplyCount={message.threadReplyCount || 0}
+                isSelected={selectedMessageId === message.id}
+                onSelect={(messageId) => selectMessage(messageId)}
+                senderName={senderName}
+                showSenderName={showSenderName}
+              />
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -609,6 +632,15 @@ export default function ConversationPage() {
           isOpen={!!activeThreadId}
           onClose={closeThread}
           onSendReply={handleSendThreadReply}
+        />
+      )}
+
+      {/* Group Info Panel */}
+      {isGroupChat && groupId && (
+        <GroupInfoPanel
+          groupId={groupId}
+          isOpen={showGroupInfo}
+          onClose={() => setShowGroupInfo(false)}
         />
       )}
     </div>
