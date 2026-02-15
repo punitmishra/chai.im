@@ -36,24 +36,24 @@ export function MemberList({
         return (
           <div
             key={member.userId}
-            className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800/50 transition-colors group"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-dark-800/50 transition-colors group"
           >
             {/* Avatar */}
-            <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center text-sm font-medium text-zinc-300 shrink-0">
+            <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-dark-700 to-dark-800 flex items-center justify-center text-sm font-medium text-slate-300 shrink-0">
               {member.username[0]?.toUpperCase() || '?'}
             </div>
 
             {/* Name + role */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-200 truncate">
+                <span className="text-sm text-slate-200 truncate">
                   {member.username}
                   {isSelf && (
-                    <span className="text-zinc-500 ml-1">(you)</span>
+                    <span className="text-slate-500 ml-1">(you)</span>
                   )}
                 </span>
                 {isOwnerMember && (
-                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-medium">
                     Owner
                   </span>
                 )}
@@ -69,7 +69,7 @@ export function MemberList({
             {canRemove && onRemoveMember && (
               <button
                 onClick={() => onRemoveMember(member.userId)}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
                 title="Remove member"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

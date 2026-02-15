@@ -76,13 +76,13 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md bg-zinc-900 rounded-2xl border border-zinc-800 shadow-xl p-6">
+      <div className="relative w-full max-w-md bg-dark-900 rounded-2xl border border-dark-700 shadow-xl p-6">
         <h2 className="text-xl font-semibold text-white mb-6">Create Group</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name input */}
           <div>
-            <label htmlFor="group-name" className="block text-sm font-medium text-zinc-400 mb-2">
+            <label htmlFor="group-name" className="block text-sm font-medium text-slate-400 mb-2">
               Group Name
             </label>
             <input
@@ -91,9 +91,9 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter group name..."
-              className="w-full bg-zinc-800 text-white rounded-xl px-4 py-3
-                       placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50
-                       border border-zinc-700"
+              className="w-full bg-dark-800 text-white rounded-xl px-4 py-3
+                       placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50
+                       border border-dark-600"
               maxLength={128}
               autoFocus
             />
@@ -101,7 +101,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
 
           {/* Description input */}
           <div>
-            <label htmlFor="group-description" className="block text-sm font-medium text-zinc-400 mb-2">
+            <label htmlFor="group-description" className="block text-sm font-medium text-slate-400 mb-2">
               Description (optional)
             </label>
             <textarea
@@ -110,9 +110,9 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What's this group about?"
               rows={3}
-              className="w-full bg-zinc-800 text-white rounded-xl px-4 py-3
-                       placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50
-                       border border-zinc-700 resize-none"
+              className="w-full bg-dark-800 text-white rounded-xl px-4 py-3
+                       placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50
+                       border border-dark-600 resize-none"
             />
           </div>
 
@@ -120,13 +120,13 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="text-sm font-medium text-white">Public Group</p>
-              <p className="text-xs text-zinc-500">Anyone can find and join this group</p>
+              <p className="text-xs text-slate-500">Anyone can find and join this group</p>
             </div>
             <button
               type="button"
               onClick={() => setIsPublic(!isPublic)}
               className={`relative w-11 h-6 rounded-full transition-colors ${
-                isPublic ? 'bg-amber-500' : 'bg-zinc-700'
+                isPublic ? 'bg-cyan-500' : 'bg-dark-700'
               }`}
             >
               <span
@@ -149,16 +149,16 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }: CreateGroupModa
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl bg-zinc-800 text-white font-medium
-                       hover:bg-zinc-700 transition-colors"
+              className="flex-1 py-3 rounded-xl bg-dark-800 text-white font-medium
+                       hover:bg-dark-700 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading || !name.trim()}
-              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500
-                       text-white font-medium hover:from-amber-600 hover:to-orange-600
+              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500
+                       text-white font-medium hover:from-cyan-600 hover:to-teal-600
                        transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (

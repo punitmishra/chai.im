@@ -14,8 +14,8 @@ export function SmartReplies({ replies, onSelect, loading, className = '' }: Sma
   if (loading) {
     return (
       <div className={`flex items-center gap-2 px-3 py-2 ${className}`}>
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
-        <span className="text-xs text-zinc-500">Thinking...</span>
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
+        <span className="text-xs text-slate-500">Thinking...</span>
       </div>
     );
   }
@@ -26,12 +26,12 @@ export function SmartReplies({ replies, onSelect, loading, className = '' }: Sma
 
   return (
     <div className={`flex flex-wrap gap-2 px-3 py-2 ${className}`}>
-      <span className="text-xs text-zinc-500 self-center mr-1">Quick replies:</span>
+      <span className="text-xs text-slate-500 self-center mr-1">Quick replies:</span>
       {replies.map((reply, index) => (
         <button
           key={index}
           onClick={() => onSelect(reply.text)}
-          className="px-3 py-1.5 text-sm bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white rounded-full border border-zinc-700/50 hover:border-amber-500/30 transition-all duration-200 active:scale-95"
+          className="px-3 py-1.5 text-sm bg-dark-800/50 hover:bg-dark-700/50 text-slate-300 hover:text-white rounded-full border border-dark-600/50 hover:border-cyan-500/30 transition-all duration-200 active:scale-95"
         >
           {reply.text}
         </button>
@@ -106,10 +106,10 @@ export function SemanticSearchBar({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full px-4 py-2 pl-10 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 transition-all"
+        className="w-full px-4 py-2 pl-10 bg-dark-800/50 border border-dark-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
       />
       <svg
-        className="absolute left-3 w-4 h-4 text-zinc-500"
+        className="absolute left-3 w-4 h-4 text-slate-500"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -122,7 +122,7 @@ export function SemanticSearchBar({
         />
       </svg>
       {loading && (
-        <div className="absolute right-3 h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+        <div className="absolute right-3 h-4 w-4 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
       )}
     </div>
   );
@@ -158,13 +158,13 @@ export function SummaryDisplay({ summary, keyPoints, messageCount, onClose }: Su
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
           <AIBadge />
-          <span className="text-xs text-zinc-500">{messageCount} messages summarized</span>
+          <span className="text-xs text-slate-500">{messageCount} messages summarized</span>
         </div>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-zinc-700/50 rounded transition-colors"
+          className="p-1 hover:bg-dark-700/50 rounded transition-colors"
         >
-          <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -173,7 +173,7 @@ export function SummaryDisplay({ summary, keyPoints, messageCount, onClose }: Su
       {keyPoints && keyPoints.length > 0 && (
         <ul className="mt-3 space-y-1">
           {keyPoints.map((point, index) => (
-            <li key={index} className="flex items-center gap-2 text-xs text-zinc-400">
+            <li key={index} className="flex items-center gap-2 text-xs text-slate-400">
               <span className="w-1 h-1 bg-purple-400 rounded-full" />
               {point}
             </li>

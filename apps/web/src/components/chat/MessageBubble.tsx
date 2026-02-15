@@ -190,7 +190,7 @@ export function MessageBubble({
       onClick={() => onSelect?.(message.id)}
       data-message-id={message.id}
     >
-      <div className={`relative max-w-[75%] ${isSelected ? 'ring-2 ring-amber-500/50 rounded-3xl' : ''}`}>
+      <div className={`relative max-w-[75%] ${isSelected ? 'ring-2 ring-cyan-500/50 rounded-3xl' : ''}`}>
         {/* Sender name label for group messages */}
         {showSenderName && !isSelf && senderName && (
           <p className="text-xs text-purple-400 font-medium mb-1 ml-3">{senderName}</p>
@@ -208,7 +208,7 @@ export function MessageBubble({
                 e.stopPropagation();
                 setShowReactionPicker(!showReactionPicker);
               }}
-              className="p-1.5 rounded-lg bg-zinc-800/80 backdrop-blur-sm border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-700/80 transition-all"
+              className="p-1.5 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/80 transition-all"
               title="Add reaction"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -222,7 +222,7 @@ export function MessageBubble({
                 e.stopPropagation();
                 onOpenThread?.(message.id);
               }}
-              className="p-1.5 rounded-lg bg-zinc-800/80 backdrop-blur-sm border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-700/80 transition-all"
+              className="p-1.5 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/80 transition-all"
               title="Reply in thread"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -237,7 +237,7 @@ export function MessageBubble({
                   e.stopPropagation();
                   setShowActionsMenu(!showActionsMenu);
                 }}
-                className="p-1.5 rounded-lg bg-zinc-800/80 backdrop-blur-sm border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-700/80 transition-all"
+                className="p-1.5 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/80 transition-all"
                 title="More actions"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -248,7 +248,7 @@ export function MessageBubble({
               {/* Actions dropdown menu */}
               {showActionsMenu && (
                 <div
-                  className={`absolute top-full mt-1 py-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 ${
+                  className={`absolute top-full mt-1 py-1 w-48 bg-dark-900 border border-dark-700 rounded-xl shadow-xl z-50 ${
                     isSelf ? 'right-0' : 'left-0'
                   }`}
                 >
@@ -260,7 +260,7 @@ export function MessageBubble({
                         action.onClick();
                       }}
                       disabled={action.disabled}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-dark-800 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {action.icon}
                       <span>{action.label}</span>
@@ -288,8 +288,8 @@ export function MessageBubble({
         <div
           className={`rounded-3xl px-5 py-3 ${
             isSelf
-              ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/20'
-              : 'bg-zinc-800/70 text-white shadow-lg'
+              ? 'bg-gradient-to-br from-cyan-500 to-teal-500 text-black shadow-lg shadow-cyan-500/20'
+              : 'bg-dark-800/70 text-white shadow-lg'
           }`}
         >
           {/* Message content with markdown */}
@@ -302,7 +302,7 @@ export function MessageBubble({
 
           {/* Timestamp and status */}
           <div className="mt-2 flex items-center gap-2">
-            <p className={`text-xs ${isSelf ? 'text-amber-900/70' : 'text-zinc-500'}`}>
+            <p className={`text-xs ${isSelf ? 'text-cyan-900/70' : 'text-slate-500'}`}>
               {timestamp.toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -318,8 +318,8 @@ export function MessageBubble({
             onClick={() => onOpenThread?.(message.id)}
             className={`mt-1 flex items-center gap-1.5 text-xs transition-colors ${
               isSelf
-                ? 'text-amber-600 hover:text-amber-500 justify-end'
-                : 'text-amber-400 hover:text-amber-300'
+                ? 'text-cyan-600 hover:text-cyan-500 justify-end'
+                : 'text-cyan-400 hover:text-cyan-300'
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -340,8 +340,8 @@ export function MessageBubble({
                 onClick={() => handleReaction(emoji)}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
                   userIds.includes(user?.id || '')
-                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
-                    : 'bg-zinc-800/50 border border-zinc-700/50 hover:bg-zinc-700/50 text-zinc-400'
+                    ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300'
+                    : 'bg-dark-800/50 border border-dark-600/50 hover:bg-dark-700/50 text-slate-400'
                 }`}
               >
                 <span>{emoji}</span>
@@ -359,11 +359,11 @@ function MessageStatus({ status }: { status: Message['status'] }) {
   switch (status) {
     case 'sending':
       return (
-        <div className="h-3 w-3 animate-spin rounded-full border border-amber-900/50 border-t-amber-900" />
+        <div className="h-3 w-3 animate-spin rounded-full border border-cyan-900/50 border-t-cyan-900" />
       );
     case 'sent':
       return (
-        <svg className="h-3.5 w-3.5 text-amber-900/70" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="h-3.5 w-3.5 text-cyan-900/70" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"
             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -373,7 +373,7 @@ function MessageStatus({ status }: { status: Message['status'] }) {
       );
     case 'delivered':
       return (
-        <svg className="h-3.5 w-3.5 text-amber-900" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="h-3.5 w-3.5 text-cyan-900" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"
             d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -383,7 +383,7 @@ function MessageStatus({ status }: { status: Message['status'] }) {
       );
     case 'read':
       return (
-        <svg className="h-3.5 w-3.5 text-amber-900" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="h-3.5 w-3.5 text-cyan-900" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"
             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"

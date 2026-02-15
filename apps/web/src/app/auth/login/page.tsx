@@ -14,6 +14,7 @@ import {
   validateMnemonic
 } from '@/lib/crypto/wasm';
 import { MnemonicInput } from '@/components/auth';
+import { ChaiLogo } from '@/components/ChaiLogo';
 import logger from '@/lib/logger';
 
 type AuthMethod = 'choose' | 'security-key' | 'recovery-phrase' | 'auto-sign';
@@ -154,20 +155,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-dark-950 px-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 mb-4 shadow-lg shadow-amber-500/20">
-            <span className="text-2xl">☕</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-dark-900 border border-cyan-500/20 mb-4 shadow-lg shadow-cyan-500/20">
+            <ChaiLogo size={32} className="text-cyan-400" />
           </div>
           <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
-          <p className="text-zinc-500 mt-1 text-sm">Sign in to continue to Chai</p>
+          <p className="text-slate-500 mt-1 text-sm">Sign in to continue to Chai</p>
         </div>
 
         {/* Username input (always shown) */}
         <div className="mb-4">
-          <label htmlFor="username" className="block text-sm text-zinc-400 mb-1.5">
+          <label htmlFor="username" className="block text-sm text-slate-400 mb-1.5">
             Username
           </label>
           <input
@@ -175,7 +176,7 @@ export default function LoginPage() {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all duration-200"
+            className="w-full px-4 py-3 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200"
             placeholder="Enter your username"
             autoComplete="username"
             autoFocus
@@ -198,7 +199,7 @@ export default function LoginPage() {
                 <button
                   onClick={handleIdentityLogin}
                   disabled={isLoading || !username.trim()}
-                  className="w-full p-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 disabled:shadow-none"
+                  className="w-full p-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 disabled:shadow-none"
                 >
                   {isLoading ? (
                     <>
@@ -217,10 +218,10 @@ export default function LoginPage() {
 
                 <div className="relative py-2">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-zinc-800/50"></div>
+                    <div className="w-full border-t border-dark-700/50"></div>
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="px-3 bg-zinc-950 text-zinc-600">or use another method</span>
+                    <span className="px-3 bg-dark-950 text-slate-600">or use another method</span>
                   </div>
                 </div>
               </>
@@ -230,7 +231,7 @@ export default function LoginPage() {
             <button
               onClick={handleSecurityKeyLogin}
               disabled={isLoading || !username.trim()}
-              className={`w-full p-4 ${!hasLocalIdentity ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 disabled:shadow-none' : 'bg-zinc-900/50 hover:bg-zinc-800/50 disabled:bg-zinc-900/30 disabled:text-zinc-600 text-white font-medium border border-zinc-800/50'} rounded-2xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+              className={`w-full p-4 ${!hasLocalIdentity ? 'bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 disabled:shadow-none' : 'bg-dark-900/50 hover:bg-dark-800/50 disabled:bg-dark-900/30 disabled:text-slate-600 text-white font-medium border border-dark-700/50'} rounded-2xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
             >
               {isLoading ? (
                 <>
@@ -251,7 +252,7 @@ export default function LoginPage() {
             <button
               onClick={() => setAuthMethod('recovery-phrase')}
               disabled={!username.trim()}
-              className="w-full p-4 bg-zinc-900/50 hover:bg-zinc-800/50 disabled:bg-zinc-900/30 disabled:text-zinc-600 text-white font-medium rounded-2xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-zinc-800/50"
+              className="w-full p-4 bg-dark-900/50 hover:bg-dark-800/50 disabled:bg-dark-900/30 disabled:text-slate-600 text-white font-medium rounded-2xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-dark-700/50"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M12 17.25h8.25" />
@@ -274,7 +275,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading || recoveryPhrase.trim().split(/\s+/).filter(Boolean).length < 12}
-              className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20 disabled:shadow-none"
+              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 disabled:shadow-none"
             >
               {isLoading ? (
                 <span className="inline-flex items-center gap-2">
@@ -292,7 +293,7 @@ export default function LoginPage() {
                 setAuthMethod('choose');
                 setRecoveryPhrase('');
               }}
-              className="w-full py-3 px-4 text-zinc-400 hover:text-white hover:bg-zinc-800/30 font-medium rounded-2xl transition-all duration-200"
+              className="w-full py-3 px-4 text-slate-400 hover:text-white hover:bg-dark-800/30 font-medium rounded-2xl transition-all duration-200"
             >
               Back
             </button>
@@ -300,9 +301,9 @@ export default function LoginPage() {
         )}
 
         {/* Footer */}
-        <p className="text-center text-sm text-zinc-600 mt-8">
+        <p className="text-center text-sm text-slate-600 mt-8">
           Don't have an account?{' '}
-          <Link href="/auth/register" className="text-amber-400 hover:text-amber-300 transition-colors">
+          <Link href="/auth/register" className="text-cyan-400 hover:text-cyan-300 transition-colors">
             Create one
           </Link>
         </p>

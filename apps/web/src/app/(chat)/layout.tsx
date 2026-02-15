@@ -12,6 +12,7 @@ import { CreateGroupModal } from '@/components/CreateGroupModal';
 import { SearchModal } from '@/components/SearchModal';
 import { CommandPalette } from '@/components/CommandPalette';
 import { useGroupStore } from '@/store/groupStore';
+import { ChaiLogo } from '@/components/ChaiLogo';
 
 // Self-chat conversation ID prefix
 const SELF_CHAT_PREFIX = 'self_';
@@ -130,9 +131,9 @@ export default function ChatLayout({
   // Show loading during hydration or if not authenticated
   if (!hasHydrated || !sessionToken) {
     return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950">
-        <div className="flex items-center gap-3 text-zinc-500">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+      <div className="flex h-screen items-center justify-center bg-dark-950">
+        <div className="flex items-center gap-3 text-slate-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-cyan-500" />
           <span>Loading...</span>
         </div>
       </div>
@@ -142,29 +143,29 @@ export default function ChatLayout({
   const isOnline = connectionStatus === 'connected';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-950">
+    <div className="flex h-screen overflow-hidden bg-dark-950">
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'w-80' : 'w-0'
-        } flex flex-col border-r border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden`}
+        } flex flex-col border-r border-dark-700/50 bg-dark-900/30 backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800/50">
+        <div className="flex items-center justify-between p-5 border-b border-dark-700/50">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <span className="text-sm">☕</span>
+            <div className="w-8 h-8 rounded-xl bg-dark-800 border border-cyan-500/20 flex items-center justify-center shadow-lg shadow-cyan-500/10">
+              <ChaiLogo size={20} className="text-cyan-400" />
             </div>
             <span className="text-lg font-semibold">
-              <span className="text-amber-400">Chai</span>
-              <span className="text-zinc-500">.im</span>
+              <span className="text-cyan-400">Chai</span>
+              <span className="text-slate-500">.im</span>
             </span>
           </Link>
           <div className="flex gap-1">
             {activeTab === 'groups' ? (
               <button
                 onClick={() => setShowCreateGroup(true)}
-                className="p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-all duration-200 text-zinc-400 hover:text-white hover:scale-105 active:scale-95"
+                className="p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-all duration-200 text-slate-400 hover:text-white hover:scale-105 active:scale-95"
                 title="Create group"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,7 +175,7 @@ export default function ChatLayout({
             ) : (
               <Link
                 href="/new"
-                className="p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-all duration-200 text-zinc-400 hover:text-white hover:scale-105 active:scale-95"
+                className="p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-all duration-200 text-slate-400 hover:text-white hover:scale-105 active:scale-95"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -185,13 +186,13 @@ export default function ChatLayout({
         </div>
 
         {/* Tab switcher */}
-        <div className="flex border-b border-zinc-800/50">
+        <div className="flex border-b border-dark-700/50">
           <button
             onClick={() => setActiveTab('chats')}
             className={`flex-1 py-3 text-sm font-medium transition-colors ${
               activeTab === 'chats'
-                ? 'text-amber-400 border-b-2 border-amber-400'
-                : 'text-zinc-500 hover:text-zinc-300'
+                ? 'text-cyan-400 border-b-2 border-cyan-400'
+                : 'text-slate-500 hover:text-slate-300'
             }`}
           >
             Chats
@@ -200,8 +201,8 @@ export default function ChatLayout({
             onClick={() => setActiveTab('groups')}
             className={`flex-1 py-3 text-sm font-medium transition-colors ${
               activeTab === 'groups'
-                ? 'text-amber-400 border-b-2 border-amber-400'
-                : 'text-zinc-500 hover:text-zinc-300'
+                ? 'text-cyan-400 border-b-2 border-cyan-400'
+                : 'text-slate-500 hover:text-slate-300'
             }`}
           >
             Groups {groups.length > 0 && `(${groups.length})`}
@@ -214,15 +215,15 @@ export default function ChatLayout({
             // Chats tab
             conversations.length === 0 ? (
               <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-800/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-dark-800/50 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                   </svg>
                 </div>
-                <p className="text-sm text-zinc-500 mb-3">No conversations yet</p>
+                <p className="text-sm text-slate-500 mb-3">No conversations yet</p>
                 <Link
                   href="/new"
-                  className="inline-flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors"
+                  className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -240,31 +241,31 @@ export default function ChatLayout({
                     href={`/${conv.id}`}
                     className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
                       pathname === `/${conv.id}`
-                        ? 'bg-zinc-800/70 shadow-lg'
-                        : 'hover:bg-zinc-800/40'
+                        ? 'bg-dark-800/70 shadow-lg'
+                        : 'hover:bg-dark-800/40'
                     }`}
                   >
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
                       {isSelfChat ? (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 font-medium text-black text-lg shadow-lg shadow-amber-500/20">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-500 font-medium text-black text-lg shadow-lg shadow-cyan-500/20">
                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </div>
                       ) : isGroupChat ? (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 font-medium text-white text-lg shadow-lg shadow-purple-500/20">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 font-medium text-white text-lg shadow-lg shadow-violet-500/20">
                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
                         </div>
                       ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 font-medium text-white text-lg shadow-inner">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-dark-700 to-dark-800 font-medium text-white text-lg shadow-inner">
                           {conv.name[0].toUpperCase()}
                         </div>
                       )}
                       {pathname === `/${conv.id}` && !isSelfChat && (
-                        <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-zinc-900" />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-dark-900" />
                       )}
                     </div>
 
@@ -273,12 +274,12 @@ export default function ChatLayout({
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-white truncate">{conv.name}</span>
                         {conv.unreadCount > 0 && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-black">
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-xs font-bold text-black">
                             {conv.unreadCount}
                           </span>
                         )}
                       </div>
-                      <p className="truncate text-sm text-zinc-500 mt-0.5">
+                      <p className="truncate text-sm text-slate-500 mt-0.5">
                         {conv.lastMessage || (isSelfChat ? 'Your private notes' : isGroupChat ? 'Group chat' : 'No messages yet')}
                       </p>
                     </div>
@@ -290,15 +291,15 @@ export default function ChatLayout({
             // Groups tab
             groups.length === 0 ? (
               <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-800/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-dark-800/50 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <p className="text-sm text-zinc-500 mb-3">No groups yet</p>
+                <p className="text-sm text-slate-500 mb-3">No groups yet</p>
                 <button
                   onClick={() => setShowCreateGroup(true)}
-                  className="inline-flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors"
+                  className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -313,19 +314,19 @@ export default function ChatLayout({
                   href={`/${GROUP_CHAT_PREFIX}${group.id}`}
                   className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
                     pathname === `/${GROUP_CHAT_PREFIX}${group.id}`
-                      ? 'bg-zinc-800/70 shadow-lg'
-                      : 'hover:bg-zinc-800/40'
+                      ? 'bg-dark-800/70 shadow-lg'
+                      : 'hover:bg-dark-800/40'
                   }`}
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 font-medium text-white text-lg shadow-lg shadow-purple-500/20">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 font-medium text-white text-lg shadow-lg shadow-violet-500/20">
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
                     </div>
                     {group.isPublic && (
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-zinc-900 flex items-center justify-center">
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-dark-900 flex items-center justify-center">
                         <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                           <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
@@ -339,12 +340,12 @@ export default function ChatLayout({
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-white truncate">{group.name}</span>
                       {group.memberCount && (
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-xs text-slate-500">
                           {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
                         </span>
                       )}
                     </div>
-                    <p className="truncate text-sm text-zinc-500 mt-0.5">
+                    <p className="truncate text-sm text-slate-500 mt-0.5">
                       {group.description || (group.isPublic ? 'Public group' : 'Private group')}
                     </p>
                   </div>
@@ -355,17 +356,17 @@ export default function ChatLayout({
         </div>
 
         {/* User section */}
-        <div className="border-t border-zinc-800/50 p-4">
-          <div className="flex items-center gap-3 rounded-2xl p-3 bg-zinc-800/30">
+        <div className="border-t border-dark-700/50 p-4">
+          <div className="flex items-center gap-3 rounded-2xl p-3 bg-dark-800/30">
             <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 font-semibold text-black shadow-lg shadow-amber-500/20">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-500 font-semibold text-black shadow-lg shadow-cyan-500/20">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-zinc-800 ${isOnline ? 'bg-green-500' : 'bg-zinc-500'}`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-dark-800 ${isOnline ? 'bg-green-500' : 'bg-slate-500'}`} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-white truncate">{user?.username || 'User'}</div>
-              <div className="text-xs text-zinc-500">{isOnline ? 'Online' : 'Connecting...'}</div>
+              <div className="text-xs text-slate-500">{isOnline ? 'Online' : 'Connecting...'}</div>
             </div>
             <button
               onClick={() => {
@@ -374,7 +375,7 @@ export default function ChatLayout({
                 useAuthStore.getState().logout();
                 router.push('/auth/login');
               }}
-              className="p-2.5 rounded-xl hover:bg-zinc-700/50 text-zinc-500 hover:text-white transition-all duration-200"
+              className="p-2.5 rounded-xl hover:bg-dark-700/50 text-slate-500 hover:text-white transition-all duration-200"
               title="Logout"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -388,7 +389,7 @@ export default function ChatLayout({
       {/* Toggle sidebar button (mobile) */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-amber-500 text-black shadow-xl shadow-amber-500/30 md:hidden hover:bg-amber-400 transition-all duration-200 hover:scale-105 active:scale-95"
+        className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-cyan-500 text-black shadow-xl shadow-cyan-500/30 md:hidden hover:bg-cyan-400 transition-all duration-200 hover:scale-105 active:scale-95"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           {sidebarOpen ? (
@@ -400,7 +401,7 @@ export default function ChatLayout({
       </button>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden bg-zinc-950">{children}</main>
+      <main className="flex-1 overflow-hidden bg-dark-950">{children}</main>
 
       {/* Create Group Modal */}
       <CreateGroupModal

@@ -103,17 +103,17 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
     <>
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-zinc-800/50 z-40 transform transition-transform duration-300 ${
+        className={`fixed top-0 right-0 h-full w-80 bg-dark-900/95 backdrop-blur-xl border-l border-dark-700/50 z-40 transform transition-transform duration-300 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-800/50">
-            <h2 className="text-lg font-semibold text-zinc-100">Group Info</h2>
+          <div className="flex items-center justify-between px-4 py-4 border-b border-dark-700/50">
+            <h2 className="text-lg font-semibold text-slate-100">Group Info</h2>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-dark-800/50 text-slate-400 hover:text-slate-200 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -141,20 +141,20 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-zinc-100 text-sm focus:outline-none focus:border-purple-500/50"
+                      className="w-full px-3 py-2 bg-dark-800/50 border border-dark-600/50 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-purple-500/50"
                       maxLength={128}
                     />
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
                       placeholder="Description (optional)"
-                      className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-zinc-100 text-sm focus:outline-none focus:border-purple-500/50 resize-none"
+                      className="w-full px-3 py-2 bg-dark-800/50 border border-dark-600/50 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-purple-500/50 resize-none"
                       rows={3}
                     />
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => setEditing(false)}
-                        className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200"
+                        className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
                       >
                         Cancel
                       </button>
@@ -168,19 +168,19 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
                   </div>
                 ) : (
                   <div className="text-center">
-                    <h3 className="text-lg font-semibold text-zinc-100">{group.name}</h3>
+                    <h3 className="text-lg font-semibold text-slate-100">{group.name}</h3>
                     {group.description && (
-                      <p className="text-sm text-zinc-400 mt-1">{group.description}</p>
+                      <p className="text-sm text-slate-400 mt-1">{group.description}</p>
                     )}
                     <div className="flex items-center justify-center gap-2 mt-2">
                       <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${
                         group.isPublic
                           ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                          : 'bg-zinc-700/50 text-zinc-400 border border-zinc-600/30'
+                          : 'bg-dark-700/50 text-slate-400 border border-dark-600/30'
                       }`}>
                         {group.isPublic ? 'Public' : 'Private'}
                       </span>
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-slate-500">
                         {members.length} member{members.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -192,30 +192,30 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
             {/* Admin actions */}
             {isAdmin && !editing && (
               <div className="space-y-2">
-                <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-1">Admin</h4>
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider px-1">Admin</h4>
                 <button
                   onClick={() => setEditing(true)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-300 hover:bg-dark-800/50 transition-colors"
                 >
-                  <svg className="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                   Edit Group
                 </button>
                 <button
                   onClick={() => setShowAddMember(true)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-300 hover:bg-dark-800/50 transition-colors"
                 >
-                  <svg className="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
                   Add Member
                 </button>
                 <button
                   onClick={() => setShowInviteLink(true)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-300 hover:bg-dark-800/50 transition-colors"
                 >
-                  <svg className="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                   </svg>
                   Generate Invite Link
@@ -225,7 +225,7 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
 
             {/* Members */}
             <div>
-              <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-1 mb-2">
+              <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider px-1 mb-2">
                 Members ({members.length})
               </h4>
               <MemberList
@@ -240,7 +240,7 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
             {/* Danger zone */}
             {isOwner && !confirmDelete && (
               <div>
-                <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-1 mb-2">Danger Zone</h4>
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider px-1 mb-2">Danger Zone</h4>
                 <button
                   onClick={() => setConfirmDelete(true)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors"
@@ -262,13 +262,13 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
                   type="text"
                   value={deleteInput}
                   onChange={(e) => setDeleteInput(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-800/50 border border-red-500/30 rounded-xl text-zinc-100 text-sm focus:outline-none"
+                  className="w-full px-3 py-2 bg-dark-800/50 border border-red-500/30 rounded-xl text-slate-100 text-sm focus:outline-none"
                   placeholder="Group name"
                 />
                 <div className="flex gap-2 mt-3 justify-end">
                   <button
                     onClick={() => { setConfirmDelete(false); setDeleteInput(''); }}
-                    className="px-3 py-1.5 text-xs text-zinc-400"
+                    className="px-3 py-1.5 text-xs text-slate-400"
                   >
                     Cancel
                   </button>
@@ -286,7 +286,7 @@ export function GroupInfoPanel({ groupId, isOpen, onClose }: GroupInfoPanelProps
 
           {/* Leave group (at bottom) */}
           {!isOwner && (
-            <div className="px-4 py-4 border-t border-zinc-800/50">
+            <div className="px-4 py-4 border-t border-dark-700/50">
               <button
                 onClick={handleLeave}
                 className="w-full py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors"

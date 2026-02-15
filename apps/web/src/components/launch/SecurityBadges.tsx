@@ -71,21 +71,21 @@ function BadgeItem({ badge }: { badge: Badge }) {
       className="
         group relative flex items-center gap-2
         px-4 py-2 rounded-full
-        bg-zinc-900/50 border border-zinc-800/50
-        hover:border-amber-500/30 hover:bg-zinc-800/50
+        bg-dark-900/50 border border-dark-700/50
+        hover:border-cyan-500/30 hover:bg-dark-800/50
         transition-all duration-200
       "
     >
-      <span className="text-amber-500">{badge.icon}</span>
-      <span className="text-sm text-zinc-300">{badge.label}</span>
+      <span className="text-cyan-500">{badge.icon}</span>
+      <span className="text-sm text-slate-300">{badge.label}</span>
 
       {/* Tooltip */}
       <div
         className="
           absolute bottom-full left-1/2 -translate-x-1/2 mb-2
           px-3 py-2 rounded-xl
-          bg-zinc-800 border border-zinc-700
-          text-xs text-zinc-300
+          bg-dark-800 border border-dark-600
+          text-xs text-slate-300
           whitespace-nowrap
           opacity-0 group-hover:opacity-100
           pointer-events-none
@@ -97,7 +97,7 @@ function BadgeItem({ badge }: { badge: Badge }) {
         <div
           className="
             absolute top-full left-1/2 -translate-x-1/2
-            border-4 border-transparent border-t-zinc-800
+            border-4 border-transparent border-t-slate-800
           "
         />
       </div>

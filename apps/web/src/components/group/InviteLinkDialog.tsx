@@ -61,18 +61,18 @@ export function InviteLinkDialog({ groupId, isOpen, onClose }: InviteLinkDialogP
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative bg-zinc-900/95 border border-zinc-800/50 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-        <h3 className="text-lg font-semibold text-zinc-100 mb-4">Generate Invite Link</h3>
+      <div className="relative bg-dark-900/95 border border-dark-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <h3 className="text-lg font-semibold text-slate-100 mb-4">Generate Invite Link</h3>
 
         {!inviteCode ? (
           <>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-zinc-400 mb-1.5">Max uses</label>
+                <label className="block text-sm text-slate-400 mb-1.5">Max uses</label>
                 <select
                   value={maxUses}
                   onChange={(e) => setMaxUses(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-zinc-100 focus:outline-none focus:border-purple-500/50"
+                  className="w-full px-3 py-2.5 bg-dark-800/50 border border-dark-600/50 rounded-xl text-slate-100 focus:outline-none focus:border-purple-500/50"
                 >
                   <option value="">Unlimited</option>
                   <option value="1">1 use</option>
@@ -84,11 +84,11 @@ export function InviteLinkDialog({ groupId, isOpen, onClose }: InviteLinkDialogP
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-400 mb-1.5">Expires in</label>
+                <label className="block text-sm text-slate-400 mb-1.5">Expires in</label>
                 <select
                   value={expiresIn}
                   onChange={(e) => setExpiresIn(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-zinc-100 focus:outline-none focus:border-purple-500/50"
+                  className="w-full px-3 py-2.5 bg-dark-800/50 border border-dark-600/50 rounded-xl text-slate-100 focus:outline-none focus:border-purple-500/50"
                 >
                   <option value="1">1 hour</option>
                   <option value="6">6 hours</option>
@@ -105,7 +105,7 @@ export function InviteLinkDialog({ groupId, isOpen, onClose }: InviteLinkDialogP
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={handleClose}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
               >
                 Cancel
               </button>
@@ -120,7 +120,7 @@ export function InviteLinkDialog({ groupId, isOpen, onClose }: InviteLinkDialogP
           </>
         ) : (
           <>
-            <p className="text-sm text-zinc-400 mb-3">
+            <p className="text-sm text-slate-400 mb-3">
               Share this code with people you want to invite:
             </p>
 
@@ -130,7 +130,7 @@ export function InviteLinkDialog({ groupId, isOpen, onClose }: InviteLinkDialogP
                 type="text"
                 value={inviteCode}
                 readOnly
-                className="flex-1 px-4 py-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-zinc-100 font-mono text-lg tracking-wider text-center select-all"
+                className="flex-1 px-4 py-3 bg-dark-800/50 border border-dark-600/50 rounded-xl text-slate-100 font-mono text-lg tracking-wider text-center select-all"
               />
               <button
                 onClick={handleCopy}
@@ -143,7 +143,7 @@ export function InviteLinkDialog({ groupId, isOpen, onClose }: InviteLinkDialogP
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleClose}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
               >
                 Done
               </button>
