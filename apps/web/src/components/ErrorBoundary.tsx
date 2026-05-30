@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-dark-950 px-4">
           <div className="w-full max-w-sm text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/20 mb-6">
               <svg
@@ -53,17 +53,17 @@ export class ErrorBoundary extends Component<Props, State> {
             <h2 className="text-xl font-semibold text-white mb-2">
               Something went wrong
             </h2>
-            <p className="text-zinc-500 mb-6">
+            <p className="text-slate-500 mb-6">
               An unexpected error occurred. Please try refreshing the page.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-semibold rounded-2xl transition-all duration-200 shadow-lg shadow-amber-500/20"
+              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-black font-semibold rounded-2xl transition-all duration-200 shadow-lg shadow-cyan-500/20"
             >
               Refresh Page
             </button>
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <pre className="mt-6 p-4 bg-zinc-900/50 rounded-2xl text-left text-xs text-red-400 overflow-auto max-h-48">
+              <pre className="mt-6 p-4 bg-dark-900/50 rounded-2xl text-left text-xs text-red-400 overflow-auto max-h-48">
                 {this.state.error.message}
                 {'\n'}
                 {this.state.error.stack}

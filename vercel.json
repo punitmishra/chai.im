@@ -4,6 +4,11 @@
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "outputDirectory": "apps/web/.next",
+  "ignoreCommand": "git diff --quiet HEAD~1 HEAD -- apps/web/ packages/ package.json pnpm-lock.yaml turbo.json",
+  "github": {
+    "silent": false,
+    "autoJobCancelation": true
+  },
   "headers": [
     {
       "source": "/(.*)",

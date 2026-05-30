@@ -47,9 +47,9 @@ function TimeBox({ value, label, isChanging }: { value: number; label: string; i
       <div
         className={`
           relative w-16 h-20 md:w-20 md:h-24
-          bg-zinc-900/80 border border-zinc-800/50
+          bg-dark-900/80 border border-dark-700/50
           rounded-2xl flex items-center justify-center
-          shadow-lg shadow-amber-500/10
+          shadow-lg shadow-cyan-500/10
           overflow-hidden
           ${isChanging ? 'animate-pulse' : ''}
         `}
@@ -57,7 +57,7 @@ function TimeBox({ value, label, isChanging }: { value: number; label: string; i
         <span
           className={`
             text-3xl md:text-4xl font-bold font-mono
-            bg-gradient-to-b from-amber-400 to-orange-500
+            bg-gradient-to-b from-cyan-400 to-teal-500
             bg-clip-text text-transparent
             transition-transform duration-200
             ${isChanging ? 'scale-110' : 'scale-100'}
@@ -68,7 +68,7 @@ function TimeBox({ value, label, isChanging }: { value: number; label: string; i
         {/* Shine effect */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
       </div>
-      <span className="mt-2 text-xs md:text-sm text-zinc-500 uppercase tracking-wider">
+      <span className="mt-2 text-xs md:text-sm text-slate-500 uppercase tracking-wider">
         {label}
       </span>
     </div>
@@ -106,8 +106,8 @@ export function CountdownTimer({ targetDate, onComplete }: CountdownTimerProps) 
       <div className="flex justify-center gap-3 md:gap-4">
         {['Days', 'Hours', 'Minutes', 'Seconds'].map((label) => (
           <div key={label} className="flex flex-col items-center">
-            <div className="w-16 h-20 md:w-20 md:h-24 bg-zinc-900/80 border border-zinc-800/50 rounded-2xl animate-pulse" />
-            <span className="mt-2 text-xs md:text-sm text-zinc-500 uppercase tracking-wider">
+            <div className="w-16 h-20 md:w-20 md:h-24 bg-dark-900/80 border border-dark-700/50 rounded-2xl animate-pulse" />
+            <span className="mt-2 text-xs md:text-sm text-slate-500 uppercase tracking-wider">
               {label}
             </span>
           </div>

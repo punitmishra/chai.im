@@ -42,14 +42,14 @@ export function MnemonicDisplay({ words, onConfirmed }: MnemonicDisplayProps) {
   return (
     <div className="space-y-6">
       {/* Word Grid */}
-      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-6">
+      <div className="bg-dark-900/50 border border-dark-700/50 rounded-2xl p-6">
         <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
           {wordList.map((word, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 bg-zinc-800/50 rounded-xl px-3 py-2"
+              className="flex items-center gap-2 bg-dark-800/50 rounded-xl px-3 py-2"
             >
-              <span className="text-zinc-600 text-xs font-mono w-5">{i + 1}.</span>
+              <span className="text-slate-600 text-xs font-mono w-5">{i + 1}.</span>
               <span className="text-white font-mono text-sm">{word}</span>
             </div>
           ))}
@@ -58,7 +58,7 @@ export function MnemonicDisplay({ words, onConfirmed }: MnemonicDisplayProps) {
         {/* Copy Button */}
         <button
           onClick={handleCopy}
-          className="mt-4 w-full py-2 text-sm text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="mt-4 w-full py-2 text-sm text-slate-400 hover:text-white border border-dark-700 hover:border-dark-600 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           {copied ? (
             <>
@@ -79,14 +79,14 @@ export function MnemonicDisplay({ words, onConfirmed }: MnemonicDisplayProps) {
       </div>
 
       {/* Warning */}
-      <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+      <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
         <div className="flex gap-3">
-          <svg className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div>
-            <p className="text-amber-400 font-medium">Write this down!</p>
-            <p className="text-amber-400/80 text-sm mt-1">
+            <p className="text-cyan-400 font-medium">Write this down!</p>
+            <p className="text-cyan-400/80 text-sm mt-1">
               This is the <strong>only way</strong> to recover your account. Store it in a safe place.
               If you lose this phrase, you will lose access to your account forever.
             </p>
@@ -103,7 +103,7 @@ export function MnemonicDisplay({ words, onConfirmed }: MnemonicDisplayProps) {
             onChange={(e) => setConfirmed(e.target.checked)}
             className="sr-only peer"
           />
-          <div className="w-5 h-5 border-2 border-zinc-700 rounded group-hover:border-zinc-600 peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-colors">
+          <div className="w-5 h-5 border-2 border-dark-600 rounded group-hover:border-dark-600 peer-checked:border-cyan-500 peer-checked:bg-cyan-500 transition-colors">
             {confirmed && (
               <svg className="w-full h-full text-black p-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -111,7 +111,7 @@ export function MnemonicDisplay({ words, onConfirmed }: MnemonicDisplayProps) {
             )}
           </div>
         </div>
-        <span className="text-sm text-zinc-400 group-hover:text-zinc-300">
+        <span className="text-sm text-slate-400 group-hover:text-slate-300">
           I have written down my recovery phrase and stored it in a safe place
         </span>
       </label>
@@ -124,8 +124,8 @@ export function MnemonicDisplay({ words, onConfirmed }: MnemonicDisplayProps) {
           w-full py-3.5 px-4 rounded-2xl font-semibold
           transition-all duration-200
           ${confirmed
-            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20'
-            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}
+            ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-black hover:from-cyan-400 hover:to-teal-400 shadow-lg shadow-cyan-500/20'
+            : 'bg-dark-800 text-slate-500 cursor-not-allowed'}
         `}
       >
         Continue
