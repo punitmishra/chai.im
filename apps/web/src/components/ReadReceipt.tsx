@@ -42,14 +42,14 @@ export function ReadReceipt({
 
       case 'sent':
         return (
-          <svg className={`h-4 w-4 text-zinc-400 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className={`h-4 w-4 text-slate-400 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         );
 
       case 'delivered':
         return (
-          <svg className={`h-4 w-4 text-zinc-400 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={`h-4 w-4 text-slate-400 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 13l4 4L23 7" transform="translate(-4, 0)" />
           </svg>
@@ -57,7 +57,7 @@ export function ReadReceipt({
 
       case 'read':
         // For group messages with partial reads, use a different color
-        const colorClass = allRead ? 'text-amber-500' : (someRead ? 'text-amber-500/60' : 'text-amber-500');
+        const colorClass = allRead ? 'text-cyan-500' : (someRead ? 'text-cyan-500/60' : 'text-cyan-500');
         return (
           <svg className={`h-4 w-4 ${colorClass} ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -112,8 +112,8 @@ function ReadByTooltip({ readBy, totalRecipients }: { readBy: ReadInfo[]; totalR
   const unreadCount = totalRecipients - readBy.length;
 
   return (
-    <div className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-3 min-w-[180px] max-w-[250px]">
-      <div className="text-xs font-medium text-zinc-300 mb-2">
+    <div className="bg-dark-800 border border-dark-600 rounded-lg shadow-xl p-3 min-w-[180px] max-w-[250px]">
+      <div className="text-xs font-medium text-slate-300 mb-2">
         Read by {readBy.length} of {totalRecipients}
       </div>
 
@@ -122,29 +122,29 @@ function ReadByTooltip({ readBy, totalRecipients }: { readBy: ReadInfo[]; totalR
           <div key={info.userId} className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               {/* Small avatar */}
-              <div className="h-5 w-5 rounded-full bg-zinc-600 flex items-center justify-center shrink-0">
-                <span className="text-[10px] font-medium text-zinc-200">
+              <div className="h-5 w-5 rounded-full bg-dark-600 flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-medium text-slate-200">
                   {info.userName.slice(0, 1).toUpperCase()}
                 </span>
               </div>
-              <span className="text-xs text-zinc-300 truncate">
+              <span className="text-xs text-slate-300 truncate">
                 {info.userName}
               </span>
             </div>
-            <span className="text-[10px] text-zinc-500 whitespace-nowrap">
+            <span className="text-[10px] text-slate-500 whitespace-nowrap">
               {formatTime(info.readAt)}
             </span>
           </div>
         ))}
 
         {readBy.length > 5 && (
-          <div className="text-xs text-zinc-500">
+          <div className="text-xs text-slate-500">
             +{readBy.length - 5} more
           </div>
         )}
 
         {unreadCount > 0 && (
-          <div className="text-xs text-zinc-500 pt-1 border-t border-zinc-700">
+          <div className="text-xs text-slate-500 pt-1 border-t border-dark-600">
             {unreadCount} haven't seen yet
           </div>
         )}
@@ -160,7 +160,7 @@ export function DoubleCheck({ read, className = '' }: { read: boolean; className
   return (
     <div className={`relative ${className}`}>
       <svg
-        className={`h-4 w-4 ${read ? 'text-amber-500' : 'text-zinc-400'}`}
+        className={`h-4 w-4 ${read ? 'text-cyan-500' : 'text-slate-400'}`}
         viewBox="0 0 16 16"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -201,7 +201,7 @@ export function GroupReadReceipt({
   }
 
   const allRead = readCount >= totalCount;
-  const colorClass = allRead ? 'text-amber-500' : 'text-zinc-400';
+  const colorClass = allRead ? 'text-cyan-500' : 'text-slate-400';
 
   return (
     <div className={`flex items-center gap-1 ${colorClass} ${className}`}>
@@ -244,7 +244,7 @@ export function SeenByIndicator({
   }
 
   return (
-    <span className={`text-xs text-zinc-500 ${className}`}>
+    <span className={`text-xs text-slate-500 ${className}`}>
       {text}
     </span>
   );

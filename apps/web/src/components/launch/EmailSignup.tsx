@@ -83,7 +83,7 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
           </svg>
         </div>
         <p className="text-white font-medium">You&apos;re on the list!</p>
-        <p className="text-sm text-zinc-500 mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           We&apos;ll email you when Chai launches.
         </p>
       </div>
@@ -101,9 +101,9 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
           disabled={isSubmitting}
           className="
             flex-1 px-4 py-3
-            bg-zinc-900/50 border border-zinc-800/50 rounded-2xl
-            text-white placeholder-zinc-600
-            focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20
+            bg-dark-900/50 border border-dark-700/50 rounded-2xl
+            text-white placeholder-slate-600
+            focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20
             transition-all duration-200
             disabled:opacity-50
           "
@@ -113,10 +113,10 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
           disabled={isSubmitting}
           className="
             px-5 py-3 rounded-2xl font-medium
-            bg-gradient-to-r from-amber-500 to-orange-500
+            bg-gradient-to-r from-cyan-500 to-teal-500
             text-black
-            hover:from-amber-400 hover:to-orange-400
-            shadow-lg shadow-amber-500/20
+            hover:from-cyan-400 hover:to-teal-400
+            shadow-lg shadow-cyan-500/20
             transition-all duration-200
             disabled:opacity-50 disabled:cursor-not-allowed
             flex items-center gap-2
@@ -147,7 +147,7 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
           )}
         </button>
       </div>
-      <p className="text-xs text-zinc-600 text-center">
+      <p className="text-xs text-slate-600 text-center">
         We&apos;ll only email you once when we launch. No spam, ever.
       </p>
     </form>

@@ -72,7 +72,7 @@ export function EncryptionDemo() {
       <div className="grid md:grid-cols-2 gap-4">
         {/* Plaintext Side */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
             <svg
               className="w-4 h-4"
               fill="none"
@@ -91,7 +91,7 @@ export function EncryptionDemo() {
           <div
             className={`
               relative min-h-[120px] p-4
-              bg-zinc-900/50 border border-zinc-800/50 rounded-2xl
+              bg-dark-900/50 border border-dark-700/50 rounded-2xl
               transition-all duration-300
               ${stage !== 'input' ? 'opacity-50' : ''}
             `}
@@ -101,7 +101,7 @@ export function EncryptionDemo() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Type a secret message..."
-                className="w-full h-full min-h-[100px] bg-transparent text-white placeholder-zinc-600 resize-none focus:outline-none"
+                className="w-full h-full min-h-[100px] bg-transparent text-white placeholder-slate-600 resize-none focus:outline-none"
                 maxLength={100}
               />
             ) : (
@@ -114,9 +114,9 @@ export function EncryptionDemo() {
 
         {/* Ciphertext Side */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
             <svg
-              className="w-4 h-4 text-amber-500"
+              className="w-4 h-4 text-cyan-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -133,15 +133,15 @@ export function EncryptionDemo() {
           <div
             className={`
               relative min-h-[120px] p-4
-              bg-zinc-900/50 border rounded-2xl
+              bg-dark-900/50 border rounded-2xl
               transition-all duration-300
               ${stage === 'encrypted'
-                ? 'border-amber-500/50 shadow-lg shadow-amber-500/10'
-                : 'border-zinc-800/50'}
+                ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10'
+                : 'border-dark-700/50'}
             `}
           >
             {stage === 'input' ? (
-              <p className="text-zinc-600 text-sm">
+              <p className="text-slate-600 text-sm">
                 Encrypted output will appear here...
               </p>
             ) : (
@@ -149,8 +149,8 @@ export function EncryptionDemo() {
                 className={`
                   font-mono text-sm break-all
                   ${stage === 'encrypted'
-                    ? 'text-amber-400'
-                    : 'text-zinc-400'}
+                    ? 'text-cyan-400'
+                    : 'text-slate-400'}
                 `}
               >
                 {displayText || randomString(inputText.length * 2)}
@@ -160,9 +160,9 @@ export function EncryptionDemo() {
             {/* Progress indicator */}
             {stage === 'encrypting' && (
               <div className="absolute bottom-2 left-4 right-4">
-                <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-1 bg-dark-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-100"
+                    className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 transition-all duration-100"
                     style={{ width: `${progress * 100}%` }}
                   />
                 </div>
@@ -182,8 +182,8 @@ export function EncryptionDemo() {
               px-6 py-3 rounded-2xl font-medium
               transition-all duration-200
               ${inputText.trim()
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20'
-                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}
+                ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-black hover:from-cyan-400 hover:to-teal-400 shadow-lg shadow-cyan-500/20'
+                : 'bg-dark-800 text-slate-500 cursor-not-allowed'}
             `}
           >
             <span className="flex items-center gap-2">
@@ -204,14 +204,14 @@ export function EncryptionDemo() {
             </span>
           </button>
         ) : stage === 'encrypting' ? (
-          <div className="px-6 py-3 text-amber-400 font-medium flex items-center gap-2">
-            <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <div className="px-6 py-3 text-cyan-400 font-medium flex items-center gap-2">
+            <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
             Encrypting...
           </div>
         ) : (
           <button
             onClick={handleReset}
-            className="px-6 py-3 rounded-2xl font-medium bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+            className="px-6 py-3 rounded-2xl font-medium bg-dark-800 text-white hover:bg-dark-700 transition-colors"
           >
             <span className="flex items-center gap-2">
               <svg
@@ -234,10 +234,10 @@ export function EncryptionDemo() {
       </div>
 
       {/* Explanation */}
-      <div className="text-center text-sm text-zinc-500">
+      <div className="text-center text-sm text-slate-500">
         <p>
           Messages are encrypted with{' '}
-          <span className="text-amber-400">AES-256-GCM</span> before leaving your device.
+          <span className="text-cyan-400">AES-256-GCM</span> before leaving your device.
           <br />
           Only the recipient can decrypt them.
         </p>

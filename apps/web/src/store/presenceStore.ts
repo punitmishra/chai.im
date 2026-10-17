@@ -207,9 +207,9 @@ export function getStatusColor(status: UserStatus): string {
     case 'do_not_disturb':
       return 'bg-red-500';
     case 'offline':
-      return 'bg-zinc-500';
+      return 'bg-slate-500';
     default:
-      return 'bg-zinc-500';
+      return 'bg-slate-500';
   }
 }
 

@@ -58,7 +58,7 @@ export function OnlineStatus({
         title={getStatusText(presence.status)}
       />
       {showLabel && (
-        <span className="text-sm text-zinc-400">
+        <span className="text-sm text-slate-400">
           {getLabel()}
         </span>
       )}
@@ -115,8 +115,8 @@ export function OnlineDot({
 
   return (
     <span
-      className={`${sizeClasses[size]} rounded-full border-2 border-zinc-900 ${
-        isOnline ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-zinc-500'
+      className={`${sizeClasses[size]} rounded-full border-2 border-dark-900 ${
+        isOnline ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-slate-500'
       } ${className}`}
     />
   );
@@ -171,14 +171,14 @@ export function AvatarWithPresence({
   return (
     <div className={`relative inline-block ${className}`}>
       <div
-        className={`${containerSizes[size]} rounded-full bg-zinc-700 flex items-center justify-center`}
+        className={`${containerSizes[size]} rounded-full bg-dark-700 flex items-center justify-center`}
       >
-        <span className={`${textSizes[size]} font-medium text-zinc-200`}>
+        <span className={`${textSizes[size]} font-medium text-slate-200`}>
           {initials}
         </span>
       </div>
       <span
-        className={`absolute ${dotSizes[size]} rounded-full border-2 border-zinc-900 ${colorClass}`}
+        className={`absolute ${dotSizes[size]} rounded-full border-2 border-dark-900 ${colorClass}`}
         title={getStatusText(presence.status)}
       />
     </div>

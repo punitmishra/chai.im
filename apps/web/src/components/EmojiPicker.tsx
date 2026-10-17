@@ -102,29 +102,29 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
   return (
     <div
       ref={containerRef}
-      className={`w-80 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden ${className}`}
+      className={`w-80 bg-dark-900 border border-dark-700 rounded-xl shadow-xl overflow-hidden ${className}`}
     >
       {/* Search bar */}
-      <div className="p-3 border-b border-zinc-800">
+      <div className="p-3 border-b border-dark-700">
         <input
           ref={searchInputRef}
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search emojis..."
-          className="w-full bg-zinc-800 text-white text-sm rounded-lg px-3 py-2
-                     placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          className="w-full bg-dark-800 text-white text-sm rounded-lg px-3 py-2
+                     placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
         />
       </div>
 
       {/* Category tabs */}
       {!isSearching && (
-        <div className="flex items-center gap-1 px-2 py-2 border-b border-zinc-800 overflow-x-auto">
+        <div className="flex items-center gap-1 px-2 py-2 border-b border-dark-700 overflow-x-auto">
           {recentEmojis.length > 0 && (
             <button
               onClick={() => scrollToCategory('recent')}
-              className={`p-2 rounded-lg text-lg hover:bg-zinc-800 transition-colors
-                         ${activeCategory === 'recent' ? 'bg-zinc-800' : ''}`}
+              className={`p-2 rounded-lg text-lg hover:bg-dark-800 transition-colors
+                         ${activeCategory === 'recent' ? 'bg-dark-800' : ''}`}
               title="Recent"
             >
               🕐
@@ -134,8 +134,8 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
             <button
               key={category.id}
               onClick={() => scrollToCategory(category.id)}
-              className={`p-2 rounded-lg text-lg hover:bg-zinc-800 transition-colors
-                         ${activeCategory === category.id ? 'bg-zinc-800' : ''}`}
+              className={`p-2 rounded-lg text-lg hover:bg-dark-800 transition-colors
+                         ${activeCategory === category.id ? 'bg-dark-800' : ''}`}
               title={category.name}
             >
               {category.icon}
@@ -144,8 +144,8 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
           {customEmojis.length > 0 && (
             <button
               onClick={() => scrollToCategory('custom')}
-              className={`p-2 rounded-lg text-lg hover:bg-zinc-800 transition-colors
-                         ${activeCategory === 'custom' ? 'bg-zinc-800' : ''}`}
+              className={`p-2 rounded-lg text-lg hover:bg-dark-800 transition-colors
+                         ${activeCategory === 'custom' ? 'bg-dark-800' : ''}`}
               title="Custom"
             >
               ⭐
@@ -165,7 +165,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
                   <button
                     key={`${emoji.emoji}-${idx}`}
                     onClick={() => handleSelectEmoji(emoji.emoji)}
-                    className="p-2 text-xl hover:bg-zinc-800 rounded-lg transition-colors"
+                    className="p-2 text-xl hover:bg-dark-800 rounded-lg transition-colors"
                     title={emoji.name}
                   >
                     {emoji.emoji}
@@ -173,7 +173,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
                 ))}
               </div>
             ) : (
-              <div className="text-center text-zinc-500 py-8">No emojis found</div>
+              <div className="text-center text-slate-500 py-8">No emojis found</div>
             )}
           </div>
         ) : (
@@ -182,7 +182,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
             {/* Recent emojis */}
             {recentEmojis.length > 0 && (
               <div ref={(el) => { if (el) categoryRefs.current.set('recent', el); }}>
-                <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-1">
                   Recently Used
                 </h3>
                 <div className="grid grid-cols-8 gap-1">
@@ -190,7 +190,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
                     <button
                       key={`recent-${emoji}-${idx}`}
                       onClick={() => handleSelectEmoji(emoji)}
-                      className="p-2 text-xl hover:bg-zinc-800 rounded-lg transition-colors"
+                      className="p-2 text-xl hover:bg-dark-800 rounded-lg transition-colors"
                     >
                       {emoji}
                     </button>
@@ -202,7 +202,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
             {/* Standard emoji categories */}
             {emojiCategories.map((category) => (
               <div key={category.id} ref={(el) => { if (el) categoryRefs.current.set(category.id, el); }}>
-                <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-1">
                   {category.name}
                 </h3>
                 <div className="grid grid-cols-8 gap-1">
@@ -210,7 +210,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
                     <button
                       key={`${category.id}-${emoji.emoji}-${idx}`}
                       onClick={() => handleSelectEmoji(emoji.emoji)}
-                      className="p-2 text-xl hover:bg-zinc-800 rounded-lg transition-colors"
+                      className="p-2 text-xl hover:bg-dark-800 rounded-lg transition-colors"
                       title={emoji.name}
                     >
                       {emoji.emoji}
@@ -223,7 +223,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
             {/* Custom emojis */}
             {customEmojis.length > 0 && (
               <div ref={(el) => { if (el) categoryRefs.current.set('custom', el); }}>
-                <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 px-1">
                   Custom
                 </h3>
                 <div className="grid grid-cols-8 gap-1">
@@ -231,7 +231,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
                     <button
                       key={emoji.id}
                       onClick={() => handleSelectCustomEmoji(emoji)}
-                      className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                      className="p-2 hover:bg-dark-800 rounded-lg transition-colors"
                       title={`:${emoji.shortcode}:`}
                     >
                       <img

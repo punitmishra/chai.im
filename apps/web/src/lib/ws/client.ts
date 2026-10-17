@@ -680,6 +680,7 @@ export class WebSocketClient {
       content: payload.content,
       timestamp: payload.timestamp,
       status: 'delivered',
+      senderName: payload.sender_username,
     };
 
     useChatStore.getState().addMessage(message);

@@ -63,9 +63,9 @@ export default function ChatLayout({
   // Show loading during hydration or if not authenticated
   if (!hasHydrated || !sessionToken) {
     return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950">
-        <div className="flex items-center gap-3 text-zinc-500">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+      <div className="flex h-screen items-center justify-center bg-dark-950">
+        <div className="flex items-center gap-3 text-slate-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
           <span>Loading...</span>
         </div>
       </div>
@@ -75,27 +75,27 @@ export default function ChatLayout({
   const isOnline = connectionStatus === 'connected';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-950">
+    <div className="flex h-screen overflow-hidden bg-dark-950">
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'w-80' : 'w-0'
-        } flex flex-col border-r border-zinc-800/50 bg-zinc-900/30 backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden`}
+        } flex flex-col border-r border-dark-700/50 bg-dark-900/30 backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800/50">
+        <div className="flex items-center justify-between p-5 border-b border-dark-700/50">
           <Link href="/chat" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
               <span className="text-sm">☕</span>
             </div>
             <span className="text-lg font-semibold">
-              <span className="text-amber-400">Chai</span>
-              <span className="text-zinc-500">.im</span>
+              <span className="text-cyan-400">Chai</span>
+              <span className="text-slate-500">.im</span>
             </span>
           </Link>
           <Link
             href="/chat/new"
-            className="p-2.5 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-all duration-200 text-zinc-400 hover:text-white hover:scale-105 active:scale-95"
+            className="p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-all duration-200 text-slate-400 hover:text-white hover:scale-105 active:scale-95"
           >
             <svg
               className="h-5 w-5"
@@ -117,15 +117,15 @@ export default function ChatLayout({
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {conversations.length === 0 ? (
             <div className="text-center py-12 px-4">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-800/50 flex items-center justify-center">
-                <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-dark-800/50 flex items-center justify-center">
+                <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                 </svg>
               </div>
-              <p className="text-sm text-zinc-500 mb-3">No conversations yet</p>
+              <p className="text-sm text-slate-500 mb-3">No conversations yet</p>
               <Link
                 href="/chat/new"
-                className="inline-flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors"
+                className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -142,25 +142,25 @@ export default function ChatLayout({
                   href={`/chat/${conv.id}`}
                   className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
                     pathname === `/chat/${conv.id}`
-                      ? 'bg-zinc-800/70 shadow-lg'
-                      : 'hover:bg-zinc-800/40'
+                      ? 'bg-dark-800/70 shadow-lg'
+                      : 'hover:bg-dark-800/40'
                   }`}
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     {isSelfChat ? (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 font-medium text-black text-lg shadow-lg shadow-amber-500/20">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-500 font-medium text-black text-lg shadow-lg shadow-cyan-500/20">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </div>
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 font-medium text-white text-lg shadow-inner">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-dark-700 to-dark-800 font-medium text-white text-lg shadow-inner">
                         {conv.name[0].toUpperCase()}
                       </div>
                     )}
                     {pathname === `/chat/${conv.id}` && !isSelfChat && (
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-zinc-900" />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-dark-900" />
                     )}
                   </div>
 
@@ -169,12 +169,12 @@ export default function ChatLayout({
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-white truncate">{conv.name}</span>
                       {conv.unreadCount > 0 && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-black">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-xs font-bold text-black">
                           {conv.unreadCount}
                         </span>
                       )}
                     </div>
-                    <p className="truncate text-sm text-zinc-500 mt-0.5">
+                    <p className="truncate text-sm text-slate-500 mt-0.5">
                       {conv.lastMessage || (isSelfChat ? 'Your private notes' : 'No messages yet')}
                     </p>
                   </div>
@@ -185,17 +185,17 @@ export default function ChatLayout({
         </div>
 
         {/* User section */}
-        <div className="border-t border-zinc-800/50 p-4">
-          <div className="flex items-center gap-3 rounded-2xl p-3 bg-zinc-800/30">
+        <div className="border-t border-dark-700/50 p-4">
+          <div className="flex items-center gap-3 rounded-2xl p-3 bg-dark-800/30">
             <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 font-semibold text-black shadow-lg shadow-amber-500/20">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-500 font-semibold text-black shadow-lg shadow-cyan-500/20">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-zinc-800 ${isOnline ? 'bg-green-500' : 'bg-zinc-500'}`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-dark-700 ${isOnline ? 'bg-green-500' : 'bg-slate-500'}`} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-white truncate">{user?.username || 'User'}</div>
-              <div className="text-xs text-zinc-500">{isOnline ? 'Online' : 'Connecting...'}</div>
+              <div className="text-xs text-slate-500">{isOnline ? 'Online' : 'Connecting...'}</div>
             </div>
             <button
               onClick={() => {
@@ -204,7 +204,7 @@ export default function ChatLayout({
                 useAuthStore.getState().logout();
                 router.push('/auth/login');
               }}
-              className="p-2.5 rounded-xl hover:bg-zinc-700/50 text-zinc-500 hover:text-white transition-all duration-200"
+              className="p-2.5 rounded-xl hover:bg-dark-700/50 text-slate-500 hover:text-white transition-all duration-200"
               title="Logout"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -218,7 +218,7 @@ export default function ChatLayout({
       {/* Toggle sidebar button (mobile) */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-amber-500 text-black shadow-xl shadow-amber-500/30 md:hidden hover:bg-amber-400 transition-all duration-200 hover:scale-105 active:scale-95"
+        className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-cyan-500 text-black shadow-xl shadow-cyan-500/30 md:hidden hover:bg-cyan-400 transition-all duration-200 hover:scale-105 active:scale-95"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           {sidebarOpen ? (
@@ -230,7 +230,7 @@ export default function ChatLayout({
       </button>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden bg-zinc-950">{children}</main>
+      <main className="flex-1 overflow-hidden bg-dark-950">{children}</main>
     </div>
   );
 }

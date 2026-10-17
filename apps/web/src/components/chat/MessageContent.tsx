@@ -277,8 +277,8 @@ function renderNodes(
             key={index}
             className={`px-1.5 py-0.5 rounded font-mono text-sm ${
               isSelf
-                ? 'bg-amber-600/30 text-amber-100'
-                : 'bg-zinc-700/70 text-green-400'
+                ? 'bg-cyan-600/30 text-cyan-100'
+                : 'bg-dark-700/70 text-green-400'
             }`}
           >
             {node.content}
@@ -287,9 +287,9 @@ function renderNodes(
 
       case 'code_block':
         return (
-          <div key={index} className="overflow-x-auto rounded-xl bg-zinc-900/80 p-4 my-2">
+          <div key={index} className="overflow-x-auto rounded-xl bg-dark-900/80 p-4 my-2">
             {node.language && (
-              <div className="mb-2 text-xs text-zinc-500 font-mono">{node.language}</div>
+              <div className="mb-2 text-xs text-slate-500 font-mono">{node.language}</div>
             )}
             <pre className="font-mono text-sm text-green-400 whitespace-pre-wrap break-all">
               <code>{node.content}</code>
@@ -312,8 +312,8 @@ function renderNodes(
             }}
             className={`underline underline-offset-2 hover:no-underline transition-colors ${
               isSelf
-                ? 'text-amber-100 hover:text-white'
-                : 'text-amber-400 hover:text-amber-300'
+                ? 'text-cyan-100 hover:text-white'
+                : 'text-cyan-400 hover:text-cyan-300'
             }`}
           >
             {node.content}
@@ -327,8 +327,8 @@ function renderNodes(
             onClick={() => onMentionClick?.(node.content)}
             className={`font-medium rounded px-1 transition-colors ${
               isSelf
-                ? 'text-amber-100 bg-amber-600/30 hover:bg-amber-600/50'
-                : 'text-amber-400 bg-amber-500/20 hover:bg-amber-500/30'
+                ? 'text-cyan-100 bg-cyan-600/30 hover:bg-cyan-600/50'
+                : 'text-cyan-400 bg-cyan-500/20 hover:bg-cyan-500/30'
             }`}
           >
             @{node.content}

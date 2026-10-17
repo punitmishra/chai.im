@@ -55,7 +55,7 @@ function AttachmentItem({ attachment, isSelf }: { attachment: Attachment; isSelf
           loading="lazy"
         />
         <div className={`flex items-center justify-between px-2 py-1 text-xs ${
-          isSelf ? 'text-amber-900/60' : 'text-zinc-500'
+          isSelf ? 'text-cyan-900/60' : 'text-slate-500'
         }`}>
           <span className="truncate">{attachment.filename}</span>
           <span>{formatFileSize(attachment.sizeBytes)}</span>
@@ -70,26 +70,26 @@ function AttachmentItem({ attachment, isSelf }: { attachment: Attachment; isSelf
       disabled={downloading}
       className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors max-w-xs ${
         isSelf
-          ? 'bg-amber-600/20 hover:bg-amber-600/30 text-amber-900'
-          : 'bg-zinc-700/50 hover:bg-zinc-700/70 text-zinc-300'
+          ? 'bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-900'
+          : 'bg-dark-700/50 hover:bg-dark-700/70 text-slate-300'
       }`}
     >
       <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-        isSelf ? 'bg-amber-600/30' : 'bg-zinc-600/50'
+        isSelf ? 'bg-cyan-600/30' : 'bg-dark-600/50'
       }`}>
         {downloading ? (
           <div className={`h-5 w-5 animate-spin rounded-full border-2 ${
-            isSelf ? 'border-amber-900/30 border-t-amber-900' : 'border-zinc-500 border-t-white'
+            isSelf ? 'border-cyan-900/30 border-t-cyan-900' : 'border-slate-500 border-t-white'
           }`} />
         ) : (
           <FileIcon contentType={attachment.contentType} isSelf={isSelf} />
         )}
       </div>
       <div className="min-w-0 text-left">
-        <p className={`text-sm font-medium truncate ${isSelf ? 'text-amber-950' : 'text-white'}`}>
+        <p className={`text-sm font-medium truncate ${isSelf ? 'text-cyan-950' : 'text-white'}`}>
           {attachment.filename}
         </p>
-        <p className={`text-xs ${isSelf ? 'text-amber-900/60' : 'text-zinc-500'}`}>
+        <p className={`text-xs ${isSelf ? 'text-cyan-900/60' : 'text-slate-500'}`}>
           {formatFileSize(attachment.sizeBytes)}
         </p>
       </div>
@@ -98,7 +98,7 @@ function AttachmentItem({ attachment, isSelf }: { attachment: Attachment; isSelf
 }
 
 function FileIcon({ contentType, isSelf }: { contentType: string; isSelf: boolean }) {
-  const color = isSelf ? 'text-amber-900' : 'text-zinc-400';
+  const color = isSelf ? 'text-cyan-900' : 'text-slate-400';
 
   if (contentType.startsWith('video/')) {
     return (

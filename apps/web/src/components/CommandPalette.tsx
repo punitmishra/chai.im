@@ -151,7 +151,7 @@ export function CommandPalette({
       name: conv.name,
       description: conv.lastMessage || 'No messages yet',
       icon: (
-        <div className="flex h-5 w-5 items-center justify-center rounded bg-zinc-700 text-xs font-medium text-white">
+        <div className="flex h-5 w-5 items-center justify-center rounded bg-dark-700 text-xs font-medium text-white">
           {conv.name.charAt(0).toUpperCase()}
         </div>
       ),
@@ -253,10 +253,10 @@ export function CommandPalette({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg bg-zinc-900 rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl overflow-hidden">
         {/* Search input */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800">
-          <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-dark-700">
+          <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <input
@@ -265,9 +265,9 @@ export function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type a command or search..."
-            className="flex-1 bg-transparent text-white placeholder-zinc-500 focus:outline-none"
+            className="flex-1 bg-transparent text-white placeholder-slate-500 focus:outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-zinc-500 bg-zinc-800 rounded">
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 bg-dark-800 rounded">
             ESC
           </kbd>
         </div>
@@ -275,13 +275,13 @@ export function CommandPalette({
         {/* Commands */}
         <div className="max-h-[50vh] overflow-y-auto py-2">
           {filteredCommands.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-zinc-500">
+            <div className="flex flex-col items-center justify-center py-8 text-slate-500">
               <p>No commands found</p>
             </div>
           ) : (
             Object.entries(groupedCommands).map(([category, cmds]) => (
               <div key={category}>
-                <div className="px-4 py-2 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                <div className="px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
                   {categoryLabels[category] || category}
                 </div>
                 {cmds.map((cmd) => {
@@ -292,17 +292,17 @@ export function CommandPalette({
                       onClick={cmd.action}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors ${
                         index === selectedIndex
-                          ? 'bg-zinc-800'
-                          : 'hover:bg-zinc-800/50'
+                          ? 'bg-dark-800'
+                          : 'hover:bg-dark-800/50'
                       }`}
                     >
-                      <div className="text-zinc-400">{cmd.icon}</div>
+                      <div className="text-slate-400">{cmd.icon}</div>
                       <div className="flex-1 text-left">
                         <div className="text-sm font-medium text-white">{cmd.name}</div>
-                        <div className="text-xs text-zinc-500 truncate">{cmd.description}</div>
+                        <div className="text-xs text-slate-500 truncate">{cmd.description}</div>
                       </div>
                       {cmd.shortcut && (
-                        <kbd className="px-2 py-1 text-xs text-zinc-500 bg-zinc-800 rounded">
+                        <kbd className="px-2 py-1 text-xs text-slate-500 bg-dark-800 rounded">
                           {cmd.shortcut}
                         </kbd>
                       )}
@@ -315,18 +315,18 @@ export function CommandPalette({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-800 bg-zinc-900/50">
-          <span className="text-xs text-zinc-500">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-dark-700 bg-dark-900/50">
+          <span className="text-xs text-slate-500">
             {filteredCommands.length} command{filteredCommands.length !== 1 ? 's' : ''}
           </span>
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↑</kbd>
-              <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↓</kbd>
+              <kbd className="px-1.5 py-0.5 bg-dark-800 rounded">↑</kbd>
+              <kbd className="px-1.5 py-0.5 bg-dark-800 rounded">↓</kbd>
               navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↵</kbd>
+              <kbd className="px-1.5 py-0.5 bg-dark-800 rounded">↵</kbd>
               run
             </span>
           </div>

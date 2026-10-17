@@ -111,28 +111,28 @@ export function ThreadPanel({
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed right-0 top-0 bottom-0 w-full max-w-md bg-zinc-900 border-l border-zinc-800/50 z-50 flex flex-col transform transition-transform duration-300 ease-out ${
+        className={`fixed right-0 top-0 bottom-0 w-full max-w-md bg-dark-900 border-l border-dark-700/50 z-50 flex flex-col transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/50 bg-zinc-900/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700/50 bg-dark-900/80 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20">
-              <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/20">
+              <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
             </div>
             <div>
               <h2 className="font-semibold text-white">Thread</h2>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-slate-500">
                 {threadReplies.length} {threadReplies.length === 1 ? 'reply' : 'replies'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2.5 rounded-xl hover:bg-zinc-800/50 text-zinc-400 hover:text-white transition-all"
+            className="p-2.5 rounded-xl hover:bg-dark-800/50 text-slate-400 hover:text-white transition-all"
             title="Close thread (Esc)"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -144,8 +144,8 @@ export function ThreadPanel({
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Parent message */}
-          <div className="border-b border-zinc-800/50 pb-4 mb-4">
-            <div className="text-xs text-zinc-500 mb-2 font-medium">Original message</div>
+          <div className="border-b border-dark-700/50 pb-4 mb-4">
+            <div className="text-xs text-slate-500 mb-2 font-medium">Original message</div>
             <MessageBubble
               message={parentMessage}
               isSelf={parentMessage.senderId === user?.id}
@@ -156,13 +156,13 @@ export function ThreadPanel({
           {/* Thread replies */}
           {threadReplies.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-800/50 flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-16 h-16 rounded-2xl bg-dark-800/50 flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                 </svg>
               </div>
-              <p className="text-sm text-zinc-500 mb-1">No replies yet</p>
-              <p className="text-xs text-zinc-600">Be the first to reply to this thread</p>
+              <p className="text-sm text-slate-500 mb-1">No replies yet</p>
+              <p className="text-xs text-slate-600">Be the first to reply to this thread</p>
             </div>
           ) : (
             threadReplies.map((reply) => (
@@ -178,7 +178,7 @@ export function ThreadPanel({
         </div>
 
         {/* Input area */}
-        <form onSubmit={handleSend} className="border-t border-zinc-800/50 p-4 bg-zinc-900/80 backdrop-blur-xl">
+        <form onSubmit={handleSend} className="border-t border-dark-700/50 p-4 bg-dark-900/80 backdrop-blur-xl">
           {/* Emoji autocomplete dropdown */}
           <div className="relative">
             {emojiAutocomplete.isActive && (
@@ -209,8 +209,8 @@ export function ThreadPanel({
                 onClick={() => setShowEmojiPicker((prev) => !prev)}
                 className={`p-3 rounded-xl transition-all duration-200 ${
                   showEmojiPicker
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-700/50'
+                    ? 'bg-cyan-500/20 text-cyan-400'
+                    : 'bg-dark-800/50 border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/50'
                 }`}
                 title="Emoji picker"
               >
@@ -226,13 +226,13 @@ export function ThreadPanel({
                 onChange={handleInputChange}
                 onKeyDown={emojiAutocomplete.handleKeyDown}
                 placeholder="Reply in thread..."
-                className="flex-1 px-4 py-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                className="flex-1 px-4 py-3 bg-dark-800/50 border border-dark-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
               />
 
               <button
                 type="submit"
                 disabled={!input.trim() || isSending}
-                className="px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black font-semibold rounded-xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30"
+                className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30"
               >
                 {isSending ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/30 border-t-black" />

@@ -190,7 +190,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     const parts = text.split(regex);
     return parts.map((part, i) =>
       regex.test(part) ? (
-        <mark key={i} className="bg-amber-500/30 text-amber-200 rounded px-0.5">
+        <mark key={i} className="bg-cyan-500/30 text-cyan-200 rounded px-0.5">
           {part}
         </mark>
       ) : (
@@ -210,10 +210,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-zinc-900 rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-2xl bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl overflow-hidden">
         {/* Search input */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800">
-          <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-dark-700">
+          <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -222,26 +222,26 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search messages..."
-            className="flex-1 bg-transparent text-white text-lg placeholder-zinc-500 focus:outline-none"
+            className="flex-1 bg-transparent text-white text-lg placeholder-slate-500 focus:outline-none"
           />
           {isSearching && (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-amber-500" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-zinc-500 bg-zinc-800 rounded">
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 bg-dark-800 rounded">
             ESC
           </kbd>
         </div>
 
         {/* Conversation filter */}
         {conversations.length > 1 && (
-          <div className="flex items-center gap-2 px-5 py-2 border-b border-zinc-800/50 bg-zinc-900/50 overflow-x-auto">
-            <span className="text-xs text-zinc-500 flex-shrink-0">In:</span>
+          <div className="flex items-center gap-2 px-5 py-2 border-b border-dark-700/50 bg-dark-900/50 overflow-x-auto">
+            <span className="text-xs text-slate-500 flex-shrink-0">In:</span>
             <button
               onClick={() => setFilterConversationId(null)}
               className={`px-2 py-1 text-xs rounded-lg transition-colors flex-shrink-0 ${
                 !filterConversationId
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-cyan-500/20 text-cyan-400'
+                  : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               All
@@ -252,8 +252,8 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 onClick={() => setFilterConversationId(conv.id)}
                 className={`px-2 py-1 text-xs rounded-lg transition-colors flex-shrink-0 truncate max-w-[120px] ${
                   filterConversationId === conv.id
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : 'text-zinc-500 hover:text-zinc-300'
+                    ? 'bg-cyan-500/20 text-cyan-400'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
                 title={conv.name}
               >
@@ -266,22 +266,22 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
           {query && results.length === 0 && !isSearching ? (
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
-              <svg className="w-12 h-12 mb-3 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+              <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <p>No messages found for "{query}"</p>
             </div>
           ) : results.length > 0 ? (
-            <div className="divide-y divide-zinc-800/50">
+            <div className="divide-y divide-dark-800/50">
               {results.map((result, index) => (
                 <button
                   key={result.message.id}
                   onClick={() => navigateToMessage(result)}
                   className={`w-full text-left px-5 py-3 transition-colors ${
                     index === selectedIndex
-                      ? 'bg-zinc-800'
-                      : 'hover:bg-zinc-800/50'
+                      ? 'bg-dark-800'
+                      : 'hover:bg-dark-800/50'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-4 mb-1">
@@ -290,30 +290,30 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         {result.conversation?.name || 'Unknown'}
                       </span>
                       {result.message.senderId && result.message.senderId !== user?.id && (
-                        <span className="text-xs text-zinc-500 flex-shrink-0">
+                        <span className="text-xs text-slate-500 flex-shrink-0">
                           from {result.message.senderId === result.conversation?.recipientId
                             ? result.conversation?.name
                             : 'them'}
                         </span>
                       )}
                       {result.message.senderId === user?.id && (
-                        <span className="text-xs text-zinc-500 flex-shrink-0">you</span>
+                        <span className="text-xs text-slate-500 flex-shrink-0">you</span>
                       )}
                     </div>
-                    <span className="text-xs text-zinc-500 flex-shrink-0">
+                    <span className="text-xs text-slate-500 flex-shrink-0">
                       {formatTimestamp(result.message.timestamp)}
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-400 truncate">
+                  <p className="text-sm text-slate-400 truncate">
                     {highlightMatch(result.message.content, query)}
                   </p>
                 </button>
               ))}
             </div>
           ) : !query ? (
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
               <p className="text-sm">Type to search your messages</p>
-              <p className="text-xs text-zinc-600 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 Use arrow keys to navigate, Enter to select
               </p>
             </div>
@@ -322,18 +322,18 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
         {/* Footer */}
         {results.length > 0 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-800 bg-zinc-900/50">
-            <span className="text-xs text-zinc-500">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-dark-700 bg-dark-900/50">
+            <span className="text-xs text-slate-500">
               {results.length} result{results.length !== 1 ? 's' : ''}
             </span>
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↑</kbd>
-                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-dark-800 rounded">↑</kbd>
+                <kbd className="px-1.5 py-0.5 bg-dark-800 rounded">↓</kbd>
                 navigate
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded">↵</kbd>
+                <kbd className="px-1.5 py-0.5 bg-dark-800 rounded">↵</kbd>
                 open
               </span>
             </div>

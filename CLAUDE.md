@@ -287,7 +287,7 @@ Web client automatically tries port 3001 if 3000 is busy. Backend uses 8080.
 
 ### Latest Session Summary
 
-Major feature sprint: group chat WebSocket protocol, message search improvements, file attachment infrastructure, and CLI clippy fixes. All CI passing. PR #31 open.
+Group chat frontend UI complete: GroupInfoPanel, MemberList, AddMemberDialog, InviteLinkDialog, sender name labels, group store. Also includes group WS protocol, message search, file attachments, and CLI fixes from earlier in the session. PR #31 merged.
 
 ### Screenshots
 
@@ -303,7 +303,8 @@ Feature screenshots captured in `docs/screenshots/`:
 | `06-mobile-landing.png` | Mobile-responsive landing page (390x844) |
 
 ### Merged PRs (This Session)
-- **PR #31**: Group chat WS handlers, message search improvements, file attachments (pending merge)
+- **PR #31**: Group chat WS handlers, message search improvements, file attachments ✅
+- **Commit a159df1**: Group chat frontend UI (GroupInfoPanel, member management, invite links) ✅
 - **PR #26**: CLI identity key authentication with TUI screens ✅
 - **PR #24**: Passwordless authentication feature ✅
 - **PR #23**: Chai.im feature development ✅
@@ -340,6 +341,7 @@ Feature screenshots captured in `docs/screenshots/`:
 | **Message Search (Client-side)** | ✅ New |
 | **File Attachments (Upload/Download)** | ✅ New |
 | **CLI Identity Key Auth** | ✅ New |
+| **Group Chat Frontend UI** | ✅ New |
 | **Launch Page** | ✅ Deployed |
 | **Countdown Timer** | ✅ Deployed |
 | **Encryption Demo** | ✅ Deployed |
@@ -351,7 +353,7 @@ Feature screenshots captured in `docs/screenshots/`:
 | Feature | Priority |
 |---------|----------|
 | Re-enable @xenova/transformers AI features | High |
-| Group chat frontend UI components | Medium |
+| Sender Keys protocol for group E2E encryption | Medium |
 | File attachment E2E encryption (per-file keys) | Medium |
 | Offline message queue | Low |
 
@@ -370,6 +372,18 @@ Feature screenshots captured in `docs/screenshots/`:
 - **To re-enable**: Add back to package.json with proper serverExternalPackages config
 
 ### Recent Implementations
+
+**Group Chat Frontend UI (Feb 8, 2026)**
+- GroupInfoPanel: slide-out right sidebar with group details, inline editing, admin actions
+- MemberList: sorted by role (owner/admin/member), role badges, online status, remove button
+- AddMemberDialog: user search with debounce, filters existing members
+- InviteLinkDialog: configurable max uses and expiry, copyable invite codes
+- Zustand `groupStore` with persist middleware for group state and members
+- REST API client (`lib/api/groups.ts`) wrapping all 11 server endpoints
+- Sender name labels (purple) above group messages, grouped by sender
+- Clickable group header showing member count, opens info panel
+- Fixed layout.tsx `/groups/me` bug (server only has `GET /groups`)
+- Refactored CreateGroupModal to use centralized API client
 
 **Group Chat WebSocket Protocol (Feb 8, 2026)**
 - Added `SendGroupMessage`, `GroupMessage`, `CreateGroup`, `GroupCreated` WS message types
@@ -467,8 +481,13 @@ apps/web/src/
 │   ├── Toast.tsx
 │   ├── SearchModal.tsx         # Message search (Ctrl+K)
 │   ├── chat/
-│   │   ├── MessageBubble.tsx   # Message display with attachments
+│   │   ├── MessageBubble.tsx   # Message display with attachments + sender labels
 │   │   └── AttachmentDisplay.tsx # File/image attachment renderer
+│   ├── group/
+│   │   ├── GroupInfoPanel.tsx  # Group details slide-out panel
+│   │   ├── MemberList.tsx      # Member list with roles + remove
+│   │   ├── AddMemberDialog.tsx # User search + add member modal
+│   │   └── InviteLinkDialog.tsx # Invite code generation modal
 │   └── launch/                 # Launch page components
 │       ├── CountdownTimer.tsx
 │       ├── EncryptionDemo.tsx
@@ -476,7 +495,8 @@ apps/web/src/
 │       └── SecurityBadges.tsx
 ├── lib/
 │   ├── api/
-│   │   └── attachments.ts      # File upload/download API
+│   │   ├── attachments.ts      # File upload/download API
+│   │   └── groups.ts           # Groups REST API client (11 endpoints)
 │   ├── config.ts               # Centralized configuration
 │   ├── crypto/                 # WASM crypto + keyLocker
 │   ├── logger.ts               # Structured logging
@@ -486,6 +506,7 @@ apps/web/src/
 ├── store/                      # Zustand stores
 │   ├── authStore.ts            # Auth state (persisted)
 │   ├── chatStore.ts            # Chat state + Attachment type (persisted)
+│   ├── groupStore.ts           # Group state + members (persisted)
 │   ├── connectionStore.ts      # WebSocket connection
 │   └── toastStore.ts           # Toast notifications
 └── test/                       # Test utilities
@@ -549,7 +570,7 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 | CLI-CRYPTO | ✅ Complete | E2E encryption integration |
 | CLI-AUTH | ✅ Complete | Login/register TUI screens |
 | GROUP-CHAT-WS | ✅ Complete | Group chat WebSocket protocol |
-| GROUP-CHAT-UI | 🟡 In Progress | Group chat frontend components |
+| GROUP-CHAT-UI | ✅ Complete | Group chat frontend components |
 | MESSAGE-SEARCH | ✅ Complete | Client-side message search |
 | FILE-ATTACHMENTS | ✅ Complete | Upload/download with previews |
 
@@ -567,10 +588,11 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 - [x] Group chat backend (REST API - 14 endpoints)
 - [x] Group chat WebSocket protocol (SendGroupMessage, GroupMessage, CreateGroup)
 - [x] Server-side message fan-out to group members
-- [ ] Group chat frontend UI (GroupList, CreateGroupModal, GroupChatView)
-- [ ] Sender keys protocol
-- [ ] Member management UI
-- [ ] Invite links
+- [x] Group chat frontend UI (GroupInfoPanel, MemberList, sender labels)
+- [x] Member management UI (AddMemberDialog, remove, role badges)
+- [x] Invite links (InviteLinkDialog with max uses/expiry)
+- [x] Zustand group store with REST API client
+- [ ] Sender keys protocol (E2E group encryption)
 
 **Message Search** (✅ Complete):
 - [x] Client-side full-text search across messages
@@ -617,7 +639,7 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 
 **Shared**:
 - [x] Group chat backend (REST + WS)
-- [ ] Group chat frontend
+- [x] Group chat frontend (info panel, members, invites, sender labels)
 - [ ] Message editing (5 min window)
 - [ ] Message deletion
 
@@ -687,7 +709,7 @@ Computed from both identity keys using SHA-256:
 ## Future Roadmap
 
 1. **Phase 1**: Core messaging ✅ Complete
-2. **Phase 2**: Real-time features & Groups ✅ Backend complete, frontend in progress
+2. **Phase 2**: Real-time features & Groups ✅ Complete (backend + frontend)
 3. **Phase 3**: File sharing & media ✅ Infrastructure complete, E2E file encryption pending
 4. **Phase 4**: Mobile apps (iOS/Android)
 5. **Phase 5**: Federation (Matrix-like)

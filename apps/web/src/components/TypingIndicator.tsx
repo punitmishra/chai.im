@@ -53,7 +53,7 @@ export function TypingIndicator({
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 text-zinc-400">
+    <div className="flex items-center gap-3 px-4 py-2 text-slate-400">
       {/* User avatars (up to 3) */}
       {showAvatars && users.length > 0 && (
         <div className="flex -space-x-2">
@@ -64,22 +64,22 @@ export function TypingIndicator({
                 userId={user.userId}
                 name={user.userName}
                 size="sm"
-                className="ring-2 ring-zinc-900"
+                className="ring-2 ring-dark-900"
               />
             ) : (
               <div
                 key={index}
-                className="h-8 w-8 rounded-full bg-zinc-700 flex items-center justify-center ring-2 ring-zinc-900"
+                className="h-8 w-8 rounded-full bg-dark-700 flex items-center justify-center ring-2 ring-dark-900"
               >
-                <span className="text-xs font-medium text-zinc-200">
+                <span className="text-xs font-medium text-slate-200">
                   {user.userName.slice(0, 1).toUpperCase()}
                 </span>
               </div>
             )
           ))}
           {users.length > 3 && (
-            <div className="h-8 w-8 rounded-full bg-zinc-600 flex items-center justify-center ring-2 ring-zinc-900">
-              <span className="text-xs font-medium text-zinc-200">+{users.length - 3}</span>
+            <div className="h-8 w-8 rounded-full bg-dark-600 flex items-center justify-center ring-2 ring-dark-900">
+              <span className="text-xs font-medium text-slate-200">+{users.length - 3}</span>
             </div>
           )}
         </div>
@@ -88,15 +88,15 @@ export function TypingIndicator({
       {/* Typing dots animation */}
       <div className="flex gap-1">
         <span
-          className="h-2 w-2 rounded-full bg-amber-500/70 animate-bounce"
+          className="h-2 w-2 rounded-full bg-cyan-500/70 animate-bounce"
           style={{ animationDelay: '0ms', animationDuration: '0.8s' }}
         />
         <span
-          className="h-2 w-2 rounded-full bg-amber-500/70 animate-bounce"
+          className="h-2 w-2 rounded-full bg-cyan-500/70 animate-bounce"
           style={{ animationDelay: '150ms', animationDuration: '0.8s' }}
         />
         <span
-          className="h-2 w-2 rounded-full bg-amber-500/70 animate-bounce"
+          className="h-2 w-2 rounded-full bg-cyan-500/70 animate-bounce"
           style={{ animationDelay: '300ms', animationDuration: '0.8s' }}
         />
       </div>
@@ -116,15 +116,15 @@ export function InlineTypingIndicator({ className = '' }: { className?: string }
   return (
     <span className={`inline-flex items-center gap-0.5 ${className}`}>
       <span
-        className="h-1.5 w-1.5 rounded-full bg-amber-500/70 animate-bounce"
+        className="h-1.5 w-1.5 rounded-full bg-cyan-500/70 animate-bounce"
         style={{ animationDelay: '0ms', animationDuration: '0.8s' }}
       />
       <span
-        className="h-1.5 w-1.5 rounded-full bg-amber-500/70 animate-bounce"
+        className="h-1.5 w-1.5 rounded-full bg-cyan-500/70 animate-bounce"
         style={{ animationDelay: '150ms', animationDuration: '0.8s' }}
       />
       <span
-        className="h-1.5 w-1.5 rounded-full bg-amber-500/70 animate-bounce"
+        className="h-1.5 w-1.5 rounded-full bg-cyan-500/70 animate-bounce"
         style={{ animationDelay: '300ms', animationDuration: '0.8s' }}
       />
     </span>
@@ -136,7 +136,7 @@ export function InlineTypingIndicator({ className = '' }: { className?: string }
  */
 export function MinimalTypingIndicator({ userName }: { userName?: string }) {
   return (
-    <span className="text-sm text-zinc-500 italic">
+    <span className="text-sm text-slate-500 italic">
       {userName || 'Someone'} is typing
       <InlineTypingIndicator className="ml-1" />
     </span>
@@ -148,7 +148,7 @@ export function MinimalTypingIndicator({ userName }: { userName?: string }) {
  */
 export function SidebarTypingIndicator({ userName }: { userName?: string }) {
   return (
-    <div className="flex items-center gap-1.5 text-amber-500/80">
+    <div className="flex items-center gap-1.5 text-cyan-500/80">
       <InlineTypingIndicator />
       <span className="text-xs truncate">
         {userName ? `${userName} typing...` : 'typing...'}

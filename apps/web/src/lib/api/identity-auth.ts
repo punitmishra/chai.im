@@ -2,7 +2,7 @@
  * Identity key challenge-response authentication API client.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { API_URL } from '@/lib/config';
 
 export interface IdentityRegisterResponse {
   user_id: string;

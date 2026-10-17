@@ -211,19 +211,19 @@ export function EmojiAutocompleteDropdown({
 
   return (
     <div
-      className={`absolute bottom-full left-0 mb-2 w-72 bg-zinc-900 border border-zinc-800
+      className={`absolute bottom-full left-0 mb-2 w-72 bg-dark-900 border border-dark-700
                   rounded-lg shadow-xl overflow-hidden ${className}`}
     >
       {suggestions.map((emoji, idx) => (
         <button
           key={`${emoji.emoji}-${idx}`}
           onClick={() => onSelect(emoji)}
-          className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-zinc-800
-                     transition-colors ${idx === selectedIndex ? 'bg-zinc-800' : ''}`}
+          className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-dark-800
+                     transition-colors ${idx === selectedIndex ? 'bg-dark-800' : ''}`}
         >
           <span className="text-xl">{emoji.emoji}</span>
-          <span className="text-sm text-zinc-300">{emoji.name}</span>
-          <span className="text-xs text-zinc-500 ml-auto">:{emoji.shortcodes[0]}:</span>
+          <span className="text-sm text-slate-300">{emoji.name}</span>
+          <span className="text-xs text-slate-500 ml-auto">:{emoji.shortcodes[0]}:</span>
         </button>
       ))}
     </div>

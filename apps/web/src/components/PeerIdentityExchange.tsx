@@ -110,13 +110,13 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg bg-zinc-900 rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
           <h2 className="text-lg font-semibold text-white">Identity Exchange</h2>
           <button
             onClick={onClose}
-            className="p-1 text-zinc-400 hover:text-white transition-colors"
+            className="p-1 text-slate-400 hover:text-white transition-colors"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -125,15 +125,15 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-zinc-800">
+        <div className="flex border-b border-dark-700">
           {(['share', 'add', 'verify'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab
-                  ? 'text-amber-400 border-b-2 border-amber-400'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'text-cyan-400 border-b-2 border-cyan-400'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               {tab === 'share' && 'Share My Identity'}
@@ -148,23 +148,23 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
           {/* Share Tab */}
           {activeTab === 'share' && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-slate-400">
                 Share this link with people you want to chat with. They can add you as a contact securely.
               </p>
 
               {myCard && (
                 <>
                   {/* Identity Preview */}
-                  <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700">
+                  <div className="p-4 bg-dark-800/50 rounded-xl border border-dark-600">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center">
-                        <span className="text-xl text-amber-400">
+                      <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                        <span className="text-xl text-cyan-400">
                           {myCard.username[0]?.toUpperCase() || '?'}
                         </span>
                       </div>
                       <div>
                         <p className="font-medium text-white">{myCard.username}</p>
-                        <p className="text-xs text-zinc-500 font-mono">
+                        <p className="text-xs text-slate-500 font-mono">
                           {myCard.identityKey.slice(0, 16)}...
                         </p>
                       </div>
@@ -177,14 +177,14 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
                       type="text"
                       value={shareLink}
                       readOnly
-                      className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 font-mono"
+                      className="flex-1 px-4 py-2 bg-dark-800 border border-dark-600 rounded-lg text-sm text-slate-300 font-mono"
                     />
                     <button
                       onClick={handleCopyLink}
                       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                         copied
                           ? 'bg-green-500/20 text-green-400'
-                          : 'bg-amber-500 text-black hover:bg-amber-400'
+                          : 'bg-cyan-500 text-black hover:bg-cyan-400'
                       }`}
                     >
                       {copied ? 'Copied!' : 'Copy'}
@@ -193,13 +193,13 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
 
                   {/* QR Code Placeholder */}
                   <div className="flex justify-center">
-                    <div className="w-48 h-48 bg-zinc-800 rounded-xl border border-zinc-700 flex items-center justify-center">
-                      <div className="text-center text-zinc-500 text-sm">
-                        <svg className="w-12 h-12 mx-auto mb-2 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="w-48 h-48 bg-dark-800 rounded-xl border border-dark-600 flex items-center justify-center">
+                      <div className="text-center text-slate-500 text-sm">
+                        <svg className="w-12 h-12 mx-auto mb-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                         </svg>
                         <p>QR Code</p>
-                        <p className="text-xs text-zinc-600">Coming soon</p>
+                        <p className="text-xs text-slate-600">Coming soon</p>
                       </div>
                     </div>
                   </div>
@@ -211,7 +211,7 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
           {/* Add Tab */}
           {activeTab === 'add' && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-slate-400">
                 Paste an identity link shared by someone to add them as a contact.
               </p>
 
@@ -219,7 +219,7 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
                 value={addInput}
                 onChange={(e) => setAddInput(e.target.value)}
                 placeholder="Paste identity link here (e.g., https://chai.im/add?...)"
-                className="w-full h-24 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-amber-500"
+                className="w-full h-24 px-4 py-3 bg-dark-800 border border-dark-600 rounded-xl text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-cyan-500"
               />
 
               {parseError && (
@@ -227,7 +227,7 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
               )}
 
               {parsedContact && (
-                <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700">
+                <div className="p-4 bg-dark-800/50 rounded-xl border border-dark-600">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
@@ -237,12 +237,12 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
                       </div>
                       <div>
                         <p className="font-medium text-white">{parsedContact.username}</p>
-                        <p className="text-xs text-zinc-500">Valid identity key</p>
+                        <p className="text-xs text-slate-500">Valid identity key</p>
                       </div>
                     </div>
                     <button
                       onClick={handleAddContact}
-                      className="px-4 py-2 bg-amber-500 text-black font-medium rounded-lg hover:bg-amber-400 transition-colors"
+                      className="px-4 py-2 bg-cyan-500 text-black font-medium rounded-lg hover:bg-cyan-400 transition-colors"
                     >
                       Add Contact
                     </button>
@@ -255,12 +255,12 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
           {/* Verify Tab */}
           {activeTab === 'verify' && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-slate-400">
                 Verify a contact's identity by comparing safety numbers. Both parties should see the same number.
               </p>
 
               <div>
-                <label className="block text-sm text-zinc-400 mb-2">
+                <label className="block text-sm text-slate-400 mb-2">
                   Contact's Identity Key (Base64)
                 </label>
                 <input
@@ -268,22 +268,22 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
                   value={verifyPeerId}
                   onChange={(e) => setVerifyPeerId(e.target.value)}
                   placeholder="Paste identity key..."
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                  className="w-full px-4 py-2 bg-dark-800 border border-dark-600 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 />
               </div>
 
               <button
                 onClick={handleVerifySafetyNumber}
                 disabled={!verifyPeerId.trim()}
-                className="w-full py-2 bg-amber-500 text-black font-medium rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-2 bg-cyan-500 text-black font-medium rounded-lg hover:bg-cyan-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Generate Safety Number
               </button>
 
               {safetyNumber && (
-                <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700 space-y-3">
+                <div className="p-4 bg-dark-800/50 rounded-xl border border-dark-600 space-y-3">
                   <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                     <span className="font-medium text-white">Safety Number</span>
@@ -293,18 +293,18 @@ export function PeerIdentityExchange({ isOpen, onClose, onContactAdded }: PeerId
                     {safetyNumber.numeric.split(' ').map((group, i) => (
                       <span
                         key={i}
-                        className="py-1 px-2 bg-zinc-900 rounded text-sm text-amber-300"
+                        className="py-1 px-2 bg-dark-900 rounded text-sm text-cyan-300"
                       >
                         {group}
                       </span>
                     ))}
                   </div>
 
-                  <p className="text-xs text-zinc-500 text-center">
-                    Fingerprint: <span className="font-mono text-zinc-400">{safetyNumber.fingerprint}</span>
+                  <p className="text-xs text-slate-500 text-center">
+                    Fingerprint: <span className="font-mono text-slate-400">{safetyNumber.fingerprint}</span>
                   </p>
 
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-slate-500">
                     Compare this number with your contact in person or via another trusted channel.
                     If the numbers match, your conversation is secure.
                   </p>

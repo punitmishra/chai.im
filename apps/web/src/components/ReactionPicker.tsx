@@ -48,13 +48,13 @@ export function ReactionPicker({ onSelect, onClose, className = '' }: ReactionPi
   return (
     <div
       ref={containerRef}
-      className={`flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-full px-2 py-1.5 shadow-lg ${className}`}
+      className={`flex items-center gap-1 bg-dark-900 border border-dark-700 rounded-full px-2 py-1.5 shadow-lg ${className}`}
     >
       {quickReactions.map((emojiData) => (
         <button
           key={emojiData.emoji}
           onClick={() => handleSelectReaction(emojiData.emoji)}
-          className="p-1.5 text-lg hover:bg-zinc-800 rounded-full transition-colors hover:scale-110"
+          className="p-1.5 text-lg hover:bg-dark-800 rounded-full transition-colors hover:scale-110"
           title={emojiData.name}
         >
           {emojiData.emoji}
@@ -62,7 +62,7 @@ export function ReactionPicker({ onSelect, onClose, className = '' }: ReactionPi
       ))}
       <button
         onClick={() => setShowFullPicker(true)}
-        className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-full transition-colors"
+        className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-dark-800 rounded-full transition-colors"
         title="More emojis"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -101,7 +101,7 @@ export function MessageReactionPicker({
       {/* Quick reaction button */}
       <button
         onClick={() => setShowPicker(!showPicker)}
-        className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+        className="p-1 text-slate-500 hover:text-slate-300 hover:bg-dark-800 rounded transition-colors"
         title="Add reaction"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -130,12 +130,12 @@ export function MessageReactionPicker({
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm
                          ${
                            reaction.hasReacted
-                             ? 'bg-amber-500/20 border border-amber-500/50'
-                             : 'bg-zinc-800 border border-zinc-700'
-                         } hover:bg-zinc-700 transition-colors`}
+                             ? 'bg-cyan-500/20 border border-cyan-500/50'
+                             : 'bg-dark-800 border border-dark-600'
+                         } hover:bg-dark-700 transition-colors`}
             >
               <span>{reaction.emoji}</span>
-              <span className="text-xs text-zinc-400">{reaction.count}</span>
+              <span className="text-xs text-slate-400">{reaction.count}</span>
             </button>
           ))}
         </div>
