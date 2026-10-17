@@ -618,16 +618,14 @@ impl App {
                 self.input.insert(pos, c);
                 self.cursor_position = pos + c.len_utf8();
             }
-            KeyCode::Backspace => {
-                if self.cursor_position > 0 {
-                    let prev = self.input[..self.cursor_position]
-                        .char_indices()
-                        .next_back()
-                        .map(|(i, _)| i)
-                        .unwrap_or(0);
-                    self.input.remove(prev);
-                    self.cursor_position = prev;
-                }
+            KeyCode::Backspace if self.cursor_position > 0 => {
+                let prev = self.input[..self.cursor_position]
+                    .char_indices()
+                    .next_back()
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                self.input.remove(prev);
+                self.cursor_position = prev;
             }
             _ => {}
         }
