@@ -1,0 +1,37 @@
+# cargo-audit configuration (https://github.com/rustsec/rustsec/tree/main/cargo-audit)
+#
+# Run: cargo audit
+#
+# Every advisory below is explicitly acknowledged with a reason. Review this
+# list whenever an upstream fix lands and remove the entry once it can be
+# patched. All current entries are either unfixable upstream or informational
+# (unmaintained / unsound) warnings in build-time or transitive-only crates —
+# there are no fixable *vulnerabilities* left unaddressed.
+
+[advisories]
+ignore = [
+    # --- No upstream fix available ---
+    # rsa: Marvin Attack — potential key recovery via timing side-channels.
+    # The pure-Rust `rsa` crate has no released fix. `rsa` is NOT in chai's
+    # default build tree and is not compiled into the shipped `chai-server`
+    # binary, which uses X25519/Ed25519 via chai-crypto. Re-evaluate when rsa
+    # publishes a constant-time fix.
+    "RUSTSEC-2023-0071",
+
+    # --- Unmaintained crates (informational, not vulnerabilities) ---
+    # bincode 1.x: unmaintained. It is a direct dep of chai-crypto / chai-protocol
+    # and defines part of the wire format; migrating to bincode 2.x changes
+    # encoding and is deferred to a dedicated protocol-versioning change, not a
+    # security bump.
+    "RUSTSEC-2025-0141",
+    # paste: unmaintained proc-macro, pulled only by ratatui 0.25 (chai-cli TUI).
+    "RUSTSEC-2024-0436",
+    # yaml-rust: unmaintained, pulled only by syntect (chai-cli syntax highlight).
+    "RUSTSEC-2024-0320",
+
+    # --- Unsound (potential UB), transitive via ratatui 0.25 (chai-cli only) ---
+    # Clears when the TUI is migrated to a current ratatui release; not reachable
+    # from the server or crypto crates.
+    "RUSTSEC-2026-0253",
+    "RUSTSEC-2026-0002",
+]

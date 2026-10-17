@@ -127,44 +127,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
-// Shuttle entry point
-#[cfg(feature = "shuttle")]
-#[shuttle_runtime::main]
-async fn shuttle_main(
-    #[shuttle_shared_db::Postgres] pool: sqlx::PgPool,
-) -> shuttle_axum::ShuttleAxum {
-    use chai_server::state::AppState;
-
-    // Run migrations
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run migrations");
-
-    // Create config from environment (Shuttle sets these via Secrets.toml)
-    let rp_origin =
-        std::env::var("RP_ORIGIN").unwrap_or_else(|_| "https://chai-im.vercel.app".into());
-
-    let config = Config {
-        port: 8000,                  // Shuttle handles the port
-        database_url: String::new(), // Not needed, we have the pool
-        rp_id: std::env::var("RP_ID").unwrap_or_else(|_| "chai-server.shuttleapp.rs".into()),
-        cors_origins: std::env::var("CORS_ORIGINS").unwrap_or_else(|_| rp_origin.clone()),
-        rp_origin,
-        jwt_secret: std::env::var("JWT_SECRET").expect("JWT_SECRET must be set in Secrets.toml"),
-    };
-
-    // Create app state with the provided pool
-    let state = AppState::with_pool(pool, &config)
-        .await
-        .expect("Failed to create app state");
-
-    let router = build_router(Arc::new(state));
-    Ok(router.into())
-}
-
 // Standalone entry point
-#[cfg(not(feature = "shuttle"))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use std::net::SocketAddr;
