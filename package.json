@@ -18,6 +18,32 @@
     "cli:build": "cargo build -p chai-cli --release"
   },
   "devDependencies": {
-    "turbo": "^2.7.2"
+    "turbo": "^2.9.14"
+  },
+  "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
+    },
+    "overrides": {
+      "protobufjs": ">=7.5.5",
+      "@protobufjs/utf8": ">=1.1.1",
+      "ws": ">=8.20.1",
+      "browserslist": ">=4.28.7",
+      "@babel/core": ">=7.29.6",
+      "baseline-browser-mapping": ">=2.11.0",
+      "@humanfs/node": ">=0.16.8",
+      "flatted": ">=3.4.0",
+      "source-map-js": ">=1.2.2",
+      "brace-expansion": ">=2.1.7",
+      "rollup": ">=4.59.0",
+      "js-yaml": "^4.2.0",
+      "sharp": ">=0.35.5",
+      "minimatch": ">=9.0.7",
+      "picomatch": ">=4.0.7",
+      "ajv": ">=8.0.0",
+      "esbuild": ">=0.28.1"
+    }
   }
 }
