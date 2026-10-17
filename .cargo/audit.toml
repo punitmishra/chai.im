@@ -1,0 +1,22 @@
+# cargo-audit configuration (https://github.com/rustsec/rustsec/tree/main/cargo-audit)
+#
+# Run: cargo audit
+#
+# The advisories below are explicitly acknowledged. Review this list whenever a
+# fix becomes available upstream and remove the entry once it can be patched.
+
+[advisories]
+ignore = [
+    # rsa: Marvin Attack — potential key recovery via timing side-channels.
+    # No fixed upgrade is available upstream (the pure-Rust `rsa` crate has no
+    # released fix). `rsa` is NOT in chai's default build tree (it is only
+    # reachable via an optional transitive path and is not compiled into the
+    # shipped `chai-server` binary, which uses X25519/Ed25519 via chai-crypto).
+    # Re-evaluate when rsa publishes a constant-time fix.
+    "RUSTSEC-2023-0071",
+]
+
+# Unmaintained-crate warnings (informational, not vulnerabilities) are left
+# visible on purpose: bincode (RUSTSEC-2025-0141), paste (RUSTSEC-2024-0436),
+# yaml-rust (RUSTSEC-2024-0320), and lru (RUSTSEC-2026-0253 / -0002, which is
+# pinned by ratatui 0.25 in chai-cli and will clear with a future TUI upgrade).
