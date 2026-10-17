@@ -10,7 +10,7 @@
 - **Authentication**: FIDO2/WebAuthn with hardware tokens
 - **Clients**: Next.js PWA (web) + Ratatui TUI (terminal)
 - **AI Features**: Local-only AI assistance (privacy-first)
-- **Infrastructure**: Rust backend on Fly.io, Next.js on Vercel, PostgreSQL
+- **Infrastructure**: Rust backend on Fly.io, Next.js frontend (host-agnostic), PostgreSQL
 
 ## Quick Reference
 
@@ -41,7 +41,6 @@ chai.im/
 ├── package.json                  # pnpm workspace root
 ├── pnpm-workspace.yaml           # Workspace definition
 ├── turbo.json                    # Build orchestration
-├── vercel.json                   # Vercel deployment config
 │
 ├── crates/                       # Rust crates
 │   ├── chai-crypto/              # Signal Protocol implementation
@@ -230,11 +229,19 @@ Secrets are configured via:
 fly secrets set JWT_SECRET=... RP_ID=... RP_ORIGIN=... -a chai-server
 ```
 
-### Vercel (Frontend)
+### Frontend (host-agnostic)
 
-The Next.js frontend is auto-deployed to Vercel on push to master.
+Vercel was removed. The Next.js frontend is a standard `next build` output and can be
+deployed to any Node/Next-capable host (Fly.io, Cloudflare, Netlify, self-hosted, etc.).
+Security headers are defined in `apps/web/next.config.js` (`headers()`), so they apply
+regardless of host — no platform-specific config file is needed.
 
-Environment variables to set in Vercel:
+Build the frontend with:
+```bash
+pnpm turbo build --filter=@chai/web
+```
+
+Environment variables required at build/runtime:
 - `NEXT_PUBLIC_API_URL=https://chai-server.fly.dev`
 - `NEXT_PUBLIC_WS_URL=wss://chai-server.fly.dev/ws`
 
@@ -359,11 +366,12 @@ Feature screenshots captured in `docs/screenshots/`:
 
 ### Known Issues
 
-**Vercel GitHub Integration**
-- GitHub status checks show "Deployment failed" even when site is live
-- This appears to be a stale integration issue after project move to greplabs team
-- **Workaround**: Check Vercel dashboard directly at https://vercel.com/greplabs/chai.im
-- Site is actually deployed and working despite the status
+**Vercel removed**
+- Vercel (and its blocked-account "Deployment failed" status check) has been removed from the repo.
+- `vercel.json` and the `.vercel/` project link are gone; security headers now live in `apps/web/next.config.js`.
+- **Manual step required**: disconnect the Vercel GitHub App in GitHub repo settings
+  (Settings → Integrations / Installed GitHub Apps) to stop the stale failing check on PRs.
+- A new frontend deploy target has not been chosen yet (see "Frontend (host-agnostic)" above).
 
 **@xenova/transformers Disabled**
 - The ML package was temporarily removed due to native dependency issues (sharp, onnxruntime-node)
@@ -563,7 +571,7 @@ See `IMPLEMENTATION_PLAN.md` for detailed task breakdown.
 | Track | Status | Description |
 |-------|--------|-------------|
 | LAUNCH-PAGE | ✅ Deployed | Launch page, countdown, waitlist |
-| DEPLOYMENT | ✅ Complete | Fly.io backend, Vercel frontend |
+| DEPLOYMENT | ✅ Complete | Fly.io backend; frontend host-agnostic (Vercel removed) |
 | WEB-REALTIME | ✅ Complete | Typing indicators, read receipts |
 | EMOJI | ✅ Complete | Emoji picker, reactions |
 | LOCAL-AI | ⚠️ Disabled | @xenova/transformers needs fix |

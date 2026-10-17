@@ -463,6 +463,6 @@ cargo run -p chai-server  # Backend
 cargo bench -p chai-server
 
 # Deploy
-fly deploy            # Backend
-vercel --prod         # Frontend
+fly deploy                              # Backend
+pnpm turbo build --filter=@chai/web     # Frontend (deploy output to any Next-capable host)
 ```

@@ -31,8 +31,26 @@ const nextConfig = {
     return config;
   },
 
-  // Security headers
+  // Security headers (host-agnostic — applied by Next.js regardless of deploy target)
   async headers() {
+    // Content Security Policy. 'unsafe-inline'/'wasm-unsafe-eval' are required
+    // for Next.js hydration bootstrap and the Signal-Protocol WASM module until
+    // nonce-based CSP middleware is introduced (tracked as a follow-up).
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https: wss:",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      'upgrade-insecure-requests',
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
@@ -46,7 +64,15 @@ const nextConfig = {
             key: 'Cross-Origin-Embedder-Policy',
             value: 'require-corp',
           },
-          // Security headers
+          // Force HTTPS for 2 years, including subdomains, and allow preload.
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: csp,
+          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',
@@ -56,12 +82,17 @@ const nextConfig = {
             value: 'nosniff',
           },
           {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'off',
+          },
+          {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value:
+              'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=()',
           },
         ],
       },
