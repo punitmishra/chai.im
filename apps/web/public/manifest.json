@@ -4,7 +4,7 @@
   "description": "End-to-end encrypted chat platform",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
+  "background_color": "#0a0b10",
   "theme_color": "#06b6d4",
   "orientation": "portrait-primary",
   "icons": [
