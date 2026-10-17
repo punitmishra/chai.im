@@ -21,6 +21,11 @@
     "turbo": "^2.9.14"
   },
   "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
+    },
     "overrides": {
       "protobufjs": ">=7.5.5",
       "@protobufjs/utf8": ">=1.1.1",
@@ -34,7 +39,11 @@
       "brace-expansion": ">=2.1.7",
       "rollup": ">=4.59.0",
       "js-yaml": "^4.2.0",
-      "sharp": ">=0.35.5"
+      "sharp": ">=0.35.5",
+      "minimatch": ">=9.0.7",
+      "picomatch": ">=4.0.7",
+      "ajv": ">=8.0.0",
+      "esbuild": ">=0.28.1"
     }
   }
 }
