@@ -1109,7 +1109,7 @@ impl App {
 
     /// Clean up expired typing indicators.
     fn cleanup_typing_indicators(&mut self) {
-        for (_conv_id, states) in self.typing_states.iter_mut() {
+        for states in self.typing_states.values_mut() {
             states.retain(|s| s.started_at.elapsed() < TYPING_TIMEOUT);
         }
 
