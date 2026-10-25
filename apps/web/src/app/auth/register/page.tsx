@@ -46,7 +46,9 @@ export default function RegisterPage() {
       }
 
       const crypto = await initCrypto();
-      const identityKey = crypto.exportIdentity();
+      // Send the PUBLIC identity key to the server. exportIdentity() returns the
+      // 32-byte private seed (used locally for signing) and must never leave the device.
+      const identityKey = crypto.publicIdentity();
 
       const { user_id, session_token } = await registerComplete(
         username,
