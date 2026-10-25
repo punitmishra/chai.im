@@ -16,6 +16,7 @@ import { uploadFile, formatFileSize } from '@/lib/api/attachments';
 import { useGroupStore } from '@/store/groupStore';
 import { GroupInfoPanel } from '@/components/group/GroupInfoPanel';
 import { toast } from '@/store/toastStore';
+import { Avatar, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
 
 // Conversation ID prefixes
 const SELF_CHAT_PREFIX = 'self_';
@@ -35,7 +36,7 @@ export default function ConversationPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -211,8 +212,21 @@ export default function ConversationPage() {
     }
   }, [isSelfChat, isGroupChat, groupId, conversation, conversationId, user?.id]);
 
+  // Auto-grow the message textarea to fit its content (capped by CSS max-height).
+  const autoGrowInput = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  // Keep the textarea sized to its content (also handles programmatic clears/sets).
+  useEffect(() => {
+    autoGrowInput();
+  }, [input, autoGrowInput]);
+
   // Handle typing indicator
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     emojiAutocomplete.handleInputChange(e);
 
@@ -291,8 +305,8 @@ export default function ConversationPage() {
     }
   }, [conversation, conversationId, user?.id, isSelfChat, addMessage]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!input.trim() || isSending || !conversation) return;
 
     setIsSending(true);
@@ -410,16 +424,7 @@ export default function ConversationPage() {
               </svg>
             </div>
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-dark-700 to-dark-800 font-semibold text-white text-lg shadow-inner">
-              {recipientName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          {!isSelfChat && !isGroupChat && (
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-dark-900 ${
-                isOnline ? 'bg-green-500' : 'bg-slate-500'
-              }`}
-            />
+            <Avatar name={recipientName} size="lg" online={isOnline} />
           )}
         </div>
         <div
@@ -451,16 +456,26 @@ export default function ConversationPage() {
             <span className="text-slate-600">|</span>
             <span>T for thread</span>
           </div>
-          <button className="p-2.5 rounded-xl hover:bg-dark-800/50 text-slate-400 hover:text-white transition-all duration-200">
+          <IconButton
+            aria-label="Search messages"
+            title="Search messages"
+            onClick={() => window.dispatchEvent(new CustomEvent('chai:open-search'))}
+          >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-          </button>
-          <button className="p-2.5 rounded-xl hover:bg-dark-800/50 text-slate-400 hover:text-white transition-all duration-200">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
+          </IconButton>
+          {isGroupChat && (
+            <IconButton
+              aria-label="Group info"
+              title="Group info"
+              onClick={() => setShowGroupInfo(true)}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </IconButton>
+          )}
         </div>
       </header>
 
@@ -468,19 +483,15 @@ export default function ConversationPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <div className="text-center max-w-xs">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-cyan-500/10 to-teal-500/10 mb-6">
-                <span className="text-4xl">👋</span>
-              </div>
-              <h3 className="text-lg font-medium text-white mb-2">
-                {isSelfChat ? 'Your private notes' : `Say hello to ${recipientName}!`}
-              </h3>
-              <p className="text-slate-500 text-sm leading-relaxed">
-                {isSelfChat
+            <EmptyState
+              icon={<span className="text-3xl">👋</span>}
+              title={isSelfChat ? 'Your private notes' : `Say hello to ${recipientName}!`}
+              description={
+                isSelfChat
                   ? 'This is your personal space. Notes you write here are stored locally and never sent to anyone.'
-                  : 'Messages are end-to-end encrypted. Only you and the recipient can read them.'}
-              </p>
-            </div>
+                  : 'Messages are end-to-end encrypted. Only you and the recipient can read them.'
+              }
+            />
           </div>
         ) : (
           messages.map((message, index) => {
@@ -554,7 +565,7 @@ export default function ConversationPage() {
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex items-end gap-2">
             {/* File upload button */}
             <input
               ref={fileInputRef}
@@ -563,62 +574,75 @@ export default function ConversationPage() {
               className="hidden"
               accept="image/*,application/pdf,video/*,audio/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
             />
-            <button
+            <IconButton
               type="button"
+              aria-label="Attach file"
+              title="Attach file"
+              size="lg"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="p-3.5 rounded-2xl bg-dark-900/50 border border-dark-700/50 text-slate-400 hover:text-white hover:bg-dark-800/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Attach file"
+              className="rounded-2xl bg-dark-900/50 border border-dark-700/50"
             >
               {isUploading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
+                <Spinner size="sm" className="text-cyan-500" />
               ) : (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                 </svg>
               )}
-            </button>
+            </IconButton>
 
             {/* Emoji picker button */}
-            <button
+            <IconButton
               type="button"
-              onClick={() => setShowEmojiPicker((prev) => !prev)}
-              className={`p-3.5 rounded-2xl transition-all duration-200 ${
-                showEmojiPicker
-                  ? 'bg-cyan-500/20 text-cyan-400'
-                  : 'bg-dark-900/50 border border-dark-700/50 text-slate-400 hover:text-white hover:bg-dark-800/50'
-              }`}
+              aria-label="Emoji picker"
+              aria-pressed={showEmojiPicker}
               title="Emoji picker (Ctrl+Shift+E)"
+              size="lg"
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className={
+                showEmojiPicker
+                  ? 'rounded-2xl bg-cyan-500/20 text-cyan-400!'
+                  : 'rounded-2xl bg-dark-900/50 border border-dark-700/50'
+              }
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            </button>
+            </IconButton>
 
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
+              rows={1}
               value={input}
               onChange={handleInputChange}
-              onKeyDown={emojiAutocomplete.handleKeyDown}
+              onKeyDown={(e) => {
+                emojiAutocomplete.handleKeyDown(e);
+                if (e.defaultPrevented) return;
+                // Enter sends; Shift+Enter inserts a newline.
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleSend();
+                }
+              }}
               placeholder={isSelfChat ? "Write a note..." : isOnline ? "Type a message... (: for emoji)" : "Waiting for connection..."}
-              className="flex-1 px-5 py-3.5 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 resize-none max-h-40 px-5 py-3 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus-visible:ring-2 focus-visible:ring-cyan-500/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!isSelfChat && !isOnline}
             />
 
-            <button
+            <Button
               type="submit"
-              className="px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:scale-105 active:scale-95 disabled:shadow-none disabled:scale-100"
-              disabled={!input.trim() || isSending || (!isSelfChat && !isOnline)}
+              aria-label="Send message"
+              loading={isSending}
+              disabled={!input.trim() || (!isSelfChat && !isOnline)}
+              className="px-5 self-end"
             >
-              {isSending ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-              ) : (
+              {!isSending && (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                 </svg>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

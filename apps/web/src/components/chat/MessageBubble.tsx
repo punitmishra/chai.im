@@ -4,9 +4,11 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Message, useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { getWebSocketClient } from '@/lib/ws/client';
+import { clsx } from 'clsx';
 import { MessageContent } from './MessageContent';
 import { AttachmentDisplay } from './AttachmentDisplay';
 import { ReactionPicker } from '@/components/ReactionPicker';
+import { IconButton } from '@/components/ui';
 
 interface MessageBubbleProps {
   message: Message;
@@ -43,7 +45,6 @@ export function MessageBubble({
   senderName,
   showSenderName = false,
 }: MessageBubbleProps) {
-  const [showActions, setShowActions] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -180,13 +181,6 @@ export function MessageBubble({
   return (
     <div
       className={`flex ${isSelf ? 'justify-end' : 'justify-start'} group`}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => {
-        setShowActions(false);
-        if (!showActionsMenu && !showReactionPicker) {
-          setShowActionsMenu(false);
-        }
-      }}
       onClick={() => onSelect?.(message.id)}
       data-message-id={message.id}
     >
@@ -195,82 +189,93 @@ export function MessageBubble({
         {showSenderName && !isSelf && senderName && (
           <p className="text-xs text-purple-400 font-medium mb-1 ml-3">{senderName}</p>
         )}
-        {/* Actions bar - appears on hover */}
-        {showActions && (
-          <div
-            className={`absolute top-0 flex items-center gap-1 z-10 ${
-              isSelf ? 'right-full mr-2' : 'left-full ml-2'
-            }`}
+        {/* Actions bar - visible on hover, and on keyboard focus (focus-within) */}
+        <div
+          className={clsx(
+            'absolute top-0 flex items-center gap-1 z-10 transition-opacity',
+            isSelf ? 'right-full mr-2' : 'left-full ml-2',
+            'opacity-0 group-hover:opacity-100 focus-within:opacity-100',
+            (showActionsMenu || showReactionPicker) && 'opacity-100'
+          )}
+        >
+          {/* Quick reaction button */}
+          <IconButton
+            aria-label="Add reaction"
+            title="Add reaction"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowReactionPicker(!showReactionPicker);
+            }}
+            className="rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50"
           >
-            {/* Quick reaction button */}
-            <button
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </IconButton>
+
+          {/* Thread reply button */}
+          <IconButton
+            aria-label="Reply in thread"
+            title="Reply in thread"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenThread?.(message.id);
+            }}
+            className="rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </IconButton>
+
+          {/* More actions button */}
+          <div className="relative" ref={menuRef}>
+            <IconButton
+              aria-label="More actions"
+              title="More actions"
+              aria-haspopup="menu"
+              aria-expanded={showActionsMenu}
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                setShowReactionPicker(!showReactionPicker);
+                setShowActionsMenu(!showActionsMenu);
               }}
-              className="p-1.5 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/80 transition-all"
-              title="Add reaction"
+              className="rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
               </svg>
-            </button>
+            </IconButton>
 
-            {/* Thread reply button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenThread?.(message.id);
-              }}
-              className="p-1.5 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/80 transition-all"
-              title="Reply in thread"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
-            </button>
-
-            {/* More actions button */}
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowActionsMenu(!showActionsMenu);
-                }}
-                className="p-1.5 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/80 transition-all"
-                title="More actions"
+            {/* Actions dropdown menu */}
+            {showActionsMenu && (
+              <div
+                role="menu"
+                className={`absolute top-full mt-1 py-1 w-48 bg-dark-900 border border-dark-700 rounded-xl shadow-xl z-50 ${
+                  isSelf ? 'right-0' : 'left-0'
+                }`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
-
-              {/* Actions dropdown menu */}
-              {showActionsMenu && (
-                <div
-                  className={`absolute top-full mt-1 py-1 w-48 bg-dark-900 border border-dark-700 rounded-xl shadow-xl z-50 ${
-                    isSelf ? 'right-0' : 'left-0'
-                  }`}
-                >
-                  {actions.map((action) => (
-                    <button
-                      key={action.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        action.onClick();
-                      }}
-                      disabled={action.disabled}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-dark-800 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {action.icon}
-                      <span>{action.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                {actions.map((action) => (
+                  <button
+                    key={action.id}
+                    role="menuitem"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      action.onClick();
+                    }}
+                    disabled={action.disabled}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:bg-dark-800 hover:text-white focus-visible:outline-none focus-visible:bg-dark-800 focus-visible:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {action.icon}
+                    <span>{action.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Reaction picker popup */}
         {showReactionPicker && (
@@ -316,7 +321,7 @@ export function MessageBubble({
         {showThreadIndicator && threadReplyCount > 0 && (
           <button
             onClick={() => onOpenThread?.(message.id)}
-            className={`mt-1 flex items-center gap-1.5 text-xs transition-colors ${
+            className={`mt-1 flex items-center gap-1.5 text-xs rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
               isSelf
                 ? 'text-cyan-600 hover:text-cyan-500 justify-end'
                 : 'text-cyan-400 hover:text-cyan-300'
@@ -338,7 +343,7 @@ export function MessageBubble({
               <button
                 key={emoji}
                 onClick={() => handleReaction(emoji)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
                   userIds.includes(user?.id || '')
                     ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300'
                     : 'bg-dark-800/50 border border-dark-600/50 hover:bg-dark-700/50 text-slate-400'
