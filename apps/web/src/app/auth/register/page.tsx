@@ -9,6 +9,7 @@ import { identityRegister } from '@/lib/api/identity-auth';
 import { initCrypto, generatePrekeyBundle, generateMnemonic, createIdentityFromMnemonic } from '@/lib/crypto/wasm';
 import { MnemonicDisplay } from '@/components/auth';
 import { ChaiLogo } from '@/components/ChaiLogo';
+import { Button, Input } from '@/components/ui';
 import { API_URL } from '@/lib/config';
 import logger from '@/lib/logger';
 
@@ -22,6 +23,10 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<Step>('username');
+  // Word positions (0-based) the user must re-enter to prove they saved the phrase.
+  const [confirmIndices, setConfirmIndices] = useState<number[]>([]);
+  const [confirmInputs, setConfirmInputs] = useState<string[]>([]);
+  const [confirmError, setConfirmError] = useState('');
 
   const handleUsernameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,41 +125,59 @@ export default function RegisterPage() {
     }
   };
 
+  // After the user acknowledges they saved the phrase, pick two distinct words
+  // to verify before finishing registration.
+  const handleProceedToConfirm = () => {
+    const total = mnemonic.trim().split(/\s+/).filter(Boolean).length;
+    const indices = new Set<number>();
+    while (indices.size < 2 && indices.size < total) {
+      indices.add(Math.floor(Math.random() * total));
+    }
+    const picked = Array.from(indices).sort((a, b) => a - b);
+    setConfirmIndices(picked);
+    setConfirmInputs(picked.map(() => ''));
+    setConfirmError('');
+    setStep('mnemonic-confirm');
+  };
+
+  const handleVerifyMnemonic = (e: React.FormEvent) => {
+    e.preventDefault();
+    const wordList = mnemonic.trim().split(/\s+/);
+    const allMatch = confirmIndices.every(
+      (wordIndex, i) => confirmInputs[i]?.trim().toLowerCase() === wordList[wordIndex]
+    );
+    if (!allMatch) {
+      setConfirmError('Those words do not match your recovery phrase. Please check and try again.');
+      return;
+    }
+    setConfirmError('');
+    handleMnemonicConfirmed();
+  };
+
   const renderStep = () => {
     switch (step) {
       case 'username':
         return (
           <form onSubmit={handleUsernameSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm text-slate-400 mb-1.5">
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200"
-                placeholder="Choose a username"
-                required
-                pattern="[a-zA-Z0-9_]+"
-                minLength={3}
-                maxLength={32}
-                autoComplete="username"
-                autoFocus
-              />
-              <p className="mt-2 text-xs text-slate-600">
-                3-32 characters, letters, numbers, underscores
-              </p>
-            </div>
+            <Input
+              id="username"
+              type="text"
+              label="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Choose a username"
+              hint="3-32 characters, letters, numbers, underscores"
+              required
+              pattern="[a-zA-Z0-9_]+"
+              minLength={3}
+              maxLength={32}
+              autoComplete="username"
+              autoFocus
+            />
 
-            <button
-              type="submit"
-              disabled={username.trim().length < 3}
-              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 disabled:shadow-none"
-            >
+            <Button type="submit" variant="primary" size="lg" fullWidth disabled={username.trim().length < 3}>
               Continue
-            </button>
+            </Button>
           </form>
         );
 
@@ -168,11 +191,11 @@ export default function RegisterPage() {
             {/* Security Key Option */}
             <button
               onClick={() => setStep('security-key')}
-              className="w-full p-5 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-left hover:border-cyan-500/50 hover:bg-dark-800/30 transition-all duration-200 group"
+              className="w-full p-5 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-left hover:border-cyan-500/50 hover:bg-dark-800/30 transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-teal-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                   </svg>
                 </div>
@@ -189,11 +212,11 @@ export default function RegisterPage() {
             <button
               onClick={handleGenerateMnemonic}
               disabled={isLoading}
-              className="w-full p-5 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-left hover:border-cyan-500/50 hover:bg-dark-800/30 transition-all duration-200 group"
+              className="w-full p-5 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-left hover:border-cyan-500/50 hover:bg-dark-800/30 transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-dark-800/50 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M12 17.25h8.25" />
                   </svg>
                 </div>
@@ -208,12 +231,9 @@ export default function RegisterPage() {
               </div>
             </button>
 
-            <button
-              onClick={() => setStep('username')}
-              className="w-full py-3 px-4 text-slate-400 hover:text-white hover:bg-dark-800/30 font-medium rounded-2xl transition-all duration-200"
-            >
+            <Button variant="ghost" size="lg" fullWidth onClick={() => setStep('username')}>
               Back
-            </button>
+            </Button>
           </div>
         );
 
@@ -222,7 +242,7 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <div className="py-8 px-6 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-teal-500/20 mb-4">
-                <svg className="w-8 h-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-8 h-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </svg>
               </div>
@@ -232,27 +252,20 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            <button
-              onClick={handleSecurityKeyRegister}
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isLoading}
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-2xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 disabled:shadow-none"
+              onClick={handleSecurityKeyRegister}
             >
-              {isLoading ? (
-                <span className="inline-flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                  Creating account...
-                </span>
-              ) : (
-                'Register Security Key'
-              )}
-            </button>
+              {isLoading ? 'Creating account...' : 'Register Security Key'}
+            </Button>
 
-            <button
-              onClick={() => setStep('method')}
-              className="w-full py-3 px-4 text-slate-400 hover:text-white hover:bg-dark-800/30 font-medium rounded-2xl transition-all duration-200"
-            >
+            <Button variant="ghost" size="lg" fullWidth onClick={() => setStep('method')}>
               Back
-            </button>
+            </Button>
           </div>
         );
 
@@ -268,27 +281,80 @@ export default function RegisterPage() {
 
             <MnemonicDisplay
               words={mnemonic}
-              onConfirmed={handleMnemonicConfirmed}
+              onConfirmed={handleProceedToConfirm}
             />
 
-            {isLoading && (
-              <div className="flex items-center justify-center gap-2 text-cyan-400">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-400" />
-                Creating account...
-              </div>
-            )}
-
-            <button
+            <Button
+              variant="ghost"
+              size="lg"
+              fullWidth
               onClick={() => {
                 setMnemonic('');
                 setStep('method');
               }}
-              disabled={isLoading}
-              className="w-full py-3 px-4 text-slate-400 hover:text-white hover:bg-dark-800/30 font-medium rounded-2xl transition-all duration-200 disabled:opacity-50"
             >
               Back
-            </button>
+            </Button>
           </div>
+        );
+
+      case 'mnemonic-confirm':
+        return (
+          <form onSubmit={handleVerifyMnemonic} className="space-y-4">
+            <div className="p-4 bg-dark-900/50 border border-dark-700/50 rounded-2xl">
+              <h3 className="text-white font-medium mb-2">Confirm your recovery phrase</h3>
+              <p className="text-sm text-slate-500">
+                Enter the following words from the phrase you just saved.
+              </p>
+            </div>
+
+            {confirmIndices.map((wordIndex, i) => (
+              <Input
+                key={wordIndex}
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                autoFocus={i === 0}
+                label={`Word #${wordIndex + 1}`}
+                value={confirmInputs[i] ?? ''}
+                onChange={(e) => {
+                  const next = [...confirmInputs];
+                  next[i] = e.target.value.toLowerCase();
+                  setConfirmInputs(next);
+                  if (confirmError) setConfirmError('');
+                }}
+                placeholder={`Enter word #${wordIndex + 1}`}
+                error={i === confirmIndices.length - 1 && confirmError ? confirmError : undefined}
+              />
+            ))}
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isLoading}
+              disabled={isLoading || confirmInputs.some((w) => !w.trim())}
+            >
+              {isLoading ? 'Creating account...' : 'Confirm & Finish'}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              fullWidth
+              disabled={isLoading}
+              onClick={() => {
+                setConfirmError('');
+                setStep('mnemonic-generate');
+              }}
+            >
+              Back
+            </Button>
+          </form>
         );
 
       default:
@@ -328,23 +394,47 @@ export default function RegisterPage() {
           <p className="text-slate-500 mt-1 text-sm">{getStepSubtitle()}</p>
         </div>
 
-        {/* Progress with labels */}
+        {/* Progress with labels (cumulative: completed steps stay filled) */}
         <div className="mb-6">
-          <div className="flex gap-2 mb-2">
-            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'username' ? 'bg-gradient-to-r from-cyan-500 to-teal-500' : 'bg-dark-800'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step === 'method' ? 'bg-gradient-to-r from-cyan-500 to-teal-500' : 'bg-dark-800'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${['security-key', 'mnemonic-generate', 'mnemonic-confirm'].includes(step) ? 'bg-gradient-to-r from-cyan-500 to-teal-500' : 'bg-dark-800'}`} />
-          </div>
-          <div className="flex justify-between text-xs text-slate-600">
-            <span className={step === 'username' ? 'text-cyan-400' : ''}>Username</span>
-            <span className={step === 'method' ? 'text-cyan-400' : ''}>Security</span>
-            <span className={['security-key', 'mnemonic-generate', 'mnemonic-confirm'].includes(step) ? 'text-cyan-400' : ''}>Complete</span>
-          </div>
+          {(() => {
+            // Map each step to its phase index so the bar fills cumulatively.
+            const phase: Record<Step, number> = {
+              'username': 0,
+              'method': 1,
+              'security-key': 2,
+              'mnemonic-generate': 2,
+              'mnemonic-confirm': 2,
+            };
+            const current = phase[step];
+            const labels = ['Username', 'Security', 'Complete'];
+            return (
+              <div aria-hidden="true">
+                <div className="flex gap-2 mb-2">
+                  {labels.map((label, i) => (
+                    <div
+                      key={label}
+                      className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${i <= current ? 'bg-gradient-to-r from-cyan-500 to-teal-500' : 'bg-dark-800'}`}
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-between text-xs text-slate-600">
+                  {labels.map((label, i) => (
+                    <span key={label} className={i <= current ? 'text-cyan-400' : ''}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Error */}
         {error && (
-          <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm">
+          <div
+            role="alert"
+            className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm"
+          >
             {error}
           </div>
         )}
