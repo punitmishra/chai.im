@@ -10,6 +10,7 @@ import {
   type EmojiCategory,
 } from '@/lib/emoji';
 import { getAllCustomEmojis, type CustomEmoji } from '@/lib/emoji/customEmoji';
+import { Input, EmptyState } from '@/components/ui';
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void;
@@ -106,14 +107,13 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
     >
       {/* Search bar */}
       <div className="p-3 border-b border-dark-700">
-        <input
+        <Input
           ref={searchInputRef}
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search emojis..."
-          className="w-full bg-dark-800 text-white text-sm rounded-lg px-3 py-2
-                     placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+          aria-label="Search emojis"
         />
       </div>
 
@@ -173,7 +173,7 @@ export function EmojiPicker({ onSelect, onClose, className = '' }: EmojiPickerPr
                 ))}
               </div>
             ) : (
-              <div className="text-center text-slate-500 py-8">No emojis found</div>
+              <EmptyState title="No emojis found" className="py-8" />
             )}
           </div>
         ) : (

@@ -78,6 +78,7 @@ export function EncryptionDemo() {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -101,7 +102,8 @@ export function EncryptionDemo() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Type a secret message..."
-                className="w-full h-full min-h-[100px] bg-transparent text-white placeholder-slate-600 resize-none focus:outline-none"
+                aria-label="Message to encrypt"
+                className="w-full h-full min-h-[100px] bg-transparent text-white placeholder-slate-500 resize-none rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
                 maxLength={100}
               />
             ) : (
@@ -120,6 +122,7 @@ export function EncryptionDemo() {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -141,7 +144,7 @@ export function EncryptionDemo() {
             `}
           >
             {stage === 'input' ? (
-              <p className="text-slate-600 text-sm">
+              <p className="text-slate-400 text-sm">
                 Encrypted output will appear here...
               </p>
             ) : (
@@ -181,6 +184,7 @@ export function EncryptionDemo() {
             className={`
               px-6 py-3 rounded-2xl font-medium
               transition-all duration-200
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950
               ${inputText.trim()
                 ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-black hover:from-cyan-400 hover:to-teal-400 shadow-lg shadow-cyan-500/20'
                 : 'bg-dark-800 text-slate-500 cursor-not-allowed'}
@@ -192,6 +196,7 @@ export function EncryptionDemo() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -211,7 +216,7 @@ export function EncryptionDemo() {
         ) : (
           <button
             onClick={handleReset}
-            className="px-6 py-3 rounded-2xl font-medium bg-dark-800 text-white hover:bg-dark-700 transition-colors"
+            className="px-6 py-3 rounded-2xl font-medium bg-dark-800 text-white hover:bg-dark-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950"
           >
             <span className="flex items-center gap-2">
               <svg
@@ -219,6 +224,7 @@ export function EncryptionDemo() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"

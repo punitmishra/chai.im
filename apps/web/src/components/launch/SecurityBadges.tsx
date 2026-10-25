@@ -76,7 +76,7 @@ function BadgeItem({ badge }: { badge: Badge }) {
         transition-all duration-200
       "
     >
-      <span className="text-cyan-500">{badge.icon}</span>
+      <span className="text-cyan-500" aria-hidden="true">{badge.icon}</span>
       <span className="text-sm text-slate-300">{badge.label}</span>
 
       {/* Tooltip */}
