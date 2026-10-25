@@ -164,7 +164,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   const navigateToMessage = (result: SearchResult) => {
     onClose();
-    router.push(`/${result.message.conversationId}`);
+    router.push(`/chat/${result.message.conversationId}`);
     // TODO: Scroll to specific message
   };
 

@@ -71,7 +71,7 @@ export function CommandPalette({
         shortcut: 'N',
         action: () => {
           onClose();
-          router.push('/new');
+          router.push('/chat/new');
         },
       },
       {
@@ -158,7 +158,7 @@ export function CommandPalette({
       category: 'navigation' as const,
       action: () => {
         onClose();
-        router.push(`/${conv.id}`);
+        router.push(`/chat/${conv.id}`);
       },
     }));
 
