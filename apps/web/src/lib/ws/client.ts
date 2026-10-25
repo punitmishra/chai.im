@@ -147,6 +147,7 @@ interface PendingMessage {
   recipientId: string;
   conversationId: string;
   content: string;
+  localId?: string;
 }
 
 type MessageHandler = (message: ServerMessage) => void;
@@ -173,6 +174,10 @@ export class WebSocketClient {
   private typingTimeout: Map<string, number> = new Map(); // Debounce typing
   private lastActivityTime: number = Date.now();
   private pendingMessages: Map<string, PendingMessage> = new Map(); // recipientId → pending msg
+  // FIFO of optimistic local message ids awaiting server acknowledgement, used to
+  // reconcile the local 'sending' copy with the server-assigned id (and status).
+  private sentMessageQueue: string[] = []; // 1:1 sends awaiting MessageSent
+  private sentGroupQueue: string[] = []; // group sends awaiting GroupMessage echo
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -256,7 +261,8 @@ export class WebSocketClient {
   async sendEncryptedMessage(
     recipientId: string,
     conversationId: string,
-    content: string
+    content: string,
+    localId?: string
   ): Promise<void> {
     try {
       const sessionExists = await hasSession(recipientId);
@@ -265,11 +271,15 @@ export class WebSocketClient {
         // Existing session → encrypt as Normal message
         const ciphertext = await encryptMessage(recipientId, content);
 
+        // The wire conversation_id must be a bare UUID (server type is
+        // ConversationId(Uuid)); the local `conv_<uuid>` key is client-only.
+        // For a 1:1 chat the recipient's UUID uniquely identifies the thread.
+        if (localId) this.sentMessageQueue.push(localId);
         this.send({
           type: 'SendMessage',
           payload: {
             recipient_id: recipientId,
-            conversation_id: conversationId,
+            conversation_id: recipientId,
             ciphertext: Array.from(ciphertext),
             message_type: 'Normal',
           },
@@ -279,7 +289,7 @@ export class WebSocketClient {
         await saveSessionToStorage(recipientId);
       } else {
         // No session → queue message and request prekey bundle
-        this.pendingMessages.set(recipientId, { recipientId, conversationId, content });
+        this.pendingMessages.set(recipientId, { recipientId, conversationId, content, localId });
         this.requestPrekeyBundle(recipientId);
         logger.info(`Requesting prekey bundle for ${recipientId} (first message)`);
       }
@@ -292,7 +302,8 @@ export class WebSocketClient {
   /**
    * Send a group message (plaintext for now, Sender Keys encryption planned).
    */
-  sendGroupMessage(groupId: string, content: string): void {
+  sendGroupMessage(groupId: string, content: string, localId?: string): void {
+    if (localId) this.sentGroupQueue.push(localId);
     this.send({
       type: 'SendGroupMessage',
       payload: {
@@ -672,6 +683,20 @@ export class WebSocketClient {
 
   private handleGroupMessage(payload: IncomingGroupMessage): void {
     const conversationId = `group_${payload.group_id}`;
+    const selfId = useAuthStore.getState().user?.id;
+
+    // Server echoes our own group message back. Reconcile it with the optimistic
+    // copy instead of rendering a duplicate.
+    if (selfId && payload.sender_id === selfId) {
+      const localId = this.sentGroupQueue.shift();
+      if (localId) {
+        useChatStore.getState().reconcileMessage(localId, payload.id, 'delivered');
+        for (const handler of this.groupMessageHandlers) {
+          try { handler(payload); } catch (error) { logger.error('Group message handler error', error); }
+        }
+        return;
+      }
+    }
 
     const message: Message = {
       id: payload.id,
@@ -707,6 +732,7 @@ export class WebSocketClient {
 
   private async handleIncomingMessage(payload: IncomingMessage): Promise<void> {
     let content = '[Encrypted]';
+    let decryptOk = true;
 
     try {
       const ciphertext = new Uint8Array(payload.ciphertext);
@@ -735,25 +761,50 @@ export class WebSocketClient {
     } catch (error) {
       logger.crypto.decryptionFailed(error);
       content = '[Failed to decrypt]';
+      decryptOk = false;
     }
 
-    const message: Message = {
+    // Map the incoming 1:1 message to the local conversation keyed by the sender
+    // (the wire conversation_id is the sender's own key and is not meaningful here).
+    const conversationId = `conv_${payload.sender_id}`;
+    const store = useChatStore.getState();
+    if (!store.conversations.some((c) => c.id === conversationId)) {
+      store.addConversation({
+        id: conversationId,
+        name: payload.sender_id,
+        recipientId: payload.sender_id,
+        participants: [payload.sender_id],
+        unreadCount: 0,
+        hasSession: payload.message_type === 'Prekey',
+      });
+    }
+
+    store.addMessage({
       id: payload.id,
-      conversationId: payload.conversation_id,
+      conversationId,
       senderId: payload.sender_id,
       content,
       timestamp: payload.timestamp,
-      status: 'delivered',
-    };
+      status: decryptOk ? 'delivered' : 'failed',
+    });
 
-    useChatStore.getState().addMessage(message);
-
-    // Acknowledge delivery
-    this.ackMessages([payload.id]);
+    // Only acknowledge delivery once we've successfully decrypted and stored the
+    // message. ACKing a failed decrypt marks it delivered server-side and loses
+    // the ciphertext forever, preventing any retry.
+    if (decryptOk) {
+      this.ackMessages([payload.id]);
+    }
   }
 
   private handleMessageSent(payload: { message_id: string }): void {
-    useChatStore.getState().updateMessageStatus(payload.message_id, 'sent');
+    // Acks arrive in send order; reconcile the oldest outstanding optimistic id
+    // with the server-assigned id so the local 'sending' copy clears.
+    const localId = this.sentMessageQueue.shift();
+    if (localId) {
+      useChatStore.getState().reconcileMessage(localId, payload.message_id, 'sent');
+    } else {
+      useChatStore.getState().updateMessageStatus(payload.message_id, 'sent');
+    }
   }
 
   private async handlePrekeyBundle(payload: PrekeyBundleResponse): Promise<void> {
@@ -773,46 +824,38 @@ export class WebSocketClient {
       // Check if there's a pending message for this user
       const pending = this.pendingMessages.get(payload.user_id);
 
-      if (pending) {
-        // First message flow: init session AND encrypt the message in one step
-        // This produces a PrekeyMessagePayload (bincode) compatible with CLI
-        const ciphertext = await initSessionAndEncrypt(
-          payload.user_id,
-          bundleBytes,
-          pending.content
-        );
-
-        // Send as Prekey message type
-        this.send({
-          type: 'SendMessage',
-          payload: {
-            recipient_id: pending.recipientId,
-            conversation_id: pending.conversationId,
-            ciphertext: Array.from(ciphertext),
-            message_type: 'Prekey',
-          },
-        });
-
-        this.pendingMessages.delete(payload.user_id);
-        logger.info(`Sent Prekey message to ${payload.user_id}`);
-      } else {
-        // No pending message — just init session for future use
-        // Use initSessionAndEncrypt with empty content as a workaround,
-        // or init without encrypting. For now, store the bundle for later.
-        // Actually, we need to use initSessionAndEncrypt since it's the only
-        // way to establish a session. Send with empty content.
-        const ciphertext = await initSessionAndEncrypt(
-          payload.user_id,
-          bundleBytes,
-          '' // empty first message (session establishment)
-        );
-
-        // Don't send the empty message, just save the session
-        // Note: This won't work with the real WASM because initSessionAndEncrypt
-        // consumes the OTK. For real usage, we should only init session when
-        // we have a message to send.
-        logger.info(`Session established with ${payload.user_id} (no pending message)`);
+      if (!pending) {
+        // Nothing to send. We deliberately do NOT establish a session here:
+        // initSessionAndEncrypt consumes a one-time prekey, so eagerly "pre-warming"
+        // a session with no message to send would burn the peer's OTK and discard
+        // the resulting handshake. Sessions are established lazily on first send.
+        logger.info(`Prekey bundle for ${payload.user_id} received with no pending message; skipping (lazy session init)`);
+        return;
       }
+
+      // First message flow: init session AND encrypt the message in one step.
+      // This produces a PrekeyMessagePayload (bincode) compatible with the CLI.
+      const ciphertext = await initSessionAndEncrypt(
+        payload.user_id,
+        bundleBytes,
+        pending.content
+      );
+
+      // Send as Prekey message type. conversation_id must be a bare UUID (the
+      // recipient's id); track the optimistic local id for reconciliation.
+      if (pending.localId) this.sentMessageQueue.push(pending.localId);
+      this.send({
+        type: 'SendMessage',
+        payload: {
+          recipient_id: pending.recipientId,
+          conversation_id: pending.recipientId,
+          ciphertext: Array.from(ciphertext),
+          message_type: 'Prekey',
+        },
+      });
+
+      this.pendingMessages.delete(payload.user_id);
+      logger.info(`Sent Prekey message to ${payload.user_id}`);
 
       // Save session to IndexedDB
       await saveSessionToStorage(payload.user_id);

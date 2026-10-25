@@ -20,7 +20,7 @@ export interface Message {
   senderId: string;
   content: string;
   timestamp: number;
-  status: 'sending' | 'sent' | 'delivered' | 'read';
+  status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   reactions?: Reaction[];
   attachments?: Attachment[];
   senderName?: string; // Sender username (for group messages)
@@ -55,6 +55,9 @@ interface ChatState {
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   addMessage: (message: Message) => void;
   updateMessageStatus: (messageId: string, status: Message['status']) => void;
+  // Reconcile an optimistic (locally-generated) message id with the server-assigned
+  // id once the server acknowledges it, updating status in the same pass.
+  reconcileMessage: (localId: string, serverId: string, status: Message['status']) => void;
   markAsRead: (conversationId: string) => void;
   setSessionEstablished: (conversationId: string) => void;
   addReaction: (messageId: string, userId: string, emoji: string) => void;
@@ -111,6 +114,12 @@ export const useChatStore = create<ChatState>()(
 
   addMessage: (message) => {
     set((state) => {
+      // Idempotency: ignore duplicate deliveries of the same message id
+      // (reconnect re-delivery, double handler invocation).
+      if (state.messages.some((m) => m.id === message.id)) {
+        return state;
+      }
+
       // Add message
       const messages = [...state.messages, message];
 
@@ -140,6 +149,21 @@ export const useChatStore = create<ChatState>()(
         m.id === messageId ? { ...m, status } : m
       ),
     }));
+  },
+
+  reconcileMessage: (localId, serverId, status) => {
+    set((state) => {
+      // If the server id is already present (e.g. echo arrived first), drop the
+      // optimistic copy instead of creating a duplicate; otherwise rewrite it.
+      const serverExists = state.messages.some((m) => m.id === serverId);
+      return {
+        messages: serverExists
+          ? state.messages.filter((m) => m.id !== localId)
+          : state.messages.map((m) =>
+              m.id === localId ? { ...m, id: serverId, status } : m
+            ),
+      };
+    });
   },
 
   markAsRead: (conversationId) => {

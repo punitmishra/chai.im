@@ -15,6 +15,7 @@ import { useMessageShortcuts } from '@/hooks/useMessageShortcuts';
 import { uploadFile, formatFileSize } from '@/lib/api/attachments';
 import { useGroupStore } from '@/store/groupStore';
 import { GroupInfoPanel } from '@/components/group/GroupInfoPanel';
+import { toast } from '@/store/toastStore';
 
 // Conversation ID prefixes
 const SELF_CHAT_PREFIX = 'self_';
@@ -126,13 +127,9 @@ export default function ConversationPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Request prekey bundle when starting a new conversation (only for non-self chats)
-  useEffect(() => {
-    if (conversation && !conversation.hasSession && !isSelfChat) {
-      const client = getWebSocketClient();
-      client.requestPrekeyBundle(conversation.recipientId);
-    }
-  }, [conversation, isSelfChat]);
+  // Note: we intentionally do NOT pre-request a prekey bundle on open. Eagerly
+  // establishing a session with no message to send consumes (and wastes) a
+  // one-time prekey. Sessions are established lazily on the first send.
 
   // Register keyboard shortcuts
   useEffect(() => {
@@ -314,42 +311,44 @@ export default function ConversationPage() {
           status: 'delivered',
         });
       } else if (isGroupChat && groupId) {
-        // For group chats, send plaintext through WebSocket
-        const client = getWebSocketClient();
-        client.sendGroupMessage(groupId, content);
-
-        // Add message to local state (will be updated when server echoes back)
+        // For group chats, send plaintext through WebSocket.
+        // The optimistic copy is reconciled with the server echo via localId.
+        const localId = `pending-group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         addMessage({
-          id: `pending-group-${Date.now()}`,
+          id: localId,
           conversationId,
           senderId: user?.id || '',
           content,
           timestamp: Date.now(),
           status: 'sending',
         });
+        const client = getWebSocketClient();
+        client.sendGroupMessage(groupId, content, localId);
       } else {
-        // For 1:1 chats, send encrypted through WebSocket
+        // For 1:1 chats, send encrypted through WebSocket.
+        // The optimistic copy is reconciled with the server ack via localId.
+        const localId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        addMessage({
+          id: localId,
+          conversationId,
+          senderId: user?.id || '',
+          content,
+          timestamp: Date.now(),
+          status: 'sending',
+        });
         const client = getWebSocketClient();
         await client.sendEncryptedMessage(
           conversation.recipientId,
           conversationId,
-          content
-        );
-
-        // Add message to local state (will be updated when server confirms)
-        addMessage({
-          id: `pending-${Date.now()}`,
-          conversationId,
-          senderId: user?.id || '',
           content,
-          timestamp: Date.now(),
-          status: 'sending',
-        });
+          localId
+        );
       }
     } catch (error) {
       console.error('Failed to send message:', error);
       // Re-add the content to input on failure
       setInput(content);
+      toast.error('Failed to send message');
     } finally {
       setIsSending(false);
     }
