@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  /* Cyberpunk dark palette - slate-tinted blacks */
+  /* Cyberpunk dark palette - slate-tinted blacks (monotonic light -> dark ramp) */
   --color-dark-50: #e2e4ed;
   --color-dark-100: #c5c9db;
-  --color-dark-200: #e2e4ed;
-  --color-dark-300: #c5c9db;
+  --color-dark-200: #b7bbd0;
+  --color-dark-300: #a9adc4;
   --color-dark-400: #9ca0b8;
   --color-dark-500: #6b7094;
   --color-dark-600: #3d4155;
