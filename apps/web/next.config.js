@@ -36,19 +36,25 @@ const nextConfig = {
     // Content Security Policy. 'unsafe-inline'/'wasm-unsafe-eval' are required
     // for Next.js hydration bootstrap and the Signal-Protocol WASM module until
     // nonce-based CSP middleware is introduced (tracked as a follow-up).
+    const isDev = process.env.NODE_ENV !== 'production';
+    // In development the backend is served over http/ws (localhost), so allow it
+    // and don't force-upgrade requests; production stays https/wss only.
+    const connectSrc = isDev
+      ? "connect-src 'self' https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*"
+      : "connect-src 'self' https: wss:";
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' https: wss:",
+      connectSrc,
       "worker-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      'upgrade-insecure-requests',
+      ...(isDev ? [] : ['upgrade-insecure-requests']),
     ].join('; ');
 
     return [

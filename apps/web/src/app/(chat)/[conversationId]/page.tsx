@@ -52,6 +52,12 @@ export default function ConversationPage() {
   const selectedMessageId = useChatStore((state) => state.selectedMessageId);
   const selectMessage = useChatStore((state) => state.selectMessage);
 
+  // Check conversation type (declared before the group-store selectors below,
+  // which reference groupId synchronously during render).
+  const isSelfChat = conversationId.startsWith(SELF_CHAT_PREFIX);
+  const isGroupChat = conversationId.startsWith(GROUP_CHAT_PREFIX);
+  const groupId = isGroupChat ? conversationId.slice(GROUP_CHAT_PREFIX.length) : null;
+
   // Group store
   const groupDetails = useGroupStore((state) => groupId ? state.getGroup(groupId) : undefined);
   const groupMembers = useGroupStore((state) => groupId ? state.getMembers(groupId) : []);
@@ -76,11 +82,6 @@ export default function ConversationPage() {
       setShowReactionPickerForMessage(messageId);
     },
   });
-
-  // Check conversation type
-  const isSelfChat = conversationId.startsWith(SELF_CHAT_PREFIX);
-  const isGroupChat = conversationId.startsWith(GROUP_CHAT_PREFIX);
-  const groupId = isGroupChat ? conversationId.slice(GROUP_CHAT_PREFIX.length) : null;
 
   // Filter messages with useMemo to avoid infinite loop
   // Only show top-level messages (not thread replies)
