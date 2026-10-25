@@ -34,14 +34,16 @@ export function MnemonicInput({
         onChange={(e) => onChange(e.target.value.toLowerCase())}
         placeholder={`Enter your ${wordCount}-word recovery phrase...`}
         disabled={disabled}
+        aria-label="Recovery phrase"
+        aria-invalid={error ? true : undefined}
         className={`
           w-full h-32 px-4 py-3
           bg-dark-900/50 border rounded-2xl
           text-white placeholder-slate-600 font-mono text-sm
-          focus:outline-none focus:ring-2 focus:ring-cyan-500/20
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950
           transition-all duration-200 resize-none
           disabled:opacity-50 disabled:cursor-not-allowed
-          ${error ? 'border-red-500/50 focus:border-red-500' : 'border-dark-700/50 focus:border-cyan-500/50'}
+          ${error ? 'border-red-500/50 focus-visible:ring-red-500/70 focus-visible:border-red-500' : 'border-dark-700/50 focus-visible:ring-cyan-500/70 focus-visible:border-cyan-500/50'}
         `}
       />
 
@@ -63,7 +65,7 @@ export function MnemonicInput({
         {error && <span className="text-red-400">{error}</span>}
         {!error && isComplete && (
           <span className="text-green-400 flex items-center gap-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Ready
