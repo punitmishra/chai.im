@@ -419,7 +419,10 @@ mod tests {
 
         let m1 = alice.group_encrypt(group, b"hello team").unwrap();
         let m2 = alice.group_encrypt(group, b"second message").unwrap();
-        assert_eq!(bob.group_decrypt(group, alice_id, &m1).unwrap(), b"hello team");
+        assert_eq!(
+            bob.group_decrypt(group, alice_id, &m1).unwrap(),
+            b"hello team"
+        );
         assert_eq!(
             bob.group_decrypt(group, alice_id, &m2).unwrap(),
             b"second message"
