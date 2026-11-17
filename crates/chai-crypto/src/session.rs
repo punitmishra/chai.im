@@ -2,6 +2,9 @@
 
 use crate::keys::{IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
 use crate::ratchet::{DoubleRatchet, MessageHeader};
+use crate::sender_key::{
+    SenderKey, SenderKeyDistributionMessage, SenderKeyMessage, SenderKeyRecord,
+};
 use crate::x3dh::{X3DHInitialMessage, X3DHReceiver, X3DHSender};
 use crate::{CryptoError, Result};
 use serde::{Deserialize, Serialize};
@@ -145,6 +148,10 @@ pub struct SessionManager {
     sessions: HashMap<String, Session>,
     /// Next one-time prekey ID.
     next_prekey_id: u32,
+    /// Our own sender key per group (for sending group messages).
+    sender_keys: HashMap<String, SenderKey>,
+    /// Received peer sender keys, keyed by (group_id, sender_id).
+    peer_sender_keys: HashMap<(String, String), SenderKeyRecord>,
 }
 
 impl SessionManager {
@@ -159,6 +166,8 @@ impl SessionManager {
             one_time_prekeys: Vec::new(),
             sessions: HashMap::new(),
             next_prekey_id: 1,
+            sender_keys: HashMap::new(),
+            peer_sender_keys: HashMap::new(),
         }
     }
 
@@ -172,6 +181,8 @@ impl SessionManager {
             one_time_prekeys: Vec::new(),
             sessions: HashMap::new(),
             next_prekey_id: 1,
+            sender_keys: HashMap::new(),
+            peer_sender_keys: HashMap::new(),
         }
     }
 
@@ -315,6 +326,72 @@ impl SessionManager {
     pub fn public_identity(&self) -> crate::keys::IdentityPublicKey {
         self.identity.public_key()
     }
+
+    // --- Group messaging (Sender Keys) ---
+
+    /// Ensure we have our own sender key for `group_id`, creating one if needed,
+    /// and return the distribution message to hand to group members. Idempotent:
+    /// calling it again returns the existing key's distribution message (at its
+    /// current iteration, so a newly-added member only decrypts from now on).
+    pub fn create_sender_key(&mut self, group_id: &str) -> SenderKeyDistributionMessage {
+        let key = self
+            .sender_keys
+            .entry(group_id.to_string())
+            .or_insert_with(|| SenderKey::generate(1));
+        key.distribution_message()
+    }
+
+    /// The distribution message for our existing sender key, if we have one.
+    pub fn sender_key_distribution(&self, group_id: &str) -> Option<SenderKeyDistributionMessage> {
+        self.sender_keys
+            .get(group_id)
+            .map(|k| k.distribution_message())
+    }
+
+    /// Install a peer's sender key received (decrypted) over the pairwise channel.
+    pub fn process_sender_key_distribution(
+        &mut self,
+        group_id: &str,
+        sender_id: &str,
+        distribution: &SenderKeyDistributionMessage,
+    ) -> Result<()> {
+        let record = SenderKeyRecord::from_distribution(distribution)?;
+        self.peer_sender_keys
+            .insert((group_id.to_string(), sender_id.to_string()), record);
+        Ok(())
+    }
+
+    /// Encrypt a group message with our sender key (must be created first).
+    pub fn group_encrypt(&mut self, group_id: &str, plaintext: &[u8]) -> Result<SenderKeyMessage> {
+        let key = self
+            .sender_keys
+            .get_mut(group_id)
+            .ok_or_else(|| CryptoError::SessionNotFound(format!("no sender key for {group_id}")))?;
+        key.encrypt(plaintext)
+    }
+
+    /// Decrypt a group message from `sender_id` using their installed sender key.
+    pub fn group_decrypt(
+        &mut self,
+        group_id: &str,
+        sender_id: &str,
+        message: &SenderKeyMessage,
+    ) -> Result<Vec<u8>> {
+        let record = self
+            .peer_sender_keys
+            .get_mut(&(group_id.to_string(), sender_id.to_string()))
+            .ok_or_else(|| {
+                CryptoError::SessionNotFound(format!(
+                    "no sender key from {sender_id} in {group_id}"
+                ))
+            })?;
+        record.decrypt(message)
+    }
+
+    /// Whether we have created our own sender key for a group.
+    pub fn has_sender_key(&self, group_id: &str) -> bool {
+        self.sender_keys.contains_key(group_id)
+    }
 }
 
 impl Default for SessionManager {
@@ -326,6 +403,36 @@ impl Default for SessionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn group_sender_key_flow() {
+        // Alice and Bob are in a group. Alice creates her sender key and
+        // distributes it to Bob; Bob can then decrypt Alice's group messages.
+        let mut alice = SessionManager::new();
+        let mut bob = SessionManager::new();
+        let group = "group_123";
+        let alice_id = "alice";
+
+        let dist = alice.create_sender_key(group);
+        bob.process_sender_key_distribution(group, alice_id, &dist)
+            .unwrap();
+
+        let m1 = alice.group_encrypt(group, b"hello team").unwrap();
+        let m2 = alice.group_encrypt(group, b"second message").unwrap();
+        assert_eq!(
+            bob.group_decrypt(group, alice_id, &m1).unwrap(),
+            b"hello team"
+        );
+        assert_eq!(
+            bob.group_decrypt(group, alice_id, &m2).unwrap(),
+            b"second message"
+        );
+
+        // Bob without Alice's key for another group cannot decrypt.
+        assert!(bob.group_decrypt("other", alice_id, &m1).is_err());
+        // Alice cannot encrypt for a group she has no sender key in.
+        assert!(alice.group_encrypt("other", b"x").is_err());
+    }
 
     #[test]
     fn test_session_manager_flow() {

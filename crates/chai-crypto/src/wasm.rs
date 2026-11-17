@@ -4,6 +4,7 @@
 
 use crate::keys::{IdentityKeyPair, IdentityPublicKey, PreKeyBundle};
 use crate::mnemonic::{self, MnemonicStrength};
+use crate::sender_key::{SenderKeyDistributionMessage, SenderKeyMessage};
 use crate::session::{EncryptedMessage, SessionManager};
 use crate::x3dh::X3DHInitialMessage;
 use wasm_bindgen::prelude::*;
@@ -214,6 +215,73 @@ impl CryptoManager {
     #[wasm_bindgen(js_name = hasSession)]
     pub fn has_session(&self, peer_id: &str) -> bool {
         self.inner.get_session(peer_id).is_some()
+    }
+
+    // --- Group messaging (Sender Keys) ---
+
+    /// Ensure our sender key for a group exists and return its distribution
+    /// message (bincode bytes) to encrypt and send to each group member.
+    #[wasm_bindgen(js_name = createSenderKey)]
+    pub fn create_sender_key(&mut self, group_id: &str) -> Result<Vec<u8>, JsValue> {
+        self.inner
+            .create_sender_key(group_id)
+            .to_bytes()
+            .map_err(|e| JsValue::from_str(&format!("create_sender_key failed: {}", e)))
+    }
+
+    /// Our existing sender-key distribution message for a group (for a new member),
+    /// or null if we have not created one.
+    #[wasm_bindgen(js_name = senderKeyDistribution)]
+    pub fn sender_key_distribution(&self, group_id: &str) -> Option<Vec<u8>> {
+        self.inner
+            .sender_key_distribution(group_id)
+            .and_then(|d| d.to_bytes().ok())
+    }
+
+    /// Install a peer's sender key (already decrypted from the pairwise channel).
+    #[wasm_bindgen(js_name = processSenderKeyDistribution)]
+    pub fn process_sender_key_distribution(
+        &mut self,
+        group_id: &str,
+        sender_id: &str,
+        distribution: &[u8],
+    ) -> Result<(), JsValue> {
+        let dist = SenderKeyDistributionMessage::from_bytes(distribution)
+            .map_err(|e| JsValue::from_str(&format!("bad distribution message: {}", e)))?;
+        self.inner
+            .process_sender_key_distribution(group_id, sender_id, &dist)
+            .map_err(|e| JsValue::from_str(&format!("process_sender_key failed: {}", e)))
+    }
+
+    /// Encrypt a group message with our sender key; returns bincode bytes.
+    #[wasm_bindgen(js_name = groupEncrypt)]
+    pub fn group_encrypt(&mut self, group_id: &str, plaintext: &[u8]) -> Result<Vec<u8>, JsValue> {
+        self.inner
+            .group_encrypt(group_id, plaintext)
+            .map_err(|e| JsValue::from_str(&format!("group_encrypt failed: {}", e)))?
+            .to_bytes()
+            .map_err(|e| JsValue::from_str(&format!("serialize failed: {}", e)))
+    }
+
+    /// Decrypt a group message from a sender using their installed sender key.
+    #[wasm_bindgen(js_name = groupDecrypt)]
+    pub fn group_decrypt(
+        &mut self,
+        group_id: &str,
+        sender_id: &str,
+        message: &[u8],
+    ) -> Result<Vec<u8>, JsValue> {
+        let msg = SenderKeyMessage::from_bytes(message)
+            .map_err(|e| JsValue::from_str(&format!("bad group message: {}", e)))?;
+        self.inner
+            .group_decrypt(group_id, sender_id, &msg)
+            .map_err(|e| JsValue::from_str(&format!("group_decrypt failed: {}", e)))
+    }
+
+    /// Whether we have created our own sender key for a group.
+    #[wasm_bindgen(js_name = hasSenderKey)]
+    pub fn has_sender_key(&self, group_id: &str) -> bool {
+        self.inner.has_sender_key(group_id)
     }
 
     /// Export a session for storage.
