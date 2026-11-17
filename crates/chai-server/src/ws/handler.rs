@@ -13,8 +13,9 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use chai_common::UserId;
-use chai_protocol::UserStatus;
+use chai_common::{MessageId, UserId};
+use chai_protocol::{MessageType, ServerMessage, UserStatus};
+use uuid::Uuid;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -41,6 +42,60 @@ pub async fn ws_handler(
     };
 
     ws.on_upgrade(move |socket| handle_socket(socket, state, user_id))
+}
+
+/// Deliver messages that were stored while the recipient was offline.
+///
+/// Reuses the normal delivery + ack path: each pending message is pushed as a
+/// `ServerMessage::Message`; the client decrypts, stores (de-duping by id), and
+/// acks, which marks it delivered server-side so it is not re-sent next time.
+async fn deliver_pending_messages(state: &AppState, user_id: UserId) {
+    let pending = match crate::db::messages::get_undelivered(&state.db, Uuid::from(user_id)).await {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!("Failed to load undelivered messages for {:?}: {}", user_id, e);
+            return;
+        }
+    };
+    if pending.is_empty() {
+        return;
+    }
+    tracing::info!(
+        "Delivering {} offline message(s) to {:?}",
+        pending.len(),
+        user_id
+    );
+    for msg in pending {
+        let message_type = if msg.message_type == MessageType::Prekey as i16 {
+            MessageType::Prekey
+        } else {
+            MessageType::Normal
+        };
+        let server_message = ServerMessage::Message {
+            id: MessageId::from(msg.id),
+            sender_id: UserId::from(msg.sender_id),
+            // The client keys 1:1 conversations by sender, so the wire
+            // conversation_id is informational here; use the sender's id.
+            conversation_id: chai_common::ConversationId(msg.sender_id),
+            ciphertext: msg.ciphertext,
+            message_type,
+            timestamp: msg.created_at.unix_timestamp(),
+        };
+        match chai_protocol::json::encode_server_message(&server_message) {
+            Ok(data) => {
+                state
+                    .connections
+                    .send_to_user(
+                        &user_id,
+                        OutgoingMessage {
+                            data: data.into_bytes().into(),
+                        },
+                    )
+                    .await;
+            }
+            Err(e) => tracing::error!("Failed to encode pending message: {}", e),
+        }
+    }
 }
 
 /// Authenticate WebSocket connection using session token.
@@ -89,6 +144,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, user_id: UserId)
             }
         }
     });
+
+    // Deliver any messages that were stored while this user was offline.
+    deliver_pending_messages(&state, user_id).await;
 
     // Handle incoming messages
     while let Some(msg) = receiver.next().await {
