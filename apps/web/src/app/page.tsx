@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
@@ -19,6 +19,13 @@ export default function Home() {
   const router = useRouter();
   const sessionToken = useAuthStore((state) => state.sessionToken);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
+
+  // Whether the launch date has passed. Computed after mount to avoid a
+  // hydration mismatch (server and first client render both start false).
+  const [launched, setLaunched] = useState(false);
+  useEffect(() => {
+    setLaunched(Date.now() >= LAUNCH_DATE.getTime());
+  }, []);
 
   // Redirect to chat if already authenticated
   useEffect(() => {
@@ -59,12 +66,21 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Countdown */}
+          {/* Countdown (pre-launch) or a live badge once the date has passed */}
           <div className="mb-12">
-            <p className="text-sm text-slate-500 mb-4 uppercase tracking-wider">
-              Launching In
-            </p>
-            <CountdownTimer targetDate={LAUNCH_DATE} />
+            {launched ? (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/10 border border-primary-500/30">
+                <span className="h-2 w-2 rounded-full bg-primary-400 animate-pulse" aria-hidden />
+                <span className="text-sm font-medium text-primary-300">Now in early access — sign in to start</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 mb-4 uppercase tracking-wider">
+                  Launching In
+                </p>
+                <CountdownTimer targetDate={LAUNCH_DATE} />
+              </>
+            )}
           </div>
         </div>
       </section>

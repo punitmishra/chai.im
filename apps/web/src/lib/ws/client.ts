@@ -173,6 +173,7 @@ export class WebSocketClient {
   private activityInterval: number | null = null;
   private typingTimeout: Map<string, number> = new Map(); // Debounce typing
   private lastActivityTime: number = Date.now();
+  private activityListenersAttached = false;
   private pendingMessages: Map<string, PendingMessage> = new Map(); // recipientId → pending msg
   // FIFO of optimistic local message ids awaiting server acknowledgement, used to
   // reconcile the local 'sending' copy with the server-assigned id (and status).
@@ -1009,6 +1010,12 @@ export class WebSocketClient {
       clearInterval(this.activityInterval);
     }
 
+    // Track real user activity. Previously lastActivityTime was only updated by
+    // reportActivity(), which had no callers, so after one interval the periodic
+    // reporter below always saw "no recent activity" and the user was wrongly
+    // marked away. Bump the timestamp on genuine interaction instead.
+    this.attachActivityListeners();
+
     // Report activity periodically to prevent auto-away
     const interval = typeof ACTIVITY_REPORT_INTERVAL_MS !== 'undefined'
       ? ACTIVITY_REPORT_INTERVAL_MS
@@ -1020,6 +1027,17 @@ export class WebSocketClient {
         this.send({ type: 'ReportActivity', payload: null });
       }
     }, interval);
+  }
+
+  private attachActivityListeners(): void {
+    if (this.activityListenersAttached || typeof window === 'undefined') return;
+    this.activityListenersAttached = true;
+    const bump = () => {
+      this.lastActivityTime = Date.now();
+    };
+    for (const evt of ['pointerdown', 'keydown', 'visibilitychange'] as const) {
+      window.addEventListener(evt, bump, { passive: true });
+    }
   }
 
   /**

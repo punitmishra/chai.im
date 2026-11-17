@@ -443,13 +443,26 @@ export default function ConversationPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Encryption badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-            <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <span className="text-xs text-green-400 font-medium">Encrypted</span>
-          </div>
+          {/* Encryption badge — honest about the current state: 1:1/self chats are
+              E2E encrypted (Signal); group chats are not yet (Sender Keys pending). */}
+          {isGroupChat ? (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20"
+              title="Group messages are not yet end-to-end encrypted (Sender Keys coming soon)"
+            >
+              <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <span className="text-xs text-amber-400 font-medium">Not yet E2E</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+              <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span className="text-xs text-green-400 font-medium">Encrypted</span>
+            </div>
+          )}
           {/* Keyboard shortcuts hint */}
           <div className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-dark-800/50 text-slate-500 text-xs">
             <span>J/K to navigate</span>

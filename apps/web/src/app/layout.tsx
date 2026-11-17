@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   description: 'End-to-end encrypted messaging with Signal Protocol. Your conversations, zero knowledge.',
   manifest: '/manifest.json',
   icons: [
+    // Only the SVG favicon exists; the .ico / apple-touch PNG were 404s.
     { rel: 'icon', url: '/favicon.svg', type: 'image/svg+xml' },
-    { rel: 'icon', url: '/favicon.ico' },
-    { rel: 'apple-touch-icon', url: '/icons/apple-touch-icon.png' },
+    { rel: 'apple-touch-icon', url: '/favicon.svg' },
   ],
   openGraph: {
     title: 'Chai.im - Secure Chat',
