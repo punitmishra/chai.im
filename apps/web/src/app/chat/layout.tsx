@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { clsx } from 'clsx';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Avatar, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
 import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { useConnectionStore } from '@/store/connectionStore';
@@ -25,7 +27,9 @@ export default function ChatLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Below md the sidebar is a slide-in overlay that starts closed; at md+ it is
+  // always a static column (see the `aside` responsive classes below).
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -128,12 +132,20 @@ export default function ChatLayout({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Allow descendant surfaces (e.g. the conversation header search button) to
+  // open the shared SearchModal without prop drilling.
+  useEffect(() => {
+    const openSearch = () => setShowSearch(true);
+    window.addEventListener('chai:open-search', openSearch);
+    return () => window.removeEventListener('chai:open-search', openSearch);
+  }, []);
+
   // Show loading during hydration or if not authenticated
   if (!hasHydrated || !sessionToken) {
     return (
       <div className="flex h-screen items-center justify-center bg-dark-950">
         <div className="flex items-center gap-3 text-slate-500">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-600 border-t-cyan-500" />
+          <Spinner size="md" className="text-cyan-500" />
           <span>Loading...</span>
         </div>
       </div>
@@ -144,11 +156,25 @@ export default function ChatLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-dark-950">
-      {/* Sidebar */}
+      {/* Mobile scrim behind the overlay sidebar */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
+          aria-hidden
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar: slide-in overlay below md, static column at md+ */}
       <aside
-        className={`${
-          sidebarOpen ? 'w-80' : 'w-0'
-        } flex flex-col border-r border-dark-700/50 bg-dark-900/30 backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden`}
+        className={clsx(
+          'flex w-80 flex-col border-r border-dark-700/50 bg-dark-900/90 backdrop-blur-xl',
+          // Mobile: fixed overlay that slides in/out.
+          'fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-out',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: always visible, in-flow column.
+          'md:static md:z-auto md:translate-x-0 md:bg-dark-900/30'
+        )}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-dark-700/50">
@@ -163,24 +189,25 @@ export default function ChatLayout({
           </Link>
           <div className="flex gap-1">
             {activeTab === 'groups' ? (
-              <button
+              <IconButton
+                aria-label="Create group"
                 onClick={() => setShowCreateGroup(true)}
-                className="p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-all duration-200 text-slate-400 hover:text-white hover:scale-105 active:scale-95"
-                title="Create group"
+                className="bg-dark-800/50"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-              </button>
+              </IconButton>
             ) : (
-              <Link
-                href="/chat/new"
-                className="p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-all duration-200 text-slate-400 hover:text-white hover:scale-105 active:scale-95"
+              <IconButton
+                aria-label="New chat"
+                onClick={() => router.push('/chat/new')}
+                className="bg-dark-800/50"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-              </Link>
+              </IconButton>
             )}
           </div>
         </div>
@@ -214,23 +241,20 @@ export default function ChatLayout({
           {activeTab === 'chats' ? (
             // Chats tab
             conversations.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-dark-800/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <EmptyState
+                icon={
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                   </svg>
-                </div>
-                <p className="text-sm text-slate-500 mb-3">No conversations yet</p>
-                <Link
-                  href="/chat/new"
-                  className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Start a new chat
-                </Link>
-              </div>
+                }
+                title="No conversations yet"
+                description="Start a new encrypted chat to begin messaging."
+                action={
+                  <Button size="sm" onClick={() => { setSidebarOpen(false); router.push('/chat/new'); }}>
+                    Start a new chat
+                  </Button>
+                }
+              />
             ) : (
               conversations.map((conv) => {
                 const isSelfChat = conv.id.startsWith(SELF_CHAT_PREFIX);
@@ -239,6 +263,7 @@ export default function ChatLayout({
                   <Link
                     key={conv.id}
                     href={`/chat/${conv.id}`}
+                    onClick={() => setSidebarOpen(false)}
                     className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
                       pathname === `/${conv.id}`
                         ? 'bg-dark-800/70 shadow-lg'
@@ -260,9 +285,7 @@ export default function ChatLayout({
                           </svg>
                         </div>
                       ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-dark-700 to-dark-800 font-medium text-white text-lg shadow-inner">
-                          {conv.name[0].toUpperCase()}
-                        </div>
+                        <Avatar name={conv.name} size="lg" />
                       )}
                       {pathname === `/${conv.id}` && !isSelfChat && (
                         <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-dark-900" />
@@ -290,28 +313,26 @@ export default function ChatLayout({
           ) : (
             // Groups tab
             groups.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-dark-800/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <EmptyState
+                icon={
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                </div>
-                <p className="text-sm text-slate-500 mb-3">No groups yet</p>
-                <button
-                  onClick={() => setShowCreateGroup(true)}
-                  className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Create a group
-                </button>
-              </div>
+                }
+                title="No groups yet"
+                description="Create a group to chat with multiple people at once."
+                action={
+                  <Button size="sm" onClick={() => setShowCreateGroup(true)}>
+                    Create a group
+                  </Button>
+                }
+              />
             ) : (
               groups.map((group) => (
                 <Link
                   key={group.id}
                   href={`/chat/${GROUP_CHAT_PREFIX}${group.id}`}
+                  onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 rounded-2xl p-3 transition-all duration-200 ${
                     pathname === `/${GROUP_CHAT_PREFIX}${group.id}`
                       ? 'bg-dark-800/70 shadow-lg'
@@ -358,38 +379,36 @@ export default function ChatLayout({
         {/* User section */}
         <div className="border-t border-dark-700/50 p-4">
           <div className="flex items-center gap-3 rounded-2xl p-3 bg-dark-800/30">
-            <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-teal-500 font-semibold text-black shadow-lg shadow-cyan-500/20">
-                {user?.username?.[0]?.toUpperCase() || 'U'}
-              </div>
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-dark-800 ${isOnline ? 'bg-green-500' : 'bg-slate-500'}`} />
-            </div>
+            <Avatar name={user?.username || 'User'} size="lg" online={isOnline} />
             <div className="flex-1 min-w-0">
               <div className="font-medium text-white truncate">{user?.username || 'User'}</div>
               <div className="text-xs text-slate-500">{isOnline ? 'Online' : 'Connecting...'}</div>
             </div>
-            <button
+            <IconButton
+              aria-label="Log out"
+              title="Log out"
               onClick={() => {
                 getWebSocketClient().disconnect();
                 clearCrypto();
                 useAuthStore.getState().logout();
                 router.push('/auth/login');
               }}
-              className="p-2.5 rounded-xl hover:bg-dark-700/50 text-slate-500 hover:text-white transition-all duration-200"
-              title="Logout"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
               </svg>
-            </button>
+            </IconButton>
           </div>
         </div>
       </aside>
 
       {/* Toggle sidebar button (mobile) */}
-      <button
+      <IconButton
+        aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+        aria-expanded={sidebarOpen}
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed bottom-6 left-6 z-50 p-4 rounded-2xl bg-cyan-500 text-black shadow-xl shadow-cyan-500/30 md:hidden hover:bg-cyan-400 transition-all duration-200 hover:scale-105 active:scale-95"
+        size="lg"
+        className="fixed bottom-6 left-6 z-50 bg-cyan-500 text-black! shadow-xl shadow-cyan-500/30 md:hidden hover:bg-cyan-400! active:scale-95"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           {sidebarOpen ? (
@@ -398,7 +417,7 @@ export default function ChatLayout({
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           )}
         </svg>
-      </button>
+      </IconButton>
 
       {/* Main content */}
       <main className="flex-1 overflow-hidden bg-dark-950">{children}</main>

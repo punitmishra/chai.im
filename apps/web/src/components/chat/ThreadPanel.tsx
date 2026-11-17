@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { MessageBubble } from './MessageBubble';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from '@/hooks/useEmojiAutocomplete';
+import { Button, EmptyState, IconButton } from '@/components/ui';
 
 interface ThreadPanelProps {
   parentMessage: Message;
@@ -130,15 +131,15 @@ export function ThreadPanel({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2.5 rounded-xl hover:bg-dark-800/50 text-slate-400 hover:text-white transition-all"
+          <IconButton
+            aria-label="Close thread"
             title="Close thread (Esc)"
+            onClick={onClose}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </IconButton>
         </div>
 
         {/* Messages area */}
@@ -155,15 +156,15 @@ export function ThreadPanel({
 
           {/* Thread replies */}
           {threadReplies.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-dark-800/50 flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <EmptyState
+              icon={
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                 </svg>
-              </div>
-              <p className="text-sm text-slate-500 mb-1">No replies yet</p>
-              <p className="text-xs text-slate-600">Be the first to reply to this thread</p>
-            </div>
+              }
+              title="No replies yet"
+              description="Be the first to reply to this thread."
+            />
           ) : (
             threadReplies.map((reply) => (
               <MessageBubble
@@ -202,22 +203,25 @@ export function ThreadPanel({
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {/* Emoji picker button */}
-              <button
+              <IconButton
                 type="button"
-                onClick={() => setShowEmojiPicker((prev) => !prev)}
-                className={`p-3 rounded-xl transition-all duration-200 ${
-                  showEmojiPicker
-                    ? 'bg-cyan-500/20 text-cyan-400'
-                    : 'bg-dark-800/50 border border-dark-600/50 text-slate-400 hover:text-white hover:bg-dark-700/50'
-                }`}
+                aria-label="Emoji picker"
+                aria-pressed={showEmojiPicker}
                 title="Emoji picker"
+                size="lg"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+                className={
+                  showEmojiPicker
+                    ? 'bg-cyan-500/20 text-cyan-400!'
+                    : 'bg-dark-800/50 border border-dark-600/50'
+                }
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-              </button>
+              </IconButton>
 
               <input
                 ref={inputRef}
@@ -226,22 +230,22 @@ export function ThreadPanel({
                 onChange={handleInputChange}
                 onKeyDown={emojiAutocomplete.handleKeyDown}
                 placeholder="Reply in thread..."
-                className="flex-1 px-4 py-3 bg-dark-800/50 border border-dark-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                className="flex-1 px-4 py-3 bg-dark-800/50 border border-dark-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus-visible:ring-2 focus-visible:ring-cyan-500/40 transition-colors"
               />
 
-              <button
+              <Button
                 type="submit"
-                disabled={!input.trim() || isSending}
-                className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 disabled:from-dark-800 disabled:to-dark-800 disabled:text-slate-600 text-black font-semibold rounded-xl transition-all duration-200 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30"
+                aria-label="Send reply"
+                loading={isSending}
+                disabled={!input.trim()}
+                className="px-4"
               >
-                {isSending ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                ) : (
+                {!isSending && (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                   </svg>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </form>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { searchUsers, UserSearchResult } from '@/lib/api/users';
 import { useChatStore } from '@/store/chatStore';
+import { Avatar, EmptyState, Spinner } from '@/components/ui';
 
 export default function NewChatPage() {
   const router = useRouter();
@@ -104,7 +105,7 @@ export default function NewChatPage() {
           </svg>
           {isSearching && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
+              <Spinner size="md" className="text-cyan-500" />
             </div>
           )}
         </div>
@@ -119,14 +120,9 @@ export default function NewChatPage() {
         )}
 
         {!error && query.length < 2 && (
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-dark-900/50 mb-6">
-              <svg
-                className="w-10 h-10 text-slate-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+          <EmptyState
+            icon={
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -134,20 +130,22 @@ export default function NewChatPage() {
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-            </div>
-            <p className="text-slate-500">Type at least 2 characters to search for users</p>
-          </div>
+            }
+            title="Find someone to chat with"
+            description="Type at least 2 characters to search for users."
+          />
         )}
 
         {!error && query.length >= 2 && results.length === 0 && !isSearching && (
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-dark-900/50 mb-6">
-              <svg className="w-10 h-10 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <EmptyState
+            icon={
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 16.318A4.486 4.486 0 0012.016 15a4.486 4.486 0 00-3.198 1.318M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
               </svg>
-            </div>
-            <p className="text-slate-500">No users found matching "{query}"</p>
-          </div>
+            }
+            title="No users found"
+            description={`No users found matching "${query}".`}
+          />
         )}
 
         {results.length > 0 && (
@@ -165,12 +163,10 @@ export default function NewChatPage() {
                 <button
                   key={user.id}
                   onClick={() => startConversation(user)}
-                  className="flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 hover:bg-dark-800/50 group"
+                  className="flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 hover:bg-dark-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 group"
                 >
                   {/* Avatar */}
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-teal-500/20 text-cyan-400 font-semibold text-lg shadow-inner">
-                    {user.username[0].toUpperCase()}
-                  </div>
+                  <Avatar name={user.username} size="xl" />
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
