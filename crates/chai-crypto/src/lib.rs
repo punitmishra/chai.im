@@ -11,6 +11,7 @@ pub mod error;
 pub mod keys;
 pub mod mnemonic;
 pub mod ratchet;
+pub mod sender_key;
 pub mod session;
 pub mod x3dh;
 
@@ -21,6 +22,7 @@ pub use cipher::{decrypt, encrypt};
 pub use error::CryptoError;
 pub use keys::{IdentityKeyPair, OneTimePreKey, PreKeyBundle, SignedPreKey};
 pub use ratchet::DoubleRatchet;
+pub use sender_key::{SenderKey, SenderKeyDistributionMessage, SenderKeyMessage, SenderKeyRecord};
 pub use session::{PrekeyMessagePayload, Session, SessionManager};
 pub use x3dh::{X3DHReceiver, X3DHSender};
 
