@@ -189,6 +189,60 @@ export async function hasSession(peerId: string): Promise<boolean> {
   return crypto.hasSession(peerId);
 }
 
+// --- Group messaging (Sender Keys) ---
+
+/**
+ * Ensure our sender key for a group exists and return its distribution message
+ * (opaque bytes) to encrypt and send to each group member over the 1:1 channel.
+ */
+export async function createGroupSenderKey(groupId: string): Promise<Uint8Array> {
+  const crypto = await initCrypto();
+  return crypto.createSenderKey(groupId);
+}
+
+/** Our existing sender-key distribution for a group (for a newly-added member), or null. */
+export async function getGroupSenderKeyDistribution(
+  groupId: string
+): Promise<Uint8Array | null> {
+  const crypto = await initCrypto();
+  return crypto.senderKeyDistribution(groupId) ?? null;
+}
+
+/** Install a peer's sender key (already decrypted from the 1:1 channel). */
+export async function processGroupSenderKey(
+  groupId: string,
+  senderId: string,
+  distribution: Uint8Array
+): Promise<void> {
+  const crypto = await initCrypto();
+  crypto.processSenderKeyDistribution(groupId, senderId, distribution);
+}
+
+/** Encrypt a group message with our sender key; returns opaque bytes for the wire. */
+export async function groupEncryptMessage(
+  groupId: string,
+  plaintext: string
+): Promise<Uint8Array> {
+  const crypto = await initCrypto();
+  return crypto.groupEncrypt(groupId, new TextEncoder().encode(plaintext));
+}
+
+/** Decrypt a group message from a sender using their installed sender key. */
+export async function groupDecryptMessage(
+  groupId: string,
+  senderId: string,
+  ciphertext: Uint8Array
+): Promise<string> {
+  const crypto = await initCrypto();
+  return new TextDecoder().decode(crypto.groupDecrypt(groupId, senderId, ciphertext));
+}
+
+/** Whether we have created our own sender key for a group. */
+export async function hasGroupSenderKey(groupId: string): Promise<boolean> {
+  const crypto = await initCrypto();
+  return crypto.hasSenderKey(groupId);
+}
+
 /**
  * Get the public identity key.
  */
