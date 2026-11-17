@@ -15,12 +15,12 @@ use axum::{
 };
 use chai_common::{MessageId, UserId};
 use chai_protocol::{MessageType, ServerMessage, UserStatus};
-use uuid::Uuid;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct WsQuery {
@@ -53,7 +53,11 @@ async fn deliver_pending_messages(state: &AppState, user_id: UserId) {
     let pending = match crate::db::messages::get_undelivered(&state.db, Uuid::from(user_id)).await {
         Ok(p) => p,
         Err(e) => {
-            tracing::error!("Failed to load undelivered messages for {:?}: {}", user_id, e);
+            tracing::error!(
+                "Failed to load undelivered messages for {:?}: {}",
+                user_id,
+                e
+            );
             return;
         }
     };
