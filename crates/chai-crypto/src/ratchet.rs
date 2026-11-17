@@ -26,6 +26,11 @@ impl ChainKey {
         Self(bytes)
     }
 
+    /// Raw 32-byte chain key (used to serialize/distribute sender keys).
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+
     /// Derive the next chain key and message key.
     pub fn advance(&self) -> (ChainKey, MessageKey) {
         type HmacSha256 = Hmac<Sha256>;
