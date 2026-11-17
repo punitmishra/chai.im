@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useToastStore } from '@/store/toastStore';
+import { Button, Input } from '@/components/ui';
 
 interface EmailSignupProps {
   onSuccess?: () => void;
@@ -83,7 +84,7 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
           </svg>
         </div>
         <p className="text-white font-medium">You&apos;re on the list!</p>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-400 mt-1">
           We&apos;ll email you when Chai launches.
         </p>
       </div>
@@ -93,40 +94,19 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="flex gap-2">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="your@email.com"
-          disabled={isSubmitting}
-          className="
-            flex-1 px-4 py-3
-            bg-dark-900/50 border border-dark-700/50 rounded-2xl
-            text-white placeholder-slate-600
-            focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20
-            transition-all duration-200
-            disabled:opacity-50
-          "
-        />
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="
-            px-5 py-3 rounded-2xl font-medium
-            bg-gradient-to-r from-cyan-500 to-teal-500
-            text-black
-            hover:from-cyan-400 hover:to-teal-400
-            shadow-lg shadow-cyan-500/20
-            transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed
-            flex items-center gap-2
-          "
-        >
+        <div className="flex-1">
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="your@email.com"
+            aria-label="Email address"
+            disabled={isSubmitting}
+          />
+        </div>
+        <Button type="submit" loading={isSubmitting}>
           {isSubmitting ? (
-            <>
-              <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-              <span className="hidden sm:inline">Joining...</span>
-            </>
+            <span className="hidden sm:inline">Joining...</span>
           ) : (
             <>
               <svg
@@ -134,6 +114,7 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -145,9 +126,9 @@ export function EmailSignup({ onSuccess }: EmailSignupProps) {
               <span className="hidden sm:inline">Notify Me</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
-      <p className="text-xs text-slate-600 text-center">
+      <p className="text-xs text-slate-400 text-center">
         We&apos;ll only email you once when we launch. No spam, ever.
       </p>
     </form>

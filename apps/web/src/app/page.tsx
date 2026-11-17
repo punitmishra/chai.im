@@ -140,13 +140,13 @@ export default function Home() {
         <div className="max-w-sm mx-auto space-y-3">
           <Link
             href="/auth/register"
-            className="w-full block py-3.5 px-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-black font-semibold rounded-2xl transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 text-center hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full block py-3.5 px-4 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-black font-semibold rounded-2xl transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 text-center hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950"
           >
             Join Early Access
           </Link>
           <Link
             href="/auth/login"
-            className="w-full block py-3.5 px-4 bg-dark-900/50 hover:bg-dark-800/50 text-white font-medium rounded-2xl transition-all duration-200 border border-dark-700/50 text-center"
+            className="w-full block py-3.5 px-4 bg-dark-900/50 hover:bg-dark-800/50 text-white font-medium rounded-2xl transition-all duration-200 border border-dark-700/50 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-950"
           >
             Sign In
           </Link>
@@ -155,11 +155,11 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="relative py-8 px-4 text-center border-t border-dark-700/50 z-10">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-400">
           Open source &middot;{' '}
           <a
             href="https://github.com/punitmishra/chai.im"
-            className="text-cyan-400 hover:text-cyan-300 transition-colors"
+            className="text-cyan-400 hover:text-cyan-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70 rounded"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -187,9 +187,9 @@ function Feature({
       className="feature-card p-4 bg-dark-900/50 border border-dark-700/50 rounded-2xl text-center hover:border-cyan-500/30 hover:bg-dark-800/30 transition-all duration-300"
       style={{ animationDelay: `${delay * 0.1}s` }}
     >
-      <div className="text-3xl mb-3">{icon}</div>
+      <div className="text-3xl mb-3" aria-hidden="true">{icon}</div>
       <h3 className="font-medium text-white text-sm">{title}</h3>
-      <p className="text-xs text-slate-500 mt-1">{description}</p>
+      <p className="text-xs text-slate-400 mt-1">{description}</p>
     </div>
   );
 }

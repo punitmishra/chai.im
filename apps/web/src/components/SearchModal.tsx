@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useChatStore, Message, Conversation } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
+import { EmptyState } from '@/components/ui';
 
 interface SearchResult {
   message: Message;
@@ -213,7 +214,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       <div className="relative w-full max-w-2xl bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl overflow-hidden">
         {/* Search input */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-dark-700">
-          <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -222,6 +223,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search messages..."
+            aria-label="Search messages"
             className="flex-1 bg-transparent text-white text-lg placeholder-slate-500 focus:outline-none"
           />
           {isSearching && (
@@ -266,12 +268,15 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
           {query && results.length === 0 && !isSearching ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-              <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <p>No messages found for "{query}"</p>
-            </div>
+            <EmptyState
+              icon={
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              }
+              title="No messages found"
+              description={`Nothing matched "${query}"`}
+            />
           ) : results.length > 0 ? (
             <div className="divide-y divide-dark-800/50">
               {results.map((result, index) => (
@@ -311,12 +316,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               ))}
             </div>
           ) : !query ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-              <p className="text-sm">Type to search your messages</p>
-              <p className="text-xs text-slate-600 mt-1">
-                Use arrow keys to navigate, Enter to select
-              </p>
-            </div>
+            <EmptyState
+              title="Search your messages"
+              description="Use arrow keys to navigate, Enter to select"
+            />
           ) : null}
         </div>
 
