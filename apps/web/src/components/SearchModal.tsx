@@ -5,6 +5,8 @@ import { useChatStore, Message, Conversation } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { EmptyState } from '@/components/ui';
+import { useSemanticSearch } from '@/hooks/useSemanticSearch';
+import type { MessageForAI } from '@/lib/ai/types';
 
 interface SearchResult {
   message: Message;
@@ -24,12 +26,21 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filterConversationId, setFilterConversationId] = useState<string | null>(null);
+  const [semanticMode, setSemanticMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const messages = useChatStore((state) => state.messages);
   const conversations = useChatStore((state) => state.conversations);
   const user = useAuthStore((state) => state.user);
+
+  // Local, privacy-preserving semantic search (opt-in). Runs entirely in the
+  // browser; the embedding model downloads lazily on first use.
+  const {
+    status: aiStatus,
+    searching: aiSearching,
+    search: runSemanticSearch,
+  } = useSemanticSearch();
 
   // Focus input when modal opens
   useEffect(() => {
@@ -38,6 +49,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setResults([]);
       setSelectedIndex(0);
       setFilterConversationId(null);
+      setSemanticMode(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
@@ -155,13 +167,69 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     setIsSearching(false);
   }, [messages, conversations, filterConversationId]);
 
-  // Debounced search
+  // Semantic search: rank messages by meaning using local embeddings.
+  const performSemanticSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+
+    const messagesToSearch = (filterConversationId
+      ? messages.filter((m) => m.conversationId === filterConversationId)
+      : messages
+    ).filter(
+      (m) => m.content !== '[Encrypted]' && m.content !== '[Failed to decrypt]'
+    );
+
+    const aiMessages: MessageForAI[] = messagesToSearch.map((m) => ({
+      id: m.id,
+      content: m.content,
+      sender: m.senderId || 'unknown',
+      timestamp: new Date(m.timestamp),
+      isOwn: m.senderId === user?.id,
+    }));
+
+    const ranked = await runSemanticSearch(searchQuery, aiMessages, 30);
+
+    // Model unavailable (failed to load) -> degrade to keyword search.
+    if (ranked === null) {
+      await performSearch(searchQuery);
+      return;
+    }
+
+    const messageById = new Map(messagesToSearch.map((m) => [m.id, m]));
+    const searchResults: SearchResult[] = [];
+    for (const r of ranked) {
+      if (r.score <= 0.1) continue; // drop near-unrelated matches
+      const message = messageById.get(r.messageId);
+      if (!message) continue;
+      searchResults.push({
+        message,
+        conversation: conversations.find((c) => c.id === message.conversationId),
+        score: r.score,
+        matchType: 'fuzzy',
+      });
+    }
+
+    setResults(searchResults);
+    setSelectedIndex(0);
+    setIsSearching(false);
+  }, [messages, conversations, filterConversationId, user, runSemanticSearch, performSearch]);
+
+  // Debounced search (semantic mode uses a slightly longer debounce since each
+  // query requires embedding the text).
   useEffect(() => {
     const timer = setTimeout(() => {
-      performSearch(query);
-    }, 200);
+      if (semanticMode) {
+        performSemanticSearch(query);
+      } else {
+        performSearch(query);
+      }
+    }, semanticMode ? 350 : 200);
     return () => clearTimeout(timer);
-  }, [query, performSearch]);
+  }, [query, semanticMode, performSearch, performSemanticSearch]);
 
   const navigateToMessage = (result: SearchResult) => {
     onClose();
@@ -222,16 +290,51 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search messages..."
+            placeholder={semanticMode ? 'Search by meaning...' : 'Search messages...'}
             aria-label="Search messages"
             className="flex-1 bg-transparent text-white text-lg placeholder-slate-500 focus:outline-none"
           />
-          {isSearching && (
+          {(isSearching || aiSearching || aiStatus === 'loading') && (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-dark-600 border-t-cyan-500" />
           )}
           <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 bg-dark-800 rounded">
             ESC
           </kbd>
+        </div>
+
+        {/* Search mode toggle: keyword vs. local AI semantic search */}
+        <div className="flex items-center justify-between gap-2 px-5 py-2 border-b border-dark-700/50">
+          <div className="inline-flex rounded-lg bg-dark-800 p-0.5" role="group" aria-label="Search mode">
+            <button
+              type="button"
+              onClick={() => setSemanticMode(false)}
+              aria-pressed={!semanticMode}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                !semanticMode ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Keyword
+            </button>
+            <button
+              type="button"
+              onClick={() => setSemanticMode(true)}
+              aria-pressed={semanticMode}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                semanticMode ? 'bg-purple-500/20 text-purple-300' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Semantic
+            </button>
+          </div>
+          {semanticMode && (
+            <span className="text-xs text-slate-500">
+              {aiStatus === 'loading'
+                ? 'Loading AI model (first use only)…'
+                : aiStatus === 'unavailable'
+                  ? 'AI unavailable — using keyword search'
+                  : 'Runs locally · private'}
+            </span>
+          )}
         </div>
 
         {/* Conversation filter */}
@@ -267,7 +370,16 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
-          {query && results.length === 0 && !isSearching ? (
+          {query && semanticMode && (aiStatus === 'loading' || aiSearching) && results.length === 0 ? (
+            <EmptyState
+              title={aiStatus === 'loading' ? 'Preparing local AI…' : 'Searching by meaning…'}
+              description={
+                aiStatus === 'loading'
+                  ? 'Downloading the embedding model (first use only). It stays on your device.'
+                  : 'Ranking your messages by semantic similarity.'
+              }
+            />
+          ) : query && results.length === 0 && !isSearching ? (
             <EmptyState
               icon={
                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

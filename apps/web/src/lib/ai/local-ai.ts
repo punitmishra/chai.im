@@ -19,6 +19,10 @@ import type {
   MessageForAI,
 } from './types';
 
+// Small sentence-embedding model used for semantic search. ~25MB, downloaded
+// lazily from the Transformers.js CDN on first use and cached in the browser.
+export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+
 // Dynamic import to avoid loading 50MB+ of models on initial page load
 type Pipeline = unknown;
 type PipelineType = 'summarization' | 'feature-extraction' | 'text2text-generation' | 'text-generation';
@@ -110,20 +114,61 @@ export class LocalAI {
 
     const transformers = await getTransformers();
     if (!transformers) {
+      // Package failed to load (e.g. bundling/native-dep issue). Degrade
+      // gracefully: no capability is advertised and nothing throws.
       this.state.status = 'error';
       this.state.error = 'Transformers.js not available';
       return;
     }
 
-    // Enable capabilities based on successful model loading
-    this.state.capabilities = {
-      summarization: true,
-      smartReplies: true,
-      semanticSearch: true,
-      translation: true,
-    };
-
+    // The package imported successfully, but NO capability is advertised until
+    // its backing model has actually loaded. Individual features flip their
+    // capability flag to `true` only inside their lazy loader (e.g.
+    // `ensureSemanticSearch`). Pattern-only helpers (smart replies) work
+    // without a model, so that capability is safe to enable here.
+    this.state.capabilities.smartReplies = true;
     this.state.status = 'ready';
+  }
+
+  /**
+   * Whether the semantic-search embedding model is loaded and ready.
+   */
+  isSemanticSearchReady(): boolean {
+    return this.state.capabilities.semanticSearch && this.pipelines.has('embeddings');
+  }
+
+  /**
+   * Lazily load the sentence-embedding model used for semantic search.
+   *
+   * Returns `true` only once the model is actually loaded; on any failure
+   * (package missing, download/CSP/COEP blocked, OOM) it returns `false`,
+   * leaves `capabilities.semanticSearch` disabled, and never throws — callers
+   * fall back to keyword search.
+   */
+  async ensureSemanticSearch(): Promise<boolean> {
+    if (this.isSemanticSearchReady()) return true;
+
+    const transformers = await getTransformers();
+    if (!transformers) {
+      this.state.capabilities.semanticSearch = false;
+      return false;
+    }
+
+    try {
+      this.state.status = 'loading';
+      const pipeline = await transformers.pipeline('feature-extraction', EMBEDDING_MODEL);
+      this.pipelines.set('embeddings', pipeline);
+      // Only now, after the model has loaded, is the capability advertised.
+      this.state.modelsLoaded.embeddings = true;
+      this.state.capabilities.semanticSearch = true;
+      this.state.status = 'ready';
+      return true;
+    } catch (error) {
+      console.warn('Embedding model failed to load - semantic search disabled', error);
+      this.state.capabilities.semanticSearch = false;
+      this.state.status = 'ready';
+      return false;
+    }
   }
 
   /**
@@ -166,6 +211,7 @@ export class LocalAI {
         );
         this.pipelines.set('summarization', pipeline);
         this.state.modelsLoaded.summarization = true;
+        this.state.capabilities.summarization = true;
       }
 
       // Prepare text for summarization
@@ -411,27 +457,15 @@ export class LocalAI {
       return [];
     }
 
-    // For small message sets, use keyword search
-    if (messages.length <= 20) {
+    // Lazily load the embedding model. If it is unavailable (package/model
+    // failed to load), silently degrade to keyword search.
+    const ready = await this.ensureSemanticSearch();
+    if (!ready) {
       return this.keywordSearch(query, messages, topK);
     }
 
     try {
-      const transformers = await getTransformers();
-      if (!transformers) {
-        return this.keywordSearch(query, messages, topK);
-      }
-
-      // Get or create embeddings pipeline
-      let pipeline = this.pipelines.get('embeddings');
-      if (!pipeline) {
-        pipeline = await transformers.pipeline(
-          'feature-extraction',
-          'Xenova/all-MiniLM-L6-v2'
-        );
-        this.pipelines.set('embeddings', pipeline);
-        this.state.modelsLoaded.embeddings = true;
-      }
+      const pipeline = this.pipelines.get('embeddings')!;
 
       // Get query embedding
       const queryEmbedding = await this.getEmbedding(pipeline, query);
@@ -563,6 +597,7 @@ export class LocalAI {
         pipeline = await transformers.pipeline('text2text-generation', modelName);
         this.pipelines.set(pipelineKey, pipeline);
         this.state.modelsLoaded.translation = true;
+        this.state.capabilities.translation = true;
       }
 
       const result = await (pipeline as (text: string) => Promise<Array<{ generated_text: string }>>)(text);
@@ -622,17 +657,27 @@ export class LocalAI {
     if (capabilities.includes('summarization') && !this.pipelines.has('summarization')) {
       loadPromises.push(
         transformers.pipeline('summarization', 'Xenova/distilbart-cnn-6-6')
-          .then((p) => { this.pipelines.set('summarization', p); })
+          .then((p) => {
+            this.pipelines.set('summarization', p);
+            this.state.modelsLoaded.summarization = true;
+            this.state.capabilities.summarization = true;
+          })
       );
     }
 
     if (capabilities.includes('semanticSearch') && !this.pipelines.has('embeddings')) {
       loadPromises.push(
-        transformers.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
-          .then((p) => { this.pipelines.set('embeddings', p); })
+        transformers.pipeline('feature-extraction', EMBEDDING_MODEL)
+          .then((p) => {
+            this.pipelines.set('embeddings', p);
+            this.state.modelsLoaded.embeddings = true;
+            this.state.capabilities.semanticSearch = true;
+          })
       );
     }
 
-    await Promise.all(loadPromises);
+    // Loads are best-effort: a failure leaves the capability disabled rather
+    // than rejecting and crashing the caller.
+    await Promise.allSettled(loadPromises);
   }
 }
