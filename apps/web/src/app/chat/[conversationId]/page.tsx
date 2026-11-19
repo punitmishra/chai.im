@@ -50,7 +50,8 @@ export default function ConversationPage() {
   const openThread = useChatStore((state) => state.openThread);
   const closeThread = useChatStore((state) => state.closeThread);
   const addThreadReply = useChatStore((state) => state.addThreadReply);
-  const getThreadReplies = useChatStore((state) => state.getThreadReplies);
+  const updateThreadReplyStatus = useChatStore((state) => state.updateThreadReplyStatus);
+  const threads = useChatStore((state) => state.threads);
   const selectedMessageId = useChatStore((state) => state.selectedMessageId);
   const selectMessage = useChatStore((state) => state.selectMessage);
 
@@ -103,9 +104,12 @@ export default function ConversationPage() {
     [activeThreadId, allMessages]
   );
 
+  // Read from the `threads` map directly so the panel re-renders when replies are
+  // added/reconciled (a getThreadReplies() call would be memoized on a stable
+  // function reference and never see new replies).
   const threadReplies = useMemo(
-    () => (activeThreadId ? getThreadReplies(activeThreadId) : []),
-    [activeThreadId, getThreadReplies]
+    () => (activeThreadId ? threads[activeThreadId] || [] : []),
+    [activeThreadId, threads]
   );
 
   // Connect to WebSocket on mount (only for non-self chats)
@@ -131,6 +135,14 @@ export default function ConversationPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // When a thread opens in a 1:1 chat, fetch its existing replies. The server
+  // answers with ThreadMessages, which the WS client decrypts and merges into the
+  // store. Self chats are purely local; group threads are not wired up yet.
+  useEffect(() => {
+    if (!activeThreadId || isSelfChat || isGroupChat) return;
+    getWebSocketClient().getThreadMessages(activeThreadId);
+  }, [activeThreadId, isSelfChat, isGroupChat]);
 
   // Note: we intentionally do NOT pre-request a prekey bundle on open. Eagerly
   // establishing a session with no message to send consumes (and wastes) a
@@ -377,8 +389,18 @@ export default function ConversationPage() {
     async (content: string, parentMessageId: string) => {
       if (!conversation) return;
 
+      // Group thread replies would need Sender-Key encryption and are out of
+      // scope for now. No-op (surface a toast) rather than sending plaintext or
+      // crashing.
+      // TODO(group-threads): encrypt + fan out group thread replies via Sender Keys.
+      if (isGroupChat) {
+        toast.error('Thread replies are not available in group chats yet');
+        return;
+      }
+
+      const localId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const replyMessage: Message = {
-        id: `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: localId,
         conversationId,
         senderId: user?.id || '',
         content,
@@ -387,16 +409,29 @@ export default function ConversationPage() {
         parentMessageId,
       };
 
-      // Add to thread replies
+      // Optimistic local add for both self and 1:1 chats.
       addThreadReply(parentMessageId, replyMessage);
 
-      // TODO: Send through WebSocket for non-self chats
-      if (!isSelfChat) {
-        // In a real implementation, you'd send this through the WebSocket
-        console.log('Sending thread reply via WebSocket:', replyMessage);
+      // Self-chat notes stay local; nothing to send.
+      if (isSelfChat) return;
+
+      // 1:1: encrypt + send over the WebSocket. The optimistic copy is reconciled
+      // with the server-assigned id when the MessageSent ack arrives.
+      try {
+        await getWebSocketClient().sendThreadReply(
+          parentMessageId,
+          conversationId,
+          conversation.recipientId,
+          content,
+          localId
+        );
+      } catch (error) {
+        console.error('Failed to send thread reply:', error);
+        updateThreadReplyStatus(parentMessageId, localId, 'failed');
+        throw error;
       }
     },
-    [conversation, conversationId, user?.id, isSelfChat, addThreadReply]
+    [conversation, conversationId, user?.id, isSelfChat, isGroupChat, addThreadReply, updateThreadReplyStatus]
   );
 
   const recipientName = conversation?.name || 'Chat';

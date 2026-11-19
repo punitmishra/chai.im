@@ -68,6 +68,13 @@ interface ChatState {
   closeThread: () => void;
   addThreadReply: (parentMessageId: string, reply: Message) => void;
   getThreadReplies: (parentMessageId: string) => Message[];
+  // Reconcile an optimistic thread reply with its server-assigned id once the
+  // `MessageSent` ack arrives (mirrors reconcileMessage, but for the thread map).
+  reconcileThreadReply: (parentMessageId: string, localId: string, serverId: string, status: Message['status']) => void;
+  // Update the status of a single thread reply (e.g. mark a failed send).
+  updateThreadReplyStatus: (parentMessageId: string, replyId: string, status: Message['status']) => void;
+  // Set a parent message's authoritative reply count (from a server ThreadUpdate).
+  setThreadReplyCount: (parentMessageId: string, count: number) => void;
 
   // Message selection actions
   selectMessage: (messageId: string | null) => void;
@@ -222,6 +229,11 @@ export const useChatStore = create<ChatState>()(
     set((state) => {
       // Add reply to threads map
       const existingReplies = state.threads[parentMessageId] || [];
+      // Idempotency: ignore duplicate deliveries of the same reply id
+      // (reconnect re-delivery, GetThreadMessages overlap with real-time push).
+      if (existingReplies.some((r) => r.id === reply.id)) {
+        return state;
+      }
       const threads = {
         ...state.threads,
         [parentMessageId]: [...existingReplies, { ...reply, parentMessageId }],
@@ -245,6 +257,43 @@ export const useChatStore = create<ChatState>()(
   getThreadReplies: (parentMessageId) => {
     const state = get();
     return state.threads[parentMessageId] || [];
+  },
+
+  reconcileThreadReply: (parentMessageId, localId, serverId, status) => {
+    set((state) => {
+      const replies = state.threads[parentMessageId];
+      if (!replies) return state;
+      // If the server id is already present (echo/history arrived first), drop
+      // the optimistic copy; otherwise rewrite it to the server id + status.
+      const serverExists = replies.some((m) => m.id === serverId);
+      const updated = serverExists
+        ? replies.filter((m) => m.id !== localId)
+        : replies.map((m) => (m.id === localId ? { ...m, id: serverId, status } : m));
+      return { threads: { ...state.threads, [parentMessageId]: updated } };
+    });
+  },
+
+  updateThreadReplyStatus: (parentMessageId, replyId, status) => {
+    set((state) => {
+      const replies = state.threads[parentMessageId];
+      if (!replies) return state;
+      return {
+        threads: {
+          ...state.threads,
+          [parentMessageId]: replies.map((m) =>
+            m.id === replyId ? { ...m, status } : m
+          ),
+        },
+      };
+    });
+  },
+
+  setThreadReplyCount: (parentMessageId, count) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === parentMessageId ? { ...m, threadReplyCount: count } : m
+      ),
+    }));
   },
 
   // Message selection actions

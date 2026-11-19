@@ -62,6 +62,8 @@ type ClientMessage =
   | { type: 'AddReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
   | { type: 'RemoveReaction'; payload: { message_id: string; conversation_id: string; emoji: string } }
   | { type: 'MarkRead'; payload: { conversation_id: string; message_ids: string[] } }
+  | { type: 'ThreadReply'; payload: ThreadReplyPayload }
+  | { type: 'GetThreadMessages'; payload: { thread_id: string; limit: number | null; before: string | null } }
   | { type: 'SubscribePresence'; payload: { user_ids: string[] } }
   | { type: 'SetStatus'; payload: { status: UserStatus } }
   | { type: 'ReportActivity'; payload: null }
@@ -82,6 +84,9 @@ type ServerMessage =
   | { type: 'ReactionAdded'; payload: ReactionPayload }
   | { type: 'ReactionRemoved'; payload: ReactionPayload }
   | { type: 'MessageRead'; payload: { message_id: string } }
+  | { type: 'ThreadReply'; payload: IncomingThreadReply }
+  | { type: 'ThreadMessages'; payload: ThreadMessagesPayload }
+  | { type: 'ThreadUpdate'; payload: ThreadUpdatePayload }
   | { type: 'PresenceUpdate'; payload: PresenceUpdatePayload }
   | { type: 'GroupJoined'; payload: { group_id: string } }
   | { type: 'GroupLeft'; payload: { group_id: string } }
@@ -163,6 +168,51 @@ interface IncomingMessage {
   timestamp: number;
 }
 
+// ClientMessage::ThreadReply — an E2E-encrypted reply within a thread. Carries
+// the parent message id (thread_id), the bare-UUID conversation id, the 1:1
+// ciphertext and the message type (always "Normal" from this client).
+interface ThreadReplyPayload {
+  thread_id: string;
+  conversation_id: string;
+  ciphertext: number[];
+  message_type: string;
+}
+
+// ServerMessage::ThreadReply — a peer's reply pushed to thread participants.
+interface IncomingThreadReply {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  conversation_id: string;
+  ciphertext: number[];
+  message_type: string; // "Prekey" | "Normal"
+  timestamp: number;
+}
+
+// One reply within a ThreadMessages response (ThreadMessageData on the server).
+interface ThreadMessageData {
+  id: string;
+  sender_id: string;
+  ciphertext: number[];
+  message_type: string;
+  timestamp: number;
+}
+
+// ServerMessage::ThreadMessages — the paginated history for a thread.
+interface ThreadMessagesPayload {
+  thread_id: string;
+  messages: ThreadMessageData[];
+}
+
+// ServerMessage::ThreadUpdate — authoritative thread stats (reply count, etc.).
+interface ThreadUpdatePayload {
+  thread_id: string;
+  conversation_id: string;
+  reply_count: number;
+  latest_reply_at: number;
+  preview: number[] | null;
+}
+
 interface PrekeyBundleResponse {
   user_id: string;
   bundle: PrekeyBundlePayload | null;
@@ -189,6 +239,14 @@ interface PendingMessage {
   conversationId: string;
   content: string;
   localId?: string;
+}
+
+// An outstanding optimistic send awaiting a MessageSent ack. When threadParentId
+// is set, the optimistic copy lives in the chat store's thread map and is
+// reconciled there; otherwise it is a top-level 1:1 message.
+interface SentAck {
+  localId: string;
+  threadParentId?: string;
 }
 
 type MessageHandler = (message: ServerMessage) => void;
@@ -219,9 +277,12 @@ export class WebSocketClient {
   // Sender-key distributions waiting on a 1:1 prekey bundle: memberId → groups
   // whose distribution bytes must be delivered once a session is established.
   private pendingSenderKeyDist: Map<string, Map<string, Uint8Array>> = new Map();
-  // FIFO of optimistic local message ids awaiting server acknowledgement, used to
+  // FIFO of optimistic local sends awaiting server acknowledgement, used to
   // reconcile the local 'sending' copy with the server-assigned id (and status).
-  private sentMessageQueue: string[] = []; // 1:1 sends awaiting MessageSent
+  // Both 1:1 messages and 1:1 thread replies flow through here because the server
+  // acks both with ServerMessage::MessageSent (emitted in per-connection send
+  // order); `threadParentId` marks the entries that reconcile into the thread map.
+  private sentMessageQueue: SentAck[] = []; // 1:1 sends / thread replies awaiting MessageSent
   private sentGroupQueue: string[] = []; // group sends awaiting GroupMessage echo
 
   constructor(baseUrl: string) {
@@ -319,7 +380,7 @@ export class WebSocketClient {
         // The wire conversation_id must be a bare UUID (server type is
         // ConversationId(Uuid)); the local `conv_<uuid>` key is client-only.
         // For a 1:1 chat the recipient's UUID uniquely identifies the thread.
-        if (localId) this.sentMessageQueue.push(localId);
+        if (localId) this.sentMessageQueue.push({ localId });
         this.send({
           type: 'SendMessage',
           payload: {
@@ -597,6 +658,64 @@ export class WebSocketClient {
   }
 
   /**
+   * Send an E2E-encrypted reply within a thread (1:1 / self-peer conversations).
+   *
+   * Thread replies reuse the 1:1 Double Ratchet channel: the plaintext is
+   * encrypted to `recipientId` exactly like a normal message, and the server
+   * relays the opaque ciphertext to the thread participants. `thread_id` is the
+   * parent message's server id; `conversation_id` is sent as the bare UUID (same
+   * convention as SendMessage). The optimistic local copy (`localId`) is
+   * reconciled with the server-assigned id when the MessageSent ack arrives.
+   *
+   * Requires an established 1:1 session, which always exists for a conversation
+   * that already contains the parent message. Throws otherwise so the caller can
+   * surface the failure rather than silently dropping the reply.
+   */
+  async sendThreadReply(
+    parentMessageId: string,
+    conversationId: string,
+    recipientId: string,
+    content: string,
+    localId?: string
+  ): Promise<void> {
+    if (!(await hasSession(recipientId))) {
+      throw new Error('No encryption session established for thread reply recipient');
+    }
+
+    const ciphertext = await encryptMessage(recipientId, content);
+
+    if (localId) this.sentMessageQueue.push({ localId, threadParentId: parentMessageId });
+    this.send({
+      type: 'ThreadReply',
+      payload: {
+        thread_id: parentMessageId,
+        conversation_id: wireConversationId(conversationId),
+        ciphertext: Array.from(ciphertext),
+        message_type: 'Normal',
+      },
+    });
+
+    // Persist the advanced ratchet state.
+    await saveSessionToStorage(recipientId);
+  }
+
+  /**
+   * Request the existing replies for a thread. The server answers with a
+   * ServerMessage::ThreadMessages, which handleThreadMessages decrypts and merges
+   * into the store. Safe to call each time a thread is opened.
+   */
+  getThreadMessages(threadId: string, limit?: number, before?: string): void {
+    this.send({
+      type: 'GetThreadMessages',
+      payload: {
+        thread_id: threadId,
+        limit: limit ?? null,
+        before: before ?? null,
+      },
+    });
+  }
+
+  /**
    * Subscribe to presence updates for specific users.
    */
   subscribePresence(userIds: string[]): void {
@@ -779,6 +898,15 @@ export class WebSocketClient {
       case 'MessageRead':
         this.handleMessageRead(message.payload as { message_id: string });
         break;
+      case 'ThreadReply':
+        void this.handleIncomingThreadReply(message.payload as IncomingThreadReply);
+        break;
+      case 'ThreadMessages':
+        void this.handleThreadMessages(message.payload as ThreadMessagesPayload);
+        break;
+      case 'ThreadUpdate':
+        this.handleThreadUpdate(message.payload as ThreadUpdatePayload);
+        break;
       case 'PresenceUpdate':
         this.handlePresenceUpdate(message.payload as PresenceUpdatePayload);
         break;
@@ -952,12 +1080,122 @@ export class WebSocketClient {
     }
   }
 
+  /**
+   * A peer sent a reply in a thread. Decrypt it over the 1:1 channel and add it
+   * to the thread map keyed by the parent message id (thread_id). The reply is
+   * mapped to the local conversation keyed by the sender (same convention as
+   * handleIncomingMessage); the parent message lives in that same conversation.
+   */
+  private async handleIncomingThreadReply(payload: IncomingThreadReply): Promise<void> {
+    const selfId = useAuthStore.getState().user?.id;
+
+    // The server never echoes our own reply back to us (we reconcile it via the
+    // MessageSent ack), so a received ThreadReply is always from the peer. Guard
+    // against a stray self-echo to avoid a duplicate / decrypt-of-own-ciphertext.
+    if (selfId && payload.sender_id === selfId) {
+      return;
+    }
+
+    let content = '[Encrypted]';
+    let decryptOk = true;
+    try {
+      const ciphertext = new Uint8Array(payload.ciphertext);
+      content =
+        payload.message_type === 'Prekey'
+          ? await decryptPrekeyMessage(payload.sender_id, ciphertext)
+          : await decryptMessage(payload.sender_id, ciphertext);
+      await saveSessionToStorage(payload.sender_id);
+    } catch (error) {
+      logger.crypto.decryptionFailed(error);
+      content = '[Failed to decrypt]';
+      decryptOk = false;
+    }
+
+    useChatStore.getState().addThreadReply(payload.thread_id, {
+      id: payload.id,
+      conversationId: `conv_${payload.sender_id}`,
+      senderId: payload.sender_id,
+      content,
+      timestamp: payload.timestamp,
+      status: decryptOk ? 'delivered' : 'failed',
+      parentMessageId: payload.thread_id,
+    });
+
+    // Ack on success so the reply is marked delivered and not re-delivered as a
+    // top-level Message on reconnect (thread replies are stored as messages
+    // server-side). A failed decrypt is left un-acked so the ciphertext survives.
+    if (decryptOk) {
+      this.ackMessages([payload.id]);
+    }
+  }
+
+  /**
+   * Response to getThreadMessages: decrypt and merge a thread's history.
+   *
+   * Only messages not already present locally are decrypted. Our own replies are
+   * skipped — the Double Ratchet cannot decrypt our outgoing ciphertext, and a
+   * reply we sent is already stored locally. An undecryptable peer message (e.g.
+   * the ratchet has advanced past it) is skipped rather than shown as failed, so
+   * reopening a thread never clobbers what is already there.
+   */
+  private async handleThreadMessages(payload: ThreadMessagesPayload): Promise<void> {
+    const selfId = useAuthStore.getState().user?.id;
+    const store = useChatStore.getState();
+    const existingIds = new Set(store.getThreadReplies(payload.thread_id).map((m) => m.id));
+
+    for (const msg of payload.messages) {
+      if (existingIds.has(msg.id)) continue;
+      if (selfId && msg.sender_id === selfId) continue;
+
+      let content: string;
+      try {
+        const ciphertext = new Uint8Array(msg.ciphertext);
+        content =
+          msg.message_type === 'Prekey'
+            ? await decryptPrekeyMessage(msg.sender_id, ciphertext)
+            : await decryptMessage(msg.sender_id, ciphertext);
+        await saveSessionToStorage(msg.sender_id);
+      } catch (error) {
+        logger.crypto.decryptionFailed(error);
+        continue;
+      }
+
+      store.addThreadReply(payload.thread_id, {
+        id: msg.id,
+        conversationId: `conv_${msg.sender_id}`,
+        senderId: msg.sender_id,
+        content,
+        timestamp: msg.timestamp,
+        status: 'delivered',
+        parentMessageId: payload.thread_id,
+      });
+      existingIds.add(msg.id);
+    }
+  }
+
+  /**
+   * Authoritative thread stats from the server. Optimistic/real-time adds may
+   * have already bumped the parent's reply count; set it to the server value so
+   * the count never drifts. (The encrypted preview is intentionally ignored.)
+   */
+  private handleThreadUpdate(payload: ThreadUpdatePayload): void {
+    useChatStore.getState().setThreadReplyCount(payload.thread_id, payload.reply_count);
+  }
+
   private handleMessageSent(payload: { message_id: string }): void {
-    // Acks arrive in send order; reconcile the oldest outstanding optimistic id
-    // with the server-assigned id so the local 'sending' copy clears.
-    const localId = this.sentMessageQueue.shift();
-    if (localId) {
-      useChatStore.getState().reconcileMessage(localId, payload.message_id, 'sent');
+    // Acks arrive in send order; reconcile the oldest outstanding optimistic send
+    // with the server-assigned id so the local 'sending' copy clears. Thread
+    // replies live in the thread map and reconcile there; plain 1:1 messages in
+    // the top-level message list.
+    const pending = this.sentMessageQueue.shift();
+    if (pending) {
+      if (pending.threadParentId) {
+        useChatStore
+          .getState()
+          .reconcileThreadReply(pending.threadParentId, pending.localId, payload.message_id, 'sent');
+      } else {
+        useChatStore.getState().reconcileMessage(pending.localId, payload.message_id, 'sent');
+      }
     } else {
       useChatStore.getState().updateMessageStatus(payload.message_id, 'sent');
     }
@@ -1007,7 +1245,7 @@ export class WebSocketClient {
 
       // Send as Prekey message type. conversation_id must be a bare UUID (the
       // recipient's id); track the optimistic local id for reconciliation.
-      if (pending.localId) this.sentMessageQueue.push(pending.localId);
+      if (pending.localId) this.sentMessageQueue.push({ localId: pending.localId });
       this.send({
         type: 'SendMessage',
         payload: {
