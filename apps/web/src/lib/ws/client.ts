@@ -311,6 +311,9 @@ export class WebSocketClient {
       // Include token as query parameter
       const url = `${this.baseUrl}?token=${encodeURIComponent(token)}`;
       this.ws = new WebSocket(url);
+      // The server sends JSON payloads as BINARY frames; receive them as
+      // ArrayBuffer (default 'blob' would break JSON.parse).
+      this.ws.binaryType = 'arraybuffer';
       this.setupEventListeners();
     } catch (error) {
       logger.ws.error(error);
@@ -850,7 +853,13 @@ export class WebSocketClient {
 
     this.ws.onmessage = (event) => {
       try {
-        const message: ServerMessage = JSON.parse(event.data);
+        // Frames may arrive as a string (text frame) or ArrayBuffer (binary
+        // frame — the server sends JSON bytes as binary). Decode either to text.
+        const raw: string =
+          typeof event.data === 'string'
+            ? event.data
+            : new TextDecoder().decode(event.data as ArrayBuffer);
+        const message: ServerMessage = JSON.parse(raw);
         logger.ws.messageReceived(message.type);
         this.handleMessage(message);
       } catch (error) {
