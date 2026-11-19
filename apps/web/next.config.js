@@ -2,6 +2,29 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // Deterministic build id. The hash-based CSP (see src/middleware.ts) depends
+  // on the SHA-256 of Next's inline bootstrap scripts, which embed the build id.
+  // A random per-build id (Next's default) makes those hashes change on every
+  // build, which would break the two-pass "build -> extract hashes -> rebuild"
+  // flow. Deriving the id from the git commit (or an explicit env override)
+  // keeps it stable within a single build/deploy while still rotating across
+  // deploys so client-side navigation data is correctly cache-busted.
+  generateBuildId: async () => {
+    if (process.env.NEXT_BUILD_ID) return process.env.NEXT_BUILD_ID;
+    try {
+      const { execFileSync } = require('child_process');
+      return execFileSync('git', ['rev-parse', 'HEAD'], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+        .toString()
+        .trim();
+    } catch {
+      // No git available (e.g. some CI/container builds): fall back to a stable
+      // constant so the two build passes still agree.
+      return 'chai-static-buildid';
+    }
+  },
+
   // Use Turbopack (Next.js 16+)
   turbopack: {},
 
@@ -32,32 +55,12 @@ const nextConfig = {
   },
 
   // Security headers (host-agnostic — applied by Next.js regardless of deploy target)
+  //
+  // NOTE: The Content-Security-Policy is intentionally NOT set here. It is now
+  // generated per-request (with a fresh nonce) in `src/middleware.ts` so that
+  // production can use a nonce + 'strict-dynamic' script-src instead of
+  // 'unsafe-inline'. All the non-CSP security headers remain below.
   async headers() {
-    // Content Security Policy. 'unsafe-inline'/'wasm-unsafe-eval' are required
-    // for Next.js hydration bootstrap and the Signal-Protocol WASM module until
-    // nonce-based CSP middleware is introduced (tracked as a follow-up).
-    const isDev = process.env.NODE_ENV !== 'production';
-    // In development the backend is served over http/ws (localhost), so allow it
-    // and don't force-upgrade requests; production stays https/wss only.
-    const connectSrc = isDev
-      ? "connect-src 'self' https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*"
-      : "connect-src 'self' https: wss:";
-    const csp = [
-      "default-src 'self'",
-      // React's dev build uses eval() for debugging (never in production).
-      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self' data:",
-      connectSrc,
-      "worker-src 'self' blob:",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "frame-ancestors 'none'",
-      ...(isDev ? [] : ['upgrade-insecure-requests']),
-    ].join('; ');
-
     return [
       {
         source: '/(.*)',
@@ -75,10 +78,6 @@ const nextConfig = {
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
-          },
-          {
-            key: 'Content-Security-Policy',
-            value: csp,
           },
           {
             key: 'X-Frame-Options',
