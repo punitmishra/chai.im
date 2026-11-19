@@ -7,7 +7,8 @@ use crate::ws::presence::broadcast_presence_update;
 use anyhow::Result;
 use chai_common::UserId;
 use chai_protocol::{
-    ClientMessage, MessageType, PrekeyBundleData, ServerMessage, ThreadMessageData, UserStatus,
+    ClientMessage, MessageType, PrekeyBundleData, SenderKeyDistributionEntry, ServerMessage,
+    ThreadMessageData, UserStatus,
 };
 use uuid::Uuid;
 
@@ -132,8 +133,20 @@ pub async fn handle_message(state: &AppState, sender_id: UserId, data: &[u8]) ->
             handle_report_activity(state, sender_id).await?;
         }
 
-        ClientMessage::SendGroupMessage { group_id, content } => {
-            handle_send_group_message(state, sender_id, group_id, content).await?;
+        ClientMessage::SendGroupMessage {
+            group_id,
+            ciphertext,
+            sender_key_id,
+        } => {
+            handle_send_group_message(state, sender_id, group_id, ciphertext, sender_key_id)
+                .await?;
+        }
+
+        ClientMessage::DistributeSenderKey {
+            group_id,
+            distributions,
+        } => {
+            handle_distribute_sender_key(state, sender_id, group_id, distributions).await?;
         }
 
         ClientMessage::JoinGroup { group_id } => {
@@ -758,12 +771,14 @@ async fn handle_get_thread_messages(
 // Group message handlers
 // ============================================================================
 
-/// Handle a group message: verify membership, store, fan-out to online members.
+/// Handle an E2E-encrypted group message: verify membership, store the opaque
+/// ciphertext, fan-out to online members. The server never sees plaintext.
 async fn handle_send_group_message(
     state: &AppState,
     sender_id: UserId,
     group_id: String,
-    content: String,
+    ciphertext: Vec<u8>,
+    sender_key_id: u32,
 ) -> Result<()> {
     let group_uuid = Uuid::parse_str(&group_id).map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
 
@@ -779,13 +794,13 @@ async fn handle_send_group_message(
 
     let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
 
-    // Store message in group_messages table (plaintext for now, sender_key_id=0)
+    // Store the opaque Sender Keys ciphertext (the server cannot decrypt it).
     let stored_msg = groups::store_message(
         &state.db,
         group_uuid,
         Uuid::from(sender_id),
-        content.as_bytes(),
-        0,    // sender_key_id (no encryption yet)
+        &ciphertext,
+        sender_key_id as i32,
         2,    // message_type: Normal
         None, // reply_to_id
     )
@@ -797,7 +812,8 @@ async fn handle_send_group_message(
         group_id: group_id.clone(),
         sender_id,
         sender_username: sender_user.username.clone(),
-        content,
+        ciphertext,
+        sender_key_id,
         timestamp,
     };
 
@@ -834,6 +850,60 @@ async fn handle_send_group_message(
         sender_id,
         group_id,
         members.len()
+    );
+
+    Ok(())
+}
+
+/// Relay group sender-key distribution messages to their recipients.
+///
+/// Each entry is a sender-key distribution message already encrypted to a member
+/// over the pairwise 1:1 channel; the server cannot read it and only relays it to
+/// the (online) recipient. Offline recipients are skipped: they receive a fresh
+/// distribution the next time the sender is online while they are (see the PR's
+/// offline-distribution follow-up note).
+async fn handle_distribute_sender_key(
+    state: &AppState,
+    sender_id: UserId,
+    group_id: String,
+    distributions: Vec<SenderKeyDistributionEntry>,
+) -> Result<()> {
+    let group_uuid = Uuid::parse_str(&group_id).map_err(|_| anyhow::anyhow!("Invalid group ID"))?;
+
+    // Verify sender is a member of the group.
+    groups::get_member(&state.db, group_uuid, Uuid::from(sender_id))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Not a member of this group"))?;
+
+    let connections = &state.connections;
+    let mut relayed = 0usize;
+
+    for entry in distributions {
+        // Don't echo a distribution back to its own sender.
+        if entry.recipient_id == sender_id {
+            continue;
+        }
+
+        let server_message = ServerMessage::SenderKeyDistributionReceived {
+            group_id: group_id.clone(),
+            from_user: sender_id,
+            ciphertext: entry.ciphertext,
+        };
+        let data = chai_protocol::json::encode_server_message(&server_message)?;
+        let outgoing = OutgoingMessage {
+            data: data.into_bytes().into(),
+        };
+        connections
+            .send_to_user(&entry.recipient_id, outgoing)
+            .await;
+        relayed += 1;
+    }
+
+    tracing::debug!(
+        "User {:?} distributed sender keys to {} recipients in group {}",
+        sender_id,
+        relayed,
+        group_id
     );
 
     Ok(())

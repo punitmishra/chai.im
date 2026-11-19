@@ -100,8 +100,21 @@ pub enum ClientMessage {
         before: Option<MessageId>,
     },
 
-    /// Send a message to a group.
-    SendGroupMessage { group_id: String, content: String },
+    /// Send an end-to-end encrypted message to a group (Sender Keys).
+    /// `ciphertext` is an opaque `SenderKeyMessage`; the server only relays it.
+    SendGroupMessage {
+        group_id: String,
+        ciphertext: Vec<u8>,
+        sender_key_id: u32,
+    },
+
+    /// Distribute our group sender key to other members. Each entry carries the
+    /// sender-key distribution message encrypted to that member over the pairwise
+    /// 1:1 channel; the server relays each to the respective recipient.
+    DistributeSenderKey {
+        group_id: String,
+        distributions: Vec<SenderKeyDistributionEntry>,
+    },
 
     /// Subscribe to real-time updates for a group.
     JoinGroup { group_id: String },
@@ -212,14 +225,24 @@ pub enum ServerMessage {
         timestamp: i64,
     },
 
-    /// Incoming group message.
+    /// Incoming end-to-end encrypted group message (Sender Keys).
+    /// `ciphertext` is an opaque `SenderKeyMessage` decrypted client-side.
     GroupMessage {
         id: String,
         group_id: String,
         sender_id: UserId,
         sender_username: String,
-        content: String,
+        ciphertext: Vec<u8>,
+        sender_key_id: u32,
         timestamp: i64,
+    },
+
+    /// A group member's sender-key distribution message addressed to us,
+    /// encrypted over the pairwise 1:1 channel.
+    SenderKeyDistributionReceived {
+        group_id: String,
+        from_user: UserId,
+        ciphertext: Vec<u8>,
     },
 
     /// Confirmation that user is subscribed to group updates.
@@ -245,6 +268,14 @@ pub enum ServerMessage {
         username: String,
         is_typing: bool,
     },
+}
+
+/// One recipient's copy of a group sender-key distribution message, encrypted to
+/// that member over the pairwise 1:1 channel.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SenderKeyDistributionEntry {
+    pub recipient_id: UserId,
+    pub ciphertext: Vec<u8>,
 }
 
 /// Data for a message within a thread.
