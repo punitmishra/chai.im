@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { searchUsers, type UserSearchResult } from '@/lib/api/users';
 import { useGroupStore } from '@/store/groupStore';
+import { getWebSocketClient } from '@/lib/ws/client';
 import { Modal, Input, Button, Avatar } from '@/components/ui';
 
 interface AddMemberDialogProps {
@@ -72,6 +73,11 @@ export function AddMemberDialog({
     try {
       await addMember(groupId, user.id);
       setResults((prev) => prev.filter((u) => u.id !== user.id));
+      // Give the new member our group sender key so they can decrypt our group
+      // messages (E2E group encryption, Sender Keys).
+      getWebSocketClient()
+        .distributeSenderKey(groupId, [user.id])
+        .catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to add member');
     } finally {

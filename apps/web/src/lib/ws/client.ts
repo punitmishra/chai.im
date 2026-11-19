@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePresenceStore, UserStatus } from '@/store/presenceStore';
 import { toast } from '@/store/toastStore';
 import {
+  initCrypto,
   decryptMessage,
   decryptPrekeyMessage,
   initSessionAndEncrypt,
@@ -17,6 +18,10 @@ import {
   hasSession,
   generatePrekeyBundle,
   generateOneTimePrekeys,
+  createGroupSenderKey,
+  processGroupSenderKey,
+  groupEncryptMessage,
+  groupDecryptMessage,
 } from '@/lib/crypto/wasm';
 import { WS_URL, RECONNECT_DELAYS, PING_INTERVAL_MS, LOW_PREKEY_THRESHOLD, PREKEY_REPLENISH_COUNT, ACTIVITY_REPORT_INTERVAL_MS } from '@/lib/config';
 import logger from '@/lib/logger';
@@ -44,7 +49,8 @@ interface OneTimePrekeyPayload {
 type ClientMessage =
   | { type: 'Ping'; payload: null }
   | { type: 'SendMessage'; payload: SendMessagePayload }
-  | { type: 'SendGroupMessage'; payload: GroupMessagePayload }
+  | { type: 'SendGroupMessage'; payload: SendGroupMessagePayload }
+  | { type: 'DistributeSenderKey'; payload: DistributeSenderKeyPayload }
   | { type: 'GetPrekeyBundle'; payload: { user_id: string } }
   | { type: 'AckMessages'; payload: { message_ids: string[] } }
   | { type: 'UploadPrekeyBundle'; payload: { bundle: PrekeyBundlePayload } }
@@ -66,6 +72,7 @@ type ServerMessage =
   | { type: 'Pong'; payload: null }
   | { type: 'Message'; payload: IncomingMessage }
   | { type: 'GroupMessage'; payload: IncomingGroupMessage }
+  | { type: 'SenderKeyDistributionReceived'; payload: SenderKeyDistributionReceivedPayload }
   | { type: 'MessageSent'; payload: { message_id: string } }
   | { type: 'PrekeyBundle'; payload: PrekeyBundleResponse }
   | { type: 'LowPrekeys'; payload: { remaining: number } }
@@ -94,9 +101,27 @@ interface SendMessagePayload {
   message_type: string; // "Prekey" | "Normal" — must be string for serde
 }
 
-interface GroupMessagePayload {
+interface SendGroupMessagePayload {
   group_id: string;
-  content: string;
+  ciphertext: number[];
+  sender_key_id: number;
+}
+
+// One recipient's encrypted copy of our sender-key distribution message.
+interface SenderKeyDistributionEntry {
+  recipient_id: string;
+  ciphertext: number[];
+}
+
+interface DistributeSenderKeyPayload {
+  group_id: string;
+  distributions: SenderKeyDistributionEntry[];
+}
+
+interface SenderKeyDistributionReceivedPayload {
+  group_id: string;
+  from_user: string;
+  ciphertext: number[];
 }
 
 interface IncomingGroupMessage {
@@ -104,7 +129,8 @@ interface IncomingGroupMessage {
   group_id: string;
   sender_id: string;
   sender_username: string;
-  content: string;
+  ciphertext: number[];
+  sender_key_id: number;
   timestamp: number;
 }
 
@@ -190,6 +216,9 @@ export class WebSocketClient {
   private lastActivityTime: number = Date.now();
   private activityListenersAttached = false;
   private pendingMessages: Map<string, PendingMessage> = new Map(); // recipientId → pending msg
+  // Sender-key distributions waiting on a 1:1 prekey bundle: memberId → groups
+  // whose distribution bytes must be delivered once a session is established.
+  private pendingSenderKeyDist: Map<string, Map<string, Uint8Array>> = new Map();
   // FIFO of optimistic local message ids awaiting server acknowledgement, used to
   // reconcile the local 'sending' copy with the server-assigned id (and status).
   private sentMessageQueue: string[] = []; // 1:1 sends awaiting MessageSent
@@ -316,17 +345,82 @@ export class WebSocketClient {
   }
 
   /**
-   * Send a group message (plaintext for now, Sender Keys encryption planned).
+   * Send an end-to-end encrypted group message (Sender Keys).
+   *
+   * The plaintext is encrypted with our group sender key into an opaque
+   * `SenderKeyMessage`; the server only relays the ciphertext. The
+   * `sender_key_id` the recipients need to select our record is carried in the
+   * ciphertext itself (first 4 bytes, little-endian), so we decode it here
+   * rather than tracking extra state.
    */
-  sendGroupMessage(groupId: string, content: string, localId?: string): void {
+  async sendGroupMessage(groupId: string, content: string, localId?: string): Promise<void> {
+    // Ensure our sender key exists (idempotent) so the very first send works even
+    // if distribution has not completed yet.
+    await createGroupSenderKey(groupId);
+
+    const ciphertext = await groupEncryptMessage(groupId, content);
+    const senderKeyId = readSenderKeyId(ciphertext);
+
     if (localId) this.sentGroupQueue.push(localId);
     this.send({
       type: 'SendGroupMessage',
       payload: {
         group_id: groupId,
-        content,
+        ciphertext: Array.from(ciphertext),
+        sender_key_id: senderKeyId,
       },
     });
+  }
+
+  /**
+   * Ensure our group sender key exists and distribute it to the given members
+   * over their pairwise 1:1 channels. For members with an established session we
+   * encrypt the distribution immediately; for members without one we request a
+   * prekey bundle and send the distribution once the session is established
+   * (see handlePrekeyBundle). `memberIds` may include ourselves — we skip it.
+   */
+  async distributeSenderKey(groupId: string, memberIds: string[]): Promise<void> {
+    const selfId = useAuthStore.getState().user?.id;
+    const others = memberIds.filter((id) => id && id !== selfId);
+    if (others.length === 0) return;
+
+    try {
+      const distBytes = await createGroupSenderKey(groupId);
+      const crypto = await initCrypto();
+      const entries: SenderKeyDistributionEntry[] = [];
+
+      for (const memberId of others) {
+        try {
+          if (await hasSession(memberId)) {
+            // Existing 1:1 session → encrypt distribution as a Normal message.
+            const ct = crypto.encrypt(memberId, distBytes);
+            entries.push({ recipient_id: memberId, ciphertext: Array.from(ct) });
+            await saveSessionToStorage(memberId);
+          } else {
+            // No session yet → fetch the member's prekey bundle; the distribution
+            // is sent as a Prekey message once the bundle arrives.
+            let groups = this.pendingSenderKeyDist.get(memberId);
+            if (!groups) {
+              groups = new Map();
+              this.pendingSenderKeyDist.set(memberId, groups);
+            }
+            groups.set(groupId, distBytes);
+            this.requestPrekeyBundle(memberId);
+          }
+        } catch (error) {
+          logger.error(`Failed to prepare sender-key distribution for ${memberId}`, error);
+        }
+      }
+
+      if (entries.length > 0) {
+        this.send({
+          type: 'DistributeSenderKey',
+          payload: { group_id: groupId, distributions: entries },
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to distribute group sender key', error);
+    }
   }
 
   /**
@@ -689,7 +783,12 @@ export class WebSocketClient {
         this.handlePresenceUpdate(message.payload as PresenceUpdatePayload);
         break;
       case 'GroupMessage':
-        this.handleGroupMessage(message.payload as IncomingGroupMessage);
+        void this.handleGroupMessage(message.payload as IncomingGroupMessage);
+        break;
+      case 'SenderKeyDistributionReceived':
+        void this.handleSenderKeyDistributionReceived(
+          message.payload as SenderKeyDistributionReceivedPayload
+        );
         break;
       case 'GroupTypingIndicator':
         this.handleGroupTypingIndicator(message.payload as GroupTypingIndicatorPayload);
@@ -697,12 +796,12 @@ export class WebSocketClient {
     }
   }
 
-  private handleGroupMessage(payload: IncomingGroupMessage): void {
+  private async handleGroupMessage(payload: IncomingGroupMessage): Promise<void> {
     const conversationId = `group_${payload.group_id}`;
     const selfId = useAuthStore.getState().user?.id;
 
     // Server echoes our own group message back. Reconcile it with the optimistic
-    // copy instead of rendering a duplicate.
+    // (already-plaintext) copy instead of re-decrypting / rendering a duplicate.
     if (selfId && payload.sender_id === selfId) {
       const localId = this.sentGroupQueue.shift();
       if (localId) {
@@ -714,11 +813,22 @@ export class WebSocketClient {
       }
     }
 
+    // Decrypt the opaque Sender Keys ciphertext with the sender's installed key.
+    // If we have not yet received that sender's key distribution, show a
+    // placeholder rather than crashing; it resolves once the key arrives.
+    let content = '[Encrypted]';
+    try {
+      const ciphertext = new Uint8Array(payload.ciphertext);
+      content = await groupDecryptMessage(payload.group_id, payload.sender_id, ciphertext);
+    } catch (error) {
+      logger.crypto.decryptionFailed(error);
+    }
+
     const message: Message = {
       id: payload.id,
       conversationId,
       senderId: payload.sender_id,
-      content: payload.content,
+      content,
       timestamp: payload.timestamp,
       status: 'delivered',
       senderName: payload.sender_username,
@@ -733,6 +843,36 @@ export class WebSocketClient {
       } catch (error) {
         logger.error('Group message handler error', error);
       }
+    }
+  }
+
+  /**
+   * A group member sent us their sender-key distribution over the 1:1 channel.
+   * Decrypt it and install the key so we can decrypt that member's group
+   * messages. The distribution is a Normal message when a session already exists
+   * and a Prekey message otherwise.
+   */
+  private async handleSenderKeyDistributionReceived(
+    payload: SenderKeyDistributionReceivedPayload
+  ): Promise<void> {
+    try {
+      const crypto = await initCrypto();
+      const ciphertext = new Uint8Array(payload.ciphertext);
+
+      // Choose decryption path by whether we already share a 1:1 session. We do
+      // NOT fall back to the Prekey path when a session exists: that would
+      // re-establish (and clobber) a healthy 1:1 session.
+      const distBytes = (await hasSession(payload.from_user))
+        ? crypto.decrypt(payload.from_user, ciphertext)
+        : crypto.decryptPrekey(payload.from_user, ciphertext);
+
+      await saveSessionToStorage(payload.from_user);
+      await processGroupSenderKey(payload.group_id, payload.from_user, distBytes);
+      logger.info(
+        `Installed sender key from ${payload.from_user} for group ${payload.group_id}`
+      );
+    } catch (error) {
+      logger.error('Failed to process sender-key distribution', error);
     }
   }
 
@@ -837,15 +977,23 @@ export class WebSocketClient {
       // [has_otp(1)] [otp(32)?] [otp_id(4-LE)?]
       const bundleBytes = assembleBundleBytes(payload.bundle);
 
-      // Check if there's a pending message for this user
+      // Check if there's a pending message or sender-key distribution for this user
       const pending = this.pendingMessages.get(payload.user_id);
+      const hasPendingDist = this.pendingSenderKeyDist.has(payload.user_id);
 
-      if (!pending) {
+      if (!pending && !hasPendingDist) {
         // Nothing to send. We deliberately do NOT establish a session here:
         // initSessionAndEncrypt consumes a one-time prekey, so eagerly "pre-warming"
         // a session with no message to send would burn the peer's OTK and discard
         // the resulting handshake. Sessions are established lazily on first send.
         logger.info(`Prekey bundle for ${payload.user_id} received with no pending message; skipping (lazy session init)`);
+        return;
+      }
+
+      // If there is no pending 1:1 text message, go straight to flushing any
+      // pending sender-key distribution(s) for this user.
+      if (!pending) {
+        await this.flushPendingSenderKeyDist(payload.user_id, bundleBytes);
         return;
       }
 
@@ -884,10 +1032,52 @@ export class WebSocketClient {
       }
 
       logger.ws.sessionInitialized(payload.user_id);
+
+      // A session now exists; flush any sender-key distribution queued for this
+      // peer (it will be sent as a Normal message over the fresh session).
+      if (this.pendingSenderKeyDist.has(payload.user_id)) {
+        await this.flushPendingSenderKeyDist(payload.user_id, bundleBytes);
+      }
     } catch (error) {
       logger.error('Failed to initialize session', error);
       this.pendingMessages.delete(payload.user_id);
       toast.error('Failed to establish secure session');
+    }
+  }
+
+  /**
+   * Send any sender-key distribution(s) queued for a peer once a 1:1 session can
+   * be established. Uses the existing session when present (Normal message),
+   * otherwise bootstraps one from the prekey bundle (Prekey message).
+   */
+  private async flushPendingSenderKeyDist(
+    memberId: string,
+    bundleBytes: Uint8Array
+  ): Promise<void> {
+    const groups = this.pendingSenderKeyDist.get(memberId);
+    if (!groups) return;
+    this.pendingSenderKeyDist.delete(memberId);
+
+    const crypto = await initCrypto();
+
+    for (const [groupId, distBytes] of groups) {
+      try {
+        const ct = (await hasSession(memberId))
+          ? crypto.encrypt(memberId, distBytes) // Normal (existing session)
+          : crypto.initSessionAndEncrypt(memberId, bundleBytes, distBytes); // Prekey
+        await saveSessionToStorage(memberId);
+
+        this.send({
+          type: 'DistributeSenderKey',
+          payload: {
+            group_id: groupId,
+            distributions: [{ recipient_id: memberId, ciphertext: Array.from(ct) }],
+          },
+        });
+        logger.info(`Sent sender-key distribution to ${memberId} for group ${groupId}`);
+      } catch (error) {
+        logger.error(`Failed to send sender-key distribution to ${memberId}`, error);
+      }
     }
   }
 
@@ -1139,6 +1329,18 @@ export class WebSocketClient {
 }
 
 // --- Helper functions for byte parsing ---
+
+/**
+ * Read the `key_id` from an encrypted group message (`SenderKeyMessage`). The
+ * bincode layout begins with `key_id: u32` serialized little-endian, so it is the
+ * first four bytes — letting us report `sender_key_id` on the wire without
+ * tracking extra client state or round-tripping through WASM.
+ */
+function readSenderKeyId(ciphertext: Uint8Array): number {
+  if (ciphertext.length < 4) return 0;
+  const view = new DataView(ciphertext.buffer, ciphertext.byteOffset, 4);
+  return view.getUint32(0, true);
+}
 
 /**
  * Assemble prekey bundle bytes in WASM-expected format from server JSON.
