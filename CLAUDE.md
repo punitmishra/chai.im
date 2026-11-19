@@ -231,15 +231,24 @@ fly secrets set JWT_SECRET=... RP_ID=... RP_ORIGIN=... -a chai-server
 
 ### Frontend (host-agnostic)
 
-Vercel was removed. The Next.js frontend is a standard `next build` output and can be
-deployed to any Node/Next-capable host (Fly.io, Cloudflare, Netlify, self-hosted, etc.).
-Security headers are defined in `apps/web/next.config.js` (`headers()`), so they apply
-regardless of host — no platform-specific config file is needed.
+Vercel was removed. The Next.js frontend can be deployed to any Node/Next-capable host
+(Fly.io, Cloudflare, Netlify, self-hosted, etc.). Non-CSP security headers (HSTS,
+COOP/COEP, X-Frame-Options, Referrer-Policy, Permissions-Policy) are defined in
+`apps/web/next.config.js` (`headers()`); the Content-Security-Policy is set per-request
+in `apps/web/src/middleware.ts` (hash-based for static pages, nonce for the dynamic
+route). So they apply regardless of host — no platform-specific config file is needed.
 
 Build the frontend with:
 ```bash
-pnpm turbo build --filter=@chai/web
+pnpm turbo build --filter=@chai/web   # or, inside apps/web: pnpm build
 ```
+
+> ⚠️ **Deploy must use the `build` script, not a bare `next build`.** The strict CSP
+> embeds SHA-256 hashes of Next's inline bootstrap scripts, so `apps/web`'s `build`
+> runs a **two-pass** build (`next build` → `scripts/generate-csp-hashes.mjs` → `next
+> build`) and pins `generateBuildId` for hash determinism. A bare `next build` serves
+> **stale CSP hashes and breaks the statically-prerendered pages** (landing/auth/`/chat`)
+> in production. If you upgrade Next.js, re-verify the inline-script hashes still match.
 
 Environment variables required at build/runtime:
 - `NEXT_PUBLIC_API_URL=https://chai-server.fly.dev`
