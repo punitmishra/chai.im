@@ -564,10 +564,14 @@ fn extract_recipient_from_conversation(
     _sender_id: UserId,
     conversation_id: chai_common::ConversationId,
 ) -> UserId {
-    // The conversation ID is a UUID that may be derived from both user IDs
-    // For simplicity, we'll use a convention where the conversation includes both users
-    // In a real implementation, we'd look up conversation participants from DB
-    // For now, return the conversation_id as a user_id (works for simple cases)
+    // Convention (see the web client's `wireConversationId`): for a 1:1 chat the
+    // wire conversation_id IS the peer's user id, so it is also the recipient of
+    // reactions / read-receipts / mark-read. This is correct for 1:1.
+    //
+    // NOTE: group reactions/receipts are not yet fanned out — for a group the
+    // conversation_id is the group's UUID, which is not a real user, so the event
+    // is delivered to no one (a no-op) rather than misrouted. Group reaction
+    // fan-out (like group message fan-out) is a follow-up.
     UserId::from(conversation_id.0)
 }
 

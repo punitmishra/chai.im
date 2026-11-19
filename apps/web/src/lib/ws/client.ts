@@ -142,6 +142,21 @@ interface PrekeyBundleResponse {
   bundle: PrekeyBundlePayload | null;
 }
 
+/**
+ * Translate a local conversation id to the bare UUID the server's wire protocol
+ * expects (`ConversationId(Uuid)`). Local ids are prefixed (`conv_<peerUuid>`,
+ * `group_<groupUuid>`, `self_<userUuid>`); the server rejects the prefixed string,
+ * so reactions / read-receipts must send the stripped UUID (for a 1:1 chat that is
+ * the peer's id, which is exactly how the server routes the event).
+ */
+function wireConversationId(conversationId: string): string {
+  const underscore = conversationId.indexOf('_');
+  if (underscore > 0 && /^(conv|group|self)_/.test(conversationId)) {
+    return conversationId.slice(underscore + 1);
+  }
+  return conversationId;
+}
+
 // Pending message waiting for prekey bundle
 interface PendingMessage {
   recipientId: string;
@@ -462,7 +477,7 @@ export class WebSocketClient {
   addReaction(messageId: string, conversationId: string, emoji: string): void {
     this.send({
       type: 'AddReaction',
-      payload: { message_id: messageId, conversation_id: conversationId, emoji },
+      payload: { message_id: messageId, conversation_id: wireConversationId(conversationId), emoji },
     });
   }
 
@@ -472,7 +487,7 @@ export class WebSocketClient {
   removeReaction(messageId: string, conversationId: string, emoji: string): void {
     this.send({
       type: 'RemoveReaction',
-      payload: { message_id: messageId, conversation_id: conversationId, emoji },
+      payload: { message_id: messageId, conversation_id: wireConversationId(conversationId), emoji },
     });
   }
 
@@ -483,7 +498,7 @@ export class WebSocketClient {
     if (messageIds.length === 0) return;
     this.send({
       type: 'MarkRead',
-      payload: { conversation_id: conversationId, message_ids: messageIds },
+      payload: { conversation_id: wireConversationId(conversationId), message_ids: messageIds },
     });
   }
 
